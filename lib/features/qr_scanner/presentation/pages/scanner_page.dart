@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../main.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../social_service_claim/presentation/pages/verify_page.dart';
 import '../../data/datasources/mobile_scanner_datasource.dart';
 import '../bloc/scanner_bloc.dart';
@@ -90,6 +92,11 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver, 
                     padding: const EdgeInsets.all(16),
                     child: InfoBanner(
                       icon: Icons.qr_code_scanner,
+                      trailing: IconButton(
+                        icon: const Icon(Icons.logout, color: Colors.white),
+                        tooltip: 'Log out',
+                        onPressed: () => context.read<AuthBloc>().add(const LogoutRequested()),
+                      ),
                       child: const Text('Scan QR to Fetch ID', style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
