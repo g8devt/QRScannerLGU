@@ -3,11 +3,11 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 /// Thin wrapper around [MobileScannerController] — the only place in this
 /// feature that talks to the `mobile_scanner` plugin directly.
 class MobileScannerDatasource {
-  MobileScannerDatasource() : controller = MobileScannerController();
+  MobileScannerDatasource() : controller = MobileScannerController(autoStart: false);
 
   final MobileScannerController controller;
 
-  bool get isTorchOn => controller.torchEnabled;
+  bool get isTorchOn => controller.value.torchState == TorchState.on;
 
   /// Emits the raw value of each barcode detected while scanning.
   Stream<String> get detections {
@@ -15,7 +15,7 @@ class MobileScannerDatasource {
         .map((capture) => capture.barcodes)
         .expand((barcodes) => barcodes)
         .map((barcode) => barcode.rawValue)
-        .where((value) => value != null)
+        .where((value) => value != null && value.isNotEmpty)
         .cast<String>();
   }
 

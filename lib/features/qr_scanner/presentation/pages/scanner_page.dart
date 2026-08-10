@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../data/datasources/mobile_scanner_datasource.dart';
+import '../../domain/usecases/capture_photo.dart';
+import '../bloc/capture_bloc.dart';
 import '../bloc/scanner_bloc.dart';
 import '../bloc/scanner_event.dart';
 import '../bloc/scanner_state.dart';
@@ -17,11 +19,38 @@ class ScannerPage extends StatefulWidget {
   State<ScannerPage> createState() => _ScannerPageState();
 }
 
-class _ScannerPageState extends State<ScannerPage> {
+class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     context.read<ScannerBloc>().add(const StartScan());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) return;
+    final isCurrentRoute = ModalRoute.of(context)?.isCurrent == true;
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (isCurrentRoute) {
+          context.read<ScannerBloc>().add(const StartScan());
+        }
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+        if (isCurrentRoute) {
+          context.read<ScannerBloc>().add(const PauseScan());
+        }
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        break;
+    }
   }
 
   @override
@@ -32,9 +61,18 @@ class _ScannerPageState extends State<ScannerPage> {
       body: BlocConsumer<ScannerBloc, ScannerState>(
         listener: (context, state) {
           if (state is ScannerDetected) {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => ResultPage(rawValue: state.rawValue)),
-            );
+            Navigator.of(context)
+                .push(
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider(
+                      create: (_) => CaptureBloc(context.read<CapturePhoto>()),
+                      child: ResultPage(rawValue: state.rawValue),
+                    ),
+                  ),
+                )
+                .then((_) {
+                  if (context.mounted) context.read<ScannerBloc>().add(const StartScan());
+                });
           }
         },
         builder: (context, state) {
@@ -43,12 +81,15 @@ class _ScannerPageState extends State<ScannerPage> {
             children: [
               MobileScanner(controller: controller),
               const ScannerOverlay(),
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: InfoBanner(
-                    icon: Icons.qr_code_scanner,
-                    child: const Text('Scan QR to Fetch ID', style: TextStyle(fontWeight: FontWeight.bold)),
+              Align(
+                alignment: Alignment.topCenter,
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: InfoBanner(
+                      icon: Icons.qr_code_scanner,
+                      child: const Text('Scan QR to Fetch ID', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
                   ),
                 ),
               ),

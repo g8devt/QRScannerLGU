@@ -6,7 +6,6 @@ import 'features/qr_scanner/data/datasources/mobile_scanner_datasource.dart';
 import 'features/qr_scanner/data/repositories/camera_repository_impl.dart';
 import 'features/qr_scanner/data/repositories/scanner_repository_impl.dart';
 import 'features/qr_scanner/domain/usecases/capture_photo.dart';
-import 'features/qr_scanner/presentation/bloc/capture_bloc.dart';
 import 'features/qr_scanner/presentation/bloc/scanner_bloc.dart';
 import 'features/qr_scanner/presentation/pages/scanner_page.dart';
 
@@ -30,15 +29,15 @@ class MyApp extends StatelessWidget {
           final cameraRepository = CameraRepositoryImpl(imagePickerDatasource);
           final capturePhoto = CapturePhoto(cameraRepository);
 
-          return MultiBlocProvider(
-            providers: [
-              BlocProvider(create: (_) => ScannerBloc(scannerRepository)),
-              BlocProvider(create: (_) => CaptureBloc(capturePhoto)),
-            ],
-            child: MaterialApp(
-              title: 'Bataan LGU Scanner',
-              theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
-              home: const ScannerPage(),
+          return RepositoryProvider<CapturePhoto>(
+            create: (_) => capturePhoto,
+            child: BlocProvider(
+              create: (_) => ScannerBloc(scannerRepository),
+              child: MaterialApp(
+                title: 'Bataan LGU Scanner',
+                theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
+                home: const ScannerPage(),
+              ),
             ),
           );
         },

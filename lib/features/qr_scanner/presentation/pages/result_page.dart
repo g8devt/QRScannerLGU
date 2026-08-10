@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../domain/entities/scanned_id_data.dart';
 import '../bloc/capture_bloc.dart';
 import '../bloc/capture_event.dart';
 import '../bloc/capture_state.dart';
@@ -14,7 +16,7 @@ class ResultPage extends StatelessWidget {
 
   /// Best-effort parse of `key: value` or `key=value` lines. Returns an
   /// empty map if the value doesn't look like structured data.
-  Map<String, String> _parseFields(String value) {
+  Map<String, String> _parseKeyValueFields(String value) {
     final lines = value.split(RegExp(r'[\n;]'));
     final fields = <String, String>{};
     for (final line in lines) {
@@ -26,9 +28,25 @@ class ResultPage extends StatelessWidget {
     return fields.length >= 2 ? fields : {};
   }
 
+  /// Parses [value] as JSON first (when it decodes to a map), falling back
+  /// to `key:value`/`key=value` line parsing otherwise.
+  Map<String, String> _parseFields(String value) {
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map) {
+        final fields = decoded.map((key, val) => MapEntry(key.toString(), val.toString()));
+        if (fields.length >= 2) return fields;
+      }
+    } catch (_) {
+      // Not JSON — fall through to key/value parsing.
+    }
+    return _parseKeyValueFields(value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final fields = _parseFields(rawValue);
+    final data = ScannedIdData(rawValue: rawValue, parsedFields: fields);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Scan Result')),
@@ -40,11 +58,11 @@ class ResultPage extends StatelessWidget {
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  child: fields.isNotEmpty
+                  child: data.parsedFields.isNotEmpty
                       ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            for (final entry in fields.entries)
+                            for (final entry in data.parsedFields.entries)
                               Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 4),
                                 child: Text('${entry.key}: ${entry.value}'),
@@ -57,7 +75,7 @@ class ResultPage extends StatelessWidget {
                             color: Theme.of(context).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Text(rawValue, style: const TextStyle(fontFamily: 'monospace')),
+                          child: Text(data.rawValue, style: const TextStyle(fontFamily: 'monospace')),
                         ),
                 ),
               ),

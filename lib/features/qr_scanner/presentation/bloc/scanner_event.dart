@@ -31,3 +31,18 @@ class ToggleTorch extends ScannerEvent {
 class RetryScan extends ScannerEvent {
   const RetryScan();
 }
+
+/// Pauses scanning (e.g. when the app is backgrounded) and stops the camera.
+class PauseScan extends ScannerEvent {
+  const PauseScan();
+}
+
+/// Fired internally when the repository's detection stream emits an error.
+class ScanStreamError extends ScannerEvent {
+  const ScanStreamError(this.message);
+
+  final String message;
+
+  @override
+  List<Object?> get props => [message];
+}
