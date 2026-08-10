@@ -33,6 +33,18 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
     super.dispose();
   }
 
+  void _onTypeChanged(ClaimantType? value) {
+    if (value == null || value == _type) return;
+    setState(() {
+      _type = value;
+      // Clear representative-only fields whenever the claimant type changes,
+      // so stale data from a previous selection isn't carried over/submitted.
+      _nameController.clear();
+      _relation = null;
+      _otherRelationController.clear();
+    });
+  }
+
   void _continue() {
     if (!_formKey.currentState!.validate()) return;
     final relation = _relation == 'Other' ? _otherRelationController.text.trim() : (_relation ?? '');
@@ -68,7 +80,7 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
                 // ignore: deprecated_member_use
                 groupValue: _type,
                 // ignore: deprecated_member_use
-                onChanged: (v) => setState(() => _type = v!),
+                onChanged: _onTypeChanged,
               ),
               RadioListTile<ClaimantType>(
                 title: const Text('Representative'),
@@ -76,7 +88,7 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
                 // ignore: deprecated_member_use
                 groupValue: _type,
                 // ignore: deprecated_member_use
-                onChanged: (v) => setState(() => _type = v!),
+                onChanged: _onTypeChanged,
               ),
               if (_type == ClaimantType.representative) ...[
                 TextFormField(
