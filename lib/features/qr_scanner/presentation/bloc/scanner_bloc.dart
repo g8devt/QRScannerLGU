@@ -9,7 +9,7 @@ import 'scanner_state.dart';
 class ScannerBloc extends Bloc<ScannerEvent, ScannerState> {
   ScannerBloc(this._repository) : super(const ScannerInitial()) {
     on<StartScan>(_onStartScan);
-    on<CodeDetected>(_onCodeDetected);
+    on<CodeDetected>(_onCodeDetected, transformer: (events, mapper) => events.asyncExpand(mapper));
     on<ToggleTorch>(_onToggleTorch);
     on<RetryScan>(_onStartScan);
   }
@@ -30,9 +30,13 @@ class ScannerBloc extends Bloc<ScannerEvent, ScannerState> {
 
   Future<void> _onCodeDetected(CodeDetected event, Emitter<ScannerState> emit) async {
     if (state is! ScannerScanning) return;
-    await _subscription?.cancel();
-    await _repository.stop();
-    emit(ScannerDetected(event.rawValue));
+    try {
+      await _subscription?.cancel();
+      await _repository.stop();
+      emit(ScannerDetected(event.rawValue));
+    } catch (e) {
+      emit(ScannerError('Could not stop the camera: $e'));
+    }
   }
 
   Future<void> _onToggleTorch(ToggleTorch event, Emitter<ScannerState> emit) async {
