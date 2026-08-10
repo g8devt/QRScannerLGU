@@ -47,3 +47,5 @@ app.*.map.json
 # Backend / Lambda pulls
 .tmp/
 **/deploy.zip
+
+.worktrees/
