@@ -1,29 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/constants/claimant_options.dart';
 import '../../domain/entities/claimant_info.dart';
 import '../bloc/claim_bloc.dart';
 import '../bloc/claim_event.dart';
 import 'confirm_identity_page.dart';
-
-/// Government-issued ID types accepted for claimant verification in the
-/// Philippines. Matches the standard "valid ID" list LGUs and banks use for
-/// over-the-counter identity checks.
-const List<String> philippineIdTypes = [
-  'Philippine Passport',
-  "Driver's License",
-  'UMID (SSS/GSIS/PhilHealth/Pag-IBIG)',
-  'PhilSys National ID',
-  'PhilHealth ID',
-  'Postal ID',
-  "Voter's ID / Voter's Certification",
-  'PRC ID',
-  'TIN ID',
-  'Senior Citizen ID',
-  'PWD ID',
-  'Barangay ID',
-  'Other',
-];
 
 class ClaimantInfoPage extends StatefulWidget {
   const ClaimantInfoPage({super.key});
@@ -35,26 +17,30 @@ class ClaimantInfoPage extends StatefulWidget {
 class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
   ClaimantType _type = ClaimantType.self;
   String? _idType;
+  String? _relation;
   final _nameController = TextEditingController();
-  final _relationController = TextEditingController();
   final _idNumberController = TextEditingController();
+  final _otherIdTypeController = TextEditingController();
+  final _otherRelationController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
     _nameController.dispose();
-    _relationController.dispose();
     _idNumberController.dispose();
+    _otherIdTypeController.dispose();
+    _otherRelationController.dispose();
     super.dispose();
   }
 
   void _continue() {
     if (!_formKey.currentState!.validate()) return;
+    final relation = _relation == 'Other' ? _otherRelationController.text.trim() : (_relation ?? '');
     final info = ClaimantInfo(
       type: _type,
       name: _type == ClaimantType.representative ? _nameController.text.trim() : '',
-      relation: _type == ClaimantType.representative ? _relationController.text.trim() : '',
-      idType: _idType ?? '',
+      relation: _type == ClaimantType.representative ? relation : '',
+      idType: _idType == 'Other' ? _otherIdTypeController.text.trim() : (_idType ?? ''),
       idNumber: _idNumberController.text.trim(),
     );
     context.read<ClaimBloc>().add(ClaimantInfoSaved(info));
@@ -98,11 +84,21 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
                   decoration: const InputDecoration(labelText: 'Representative name'),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
-                TextFormField(
-                  controller: _relationController,
+                DropdownButtonFormField<String>(
+                  initialValue: _relation,
                   decoration: const InputDecoration(labelText: 'Relation to applicant'),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  items: [
+                    for (final relation in claimantRelations) DropdownMenuItem(value: relation, child: Text(relation)),
+                  ],
+                  onChanged: (v) => setState(() => _relation = v),
+                  validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
                 ),
+                if (_relation == 'Other')
+                  TextFormField(
+                    controller: _otherRelationController,
+                    decoration: const InputDecoration(labelText: 'Specify relation'),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
               ],
               DropdownButtonFormField<String>(
                 initialValue: _idType,
@@ -113,6 +109,12 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
                 onChanged: (v) => setState(() => _idType = v),
                 validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
               ),
+              if (_idType == 'Other')
+                TextFormField(
+                  controller: _otherIdTypeController,
+                  decoration: const InputDecoration(labelText: 'Specify ID type'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                ),
               TextFormField(
                 controller: _idNumberController,
                 decoration: const InputDecoration(labelText: 'ID number'),
