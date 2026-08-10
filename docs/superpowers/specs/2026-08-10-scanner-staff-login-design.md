@@ -55,7 +55,7 @@ directly for now.
 
 ### Endpoint: `login_scanner_bataan`
 
-New file `endpoints/scanner_auth.py`, registered in `UniversalLGU-MainPost`'s
+New file `endpoints/scanner_auth_bataan.py`, registered in `UniversalLGU-MainPost`'s
 `lambda_function.py` `ROUTES` dict (signature `(cur, data, files, ts)` like
 every other endpoint in that file — it rides the existing app-level
 `token`/`db_name` envelope check, no `NO_TOKEN_ENDPOINTS` bypass needed).
@@ -65,7 +65,7 @@ every other endpoint in that file — it rides the existing app-level
   1. `require(data, 'username', 'password')`.
   2. Normalize username: `sanitize(data['username']).lower()`.
   3. Hash the password with a new `hash_scanner_password()` helper
-     (`helpers/scanner_auth.py`), mirroring `helpers/pin.py`'s static-salt
+     (`helpers/scanner_auth_bataan.py`), mirroring `helpers/pin.py`'s static-salt
      SHA-256 pattern but with its own distinct salt constant (separate
      credential domain from the citizen PIN hash).
   4. `SELECT * FROM app_users_scanner WHERE username=%s AND password=%s
