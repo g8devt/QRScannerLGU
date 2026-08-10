@@ -9,6 +9,7 @@ class ClaimantInfo extends Equatable {
     this.relation = '',
     required this.idType,
     required this.idNumber,
+    this.claimedAmount,
   });
 
   final ClaimantType type;
@@ -16,6 +17,7 @@ class ClaimantInfo extends Equatable {
   final String relation;
   final String idType;
   final String idNumber;
+  final double? claimedAmount;
 
   ClaimantInfo copyWith({
     ClaimantType? type,
@@ -23,6 +25,7 @@ class ClaimantInfo extends Equatable {
     String? relation,
     String? idType,
     String? idNumber,
+    double? claimedAmount,
   }) {
     return ClaimantInfo(
       type: type ?? this.type,
@@ -30,9 +33,10 @@ class ClaimantInfo extends Equatable {
       relation: relation ?? this.relation,
       idType: idType ?? this.idType,
       idNumber: idNumber ?? this.idNumber,
+      claimedAmount: claimedAmount ?? this.claimedAmount,
     );
   }
 
   @override
-  List<Object?> get props => [type, name, relation, idType, idNumber];
+  List<Object?> get props => [type, name, relation, idType, idNumber, claimedAmount];
 }

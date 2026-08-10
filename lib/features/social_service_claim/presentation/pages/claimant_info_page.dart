@@ -22,7 +22,10 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
   final _idNumberController = TextEditingController();
   final _otherIdTypeController = TextEditingController();
   final _otherRelationController = TextEditingController();
+  final _claimedAmountController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
+  static final RegExp _amountPattern = RegExp(r'^\d+(\.\d{1,2})?$');
 
   @override
   void initState() {
@@ -50,6 +53,9 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
         _otherIdTypeController.text = claimant.idType;
       }
     }
+    if (claimant.claimedAmount != null) {
+      _claimedAmountController.text = claimant.claimedAmount!.toStringAsFixed(2);
+    }
   }
 
   @override
@@ -58,6 +64,7 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
     _idNumberController.dispose();
     _otherIdTypeController.dispose();
     _otherRelationController.dispose();
+    _claimedAmountController.dispose();
     super.dispose();
   }
 
@@ -76,12 +83,14 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
   void _continue() {
     if (!_formKey.currentState!.validate()) return;
     final relation = _relation == 'Other' ? _otherRelationController.text.trim() : (_relation ?? '');
+    final amountText = _claimedAmountController.text.trim();
     final info = ClaimantInfo(
       type: _type,
       name: _type == ClaimantType.representative ? _nameController.text.trim() : '',
       relation: _type == ClaimantType.representative ? relation : '',
       idType: _idType == 'Other' ? _otherIdTypeController.text.trim() : (_idType ?? ''),
       idNumber: _idNumberController.text.trim(),
+      claimedAmount: amountText.isEmpty ? null : double.parse(amountText),
     );
     context.read<ClaimBloc>().add(ClaimantInfoSaved(info));
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ConfirmIdentityPage()));
@@ -159,6 +168,19 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
                 controller: _idNumberController,
                 decoration: const InputDecoration(labelText: 'ID number'),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              ),
+              TextFormField(
+                controller: _claimedAmountController,
+                decoration: const InputDecoration(labelText: 'Claim amount', prefixText: '₱ '),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: (v) {
+                  final value = v?.trim() ?? '';
+                  if (value.isEmpty) return null;
+                  if (!_amountPattern.hasMatch(value) || double.parse(value) <= 0) {
+                    return 'Enter a valid amount';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 24),
               ElevatedButton(onPressed: _continue, child: const Text('Continue')),

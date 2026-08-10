@@ -40,6 +40,7 @@ class ClaimRepositoryImpl implements ClaimRepository {
         claimantRelation: claimant.relation,
         claimantIdType: claimant.idType,
         claimantIdNumber: claimant.idNumber,
+        claimedAmount: claimant.claimedAmount,
         idFrontPath: captures.idFrontPath!,
         idBackPath: captures.idBackPath,
         signaturePath: captures.signaturePath!,

@@ -772,6 +772,16 @@ def submit_claim_bataan(cur, data, files, ts):
         if claimant_type == 'REPRESENTATIVE':
             require(data, 'claimant_name', 'claimant_relation')
 
+        claimed_amount_raw = sanitize(data.get('claimed_amount'))
+        claimed_amount = None
+        if claimed_amount_raw is not None:
+            try:
+                claimed_amount = float(claimed_amount_raw)
+                if claimed_amount <= 0:
+                    raise ValueError
+            except ValueError:
+                return fail('Invalid claimed_amount')
+
         provided_fields = {f['field_name'] for f in files}
         missing_files = [f for f in _CLAIM_FILE_FIELDS if f not in provided_fields]
         if missing_files:
@@ -798,7 +808,7 @@ def submit_claim_bataan(cur, data, files, ts):
                 claim_method=%s, claimant_type=%s, claimant_name=%s,
                 claimant_relation=%s, claimant_id_type=%s, claimant_id_number=%s,
                 claimant_id_front=%s, claimant_id_back=%s, claimant_signature=%s,
-                claimant_face_photo=%s
+                claimant_face_photo=%s, claimed_amount=%s
             WHERE id=%s AND status IN ({status_placeholders})
             """,
             (
@@ -812,6 +822,7 @@ def submit_claim_bataan(cur, data, files, ts):
                 file_urls.get('claimant_id_back'),
                 file_urls.get('claimant_signature'),
                 file_urls.get('claimant_face_photo'),
+                claimed_amount,
                 app_id,
                 *_CLAIM_ELIGIBLE_STATUSES,
             ),

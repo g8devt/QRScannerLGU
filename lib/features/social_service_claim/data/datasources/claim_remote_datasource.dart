@@ -18,6 +18,7 @@ class ClaimRemoteDatasource {
     required String claimantRelation,
     required String claimantIdType,
     required String claimantIdNumber,
+    double? claimedAmount,
     required String idFrontPath,
     String? idBackPath,
     required String signaturePath,
@@ -33,6 +34,8 @@ class ClaimRemoteDatasource {
         'claimant_relation': claimantRelation,
         'claimant_id_type': claimantIdType,
         'claimant_id_number': claimantIdNumber,
+        // ignore: use_null_aware_elements
+        if (claimedAmount != null) 'claimed_amount': claimedAmount.toString(),
       },
       {
         'claimant_id_front': idFrontPath,
