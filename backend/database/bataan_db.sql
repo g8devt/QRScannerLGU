@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: dev-rds.c18y82cw62ll.ap-southeast-1.rds.amazonaws.com:3306
--- Generation Time: Aug 10, 2026 at 07:08 AM
+-- Generation Time: Aug 10, 2026 at 12:19 PM
 -- Server version: 8.4.8
 -- PHP Version: 8.1.2-1ubuntu2.25
 
@@ -2071,26 +2071,26 @@ CREATE TABLE `app_social_services` (
   `image_verification` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `amount` int DEFAULT NULL,
   `user_id` bigint DEFAULT NULL,
-  `date_claimed` datetime DEFAULT NULL,
-  `family_composition` longtext COLLATE utf8mb4_unicode_ci,
-  `deceased_fullname` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `deceased_birthdate` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `deceased_deathdate` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `claimed_amount` decimal(12,2) DEFAULT NULL,
-  `medicine_needed` text COLLATE utf8mb4_unicode_ci,
+  `family_composition` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `deceased_fullname` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `deceased_birthdate` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `deceased_deathdate` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `medicine_needed` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `cvl_id` varchar(25) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `document_sent_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `qr_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Unique QR token for the auto-scheduled appointment (SS-<id>-<hex>)',
-  `cvl_id` varchar(25) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `document_sent_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `claim_method` varchar(20) DEFAULT NULL,
-  `claimant_type` varchar(20) DEFAULT NULL,
-  `claimant_name` varchar(255) DEFAULT NULL,
-  `claimant_relation` varchar(100) DEFAULT NULL,
-  `claimant_id_type` varchar(50) DEFAULT NULL,
-  `claimant_id_number` varchar(100) DEFAULT NULL,
-  `claimant_id_front` varchar(500) DEFAULT NULL,
-  `claimant_id_back` varchar(500) DEFAULT NULL,
-  `claimant_signature` varchar(500) DEFAULT NULL,
-  `claimant_face_photo` varchar(500) DEFAULT NULL
+  `date_claimed` datetime DEFAULT NULL,
+  `claimed_amount` decimal(12,2) DEFAULT NULL,
+  `claim_method` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `claimant_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `claimant_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `claimant_relation` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `claimant_id_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `claimant_id_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `claimant_id_front` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `claimant_id_back` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `claimant_signature` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `claimant_face_photo` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
