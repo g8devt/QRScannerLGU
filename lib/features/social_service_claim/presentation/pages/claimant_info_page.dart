@@ -61,13 +61,17 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
               RadioListTile<ClaimantType>(
                 title: const Text('Self'),
                 value: ClaimantType.self,
+                // ignore: deprecated_member_use
                 groupValue: _type,
+                // ignore: deprecated_member_use
                 onChanged: (v) => setState(() => _type = v!),
               ),
               RadioListTile<ClaimantType>(
                 title: const Text('Representative'),
                 value: ClaimantType.representative,
+                // ignore: deprecated_member_use
                 groupValue: _type,
+                // ignore: deprecated_member_use
                 onChanged: (v) => setState(() => _type = v!),
               ),
               if (_type == ClaimantType.representative) ...[
