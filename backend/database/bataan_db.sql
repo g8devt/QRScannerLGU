@@ -2080,7 +2080,17 @@ CREATE TABLE `app_social_services` (
   `medicine_needed` text COLLATE utf8mb4_unicode_ci,
   `qr_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Unique QR token for the auto-scheduled appointment (SS-<id>-<hex>)',
   `cvl_id` varchar(25) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `document_sent_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+  `document_sent_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `claim_method` varchar(20) DEFAULT NULL,
+  `claimant_type` varchar(20) DEFAULT NULL,
+  `claimant_name` varchar(255) DEFAULT NULL,
+  `claimant_relation` varchar(100) DEFAULT NULL,
+  `claimant_id_type` varchar(50) DEFAULT NULL,
+  `claimant_id_number` varchar(100) DEFAULT NULL,
+  `claimant_id_front` varchar(500) DEFAULT NULL,
+  `claimant_id_back` varchar(500) DEFAULT NULL,
+  `claimant_signature` varchar(500) DEFAULT NULL,
+  `claimant_face_photo` varchar(500) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------

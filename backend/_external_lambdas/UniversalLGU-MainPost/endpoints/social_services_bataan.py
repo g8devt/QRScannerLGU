@@ -115,6 +115,22 @@ def _has_qr_code_column(cur):
     return bool(row and row.get('c'))
 
 
+def _has_claim_columns(cur):
+    """True when migration 031 (claimant_* claim-capture columns) is
+    applied on this tenant."""
+    cur.execute(
+        """
+        SELECT COUNT(*) AS c
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'app_social_services'
+          AND COLUMN_NAME = 'claimant_face_photo'
+        """
+    )
+    row = cur.fetchone()
+    return bool(row and row.get('c'))
+
+
 def _has_educ_year_level_column(cur):
     """True when migration 029 (educ_year_level, educ_is_scholar) is applied."""
     cur.execute(
