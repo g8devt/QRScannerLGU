@@ -4,6 +4,7 @@ import uuid
 import logging
 from datetime import time, timedelta
 from helpers.auth import ok, fail, require
+from helpers.audit import record_audit_log
 from helpers.db import sanitize, serialize_row, generate_number_id, now_ph
 from helpers.parse import parse_form_data
 from helpers.s3 import upload_files_from_list
@@ -16,6 +17,7 @@ logger = logging.getLogger()
 # citizen can be booked and names where the appointment happens.
 MAX_BOOKING_HORIZON_DAYS = 30  # proposed default; confirm with LGU alongside slot-seeding cadence
 ONLINE_APPOINTMENT_LOCATION = 'Orani District Office (sa tabi ng simbahan)'
+_CLAIM_FILE_FIELDS = ('claimant_id_front', 'claimant_id_back', 'claimant_signature', 'claimant_face_photo')
 
 
 def _time_from_db(value):
@@ -752,4 +754,67 @@ def verify_qr_bataan(cur, data, files, ts):
         return fail(str(e))
     except Exception as e:
         logger.error(f"verify_qr_bataan error: {e}", exc_info=True)
+        return fail(f'Server error: {str(e)}', 500)
+
+def submit_claim_bataan(cur, data, files, ts):
+    try:
+        require(data, 'id', 'claimant_type', 'claimant_id_type', 'claimant_id_number')
+        app_id = data['id']
+        claimant_type = (data['claimant_type'] or '').strip().upper()
+        if claimant_type not in ('SELF', 'REPRESENTATIVE'):
+            return fail(f'Invalid claimant_type: {claimant_type}')
+
+        if claimant_type == 'REPRESENTATIVE':
+            require(data, 'claimant_name', 'claimant_relation')
+
+        provided_fields = {f['field_name'] for f in files}
+        missing_files = [f for f in _CLAIM_FILE_FIELDS if f not in provided_fields]
+        if missing_files:
+            return fail(f"Missing: {', '.join(missing_files)}")
+
+        cur.execute("SELECT status FROM app_social_services WHERE id=%s", (app_id,))
+        existing = cur.fetchone()
+        if not existing:
+            return fail('Application not found', 404)
+
+        if not _has_claim_columns(cur):
+            return fail('Claim capture is not configured for this LGU', 500)
+
+        file_urls = upload_files_from_list(files, f'social_services/{app_id}/claim', app_id)
+
+        cur.execute(
+            """
+            UPDATE app_social_services
+            SET status='CLAIMED', date_claimed=%s,
+                claim_method=%s, claimant_type=%s, claimant_name=%s,
+                claimant_relation=%s, claimant_id_type=%s, claimant_id_number=%s,
+                claimant_id_front=%s, claimant_id_back=%s, claimant_signature=%s,
+                claimant_face_photo=%s
+            WHERE id=%s AND status != 'CLAIMED'
+            """,
+            (
+                ts,
+                'QR', claimant_type,
+                sanitize(data.get('claimant_name')),
+                sanitize(data.get('claimant_relation')),
+                sanitize(data['claimant_id_type']),
+                sanitize(data['claimant_id_number']),
+                file_urls.get('claimant_id_front'),
+                file_urls.get('claimant_id_back'),
+                file_urls.get('claimant_signature'),
+                file_urls.get('claimant_face_photo'),
+                app_id,
+            ),
+        )
+        if cur.rowcount == 0:
+            return fail('Already claimed by another session', 409)
+
+        record_audit_log(cur, None, None, 'submit_claim_bataan', 'social_service', app_id,
+                          {'claimant_type': claimant_type}, ts)
+
+        return ok({'status': True, 'id': str(app_id)})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f"submit_claim_bataan error: {e}", exc_info=True)
         return fail(f'Server error: {str(e)}', 500)

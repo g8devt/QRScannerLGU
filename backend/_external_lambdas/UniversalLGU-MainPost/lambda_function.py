@@ -109,6 +109,8 @@ ROUTES = {
     'admin_update_social_service_status': social_services.admin_update_social_service_status,
     'submit_social_service_bataan': social_services_bataan.submit_social_service_bataan,
     'get_social_services_bataan': social_services_bataan.get_social_services_bataan,
+    'verify_qr_bataan': social_services_bataan.verify_qr_bataan,
+    'submit_claim_bataan': social_services_bataan.submit_claim_bataan,
     'request_profile_update': profile.request_profile_update,
     'get_user_profile': profile.get_user_profile,
     'get_profile_update_requests': profile.get_profile_update_requests,
