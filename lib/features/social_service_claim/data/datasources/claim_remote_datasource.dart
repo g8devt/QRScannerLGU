@@ -19,7 +19,7 @@ class ClaimRemoteDatasource {
     required String claimantIdType,
     required String claimantIdNumber,
     required String idFrontPath,
-    required String idBackPath,
+    String? idBackPath,
     required String signaturePath,
     required String facePhotoPath,
   }) {
@@ -36,7 +36,8 @@ class ClaimRemoteDatasource {
       },
       {
         'claimant_id_front': idFrontPath,
-        'claimant_id_back': idBackPath,
+        // ignore: use_null_aware_elements
+        if (idBackPath != null) 'claimant_id_back': idBackPath,
         'claimant_signature': signaturePath,
         'claimant_face_photo': facePhotoPath,
       },

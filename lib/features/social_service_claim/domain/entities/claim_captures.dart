@@ -16,8 +16,8 @@ class ClaimCaptures extends Equatable {
   final String? signaturePath;
   final String? facePhotoPath;
 
-  bool get isComplete =>
-      idFrontPath != null && idBackPath != null && signaturePath != null && facePhotoPath != null;
+  /// ID Back is optional — the other 3 captures are required.
+  bool get isComplete => idFrontPath != null && signaturePath != null && facePhotoPath != null;
 
   ClaimCaptures copyWith({
     String? idFrontPath,

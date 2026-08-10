@@ -39,6 +39,7 @@ dependencies:
   equatable: ^2.1.0
   image_picker: ^1.2.3
   http: ^1.2.2
+  signature: ^6.3.0
 
 dev_dependencies:
   flutter_test:

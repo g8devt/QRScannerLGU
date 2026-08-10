@@ -30,7 +30,7 @@ class ClaimRepositoryImpl implements ClaimRepository {
     required ClaimCaptures captures,
   }) async {
     if (!captures.isComplete) {
-      throw ClaimSubmitException('All 4 captures are required before submitting.');
+      throw ClaimSubmitException('ID front, signature, and face photo are required before submitting.');
     }
     try {
       await _datasource.submitClaim(
@@ -41,7 +41,7 @@ class ClaimRepositoryImpl implements ClaimRepository {
         claimantIdType: claimant.idType,
         claimantIdNumber: claimant.idNumber,
         idFrontPath: captures.idFrontPath!,
-        idBackPath: captures.idBackPath!,
+        idBackPath: captures.idBackPath,
         signaturePath: captures.signaturePath!,
         facePhotoPath: captures.facePhotoPath!,
       );
