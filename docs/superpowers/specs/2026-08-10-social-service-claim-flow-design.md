@@ -54,11 +54,15 @@ TABLE` above is the migration instruction to run manually against
 
 Registered in `ROUTES` in
 `backend/_external_lambdas/UniversalLGU-MainPost/lambda_function.py`, lives
-in `endpoints/social_services_bataan.py`. This is staff-facing (counter
-scanning), so it's added to `ADMIN_SESSION_REQUIRED_ENDPOINTS` as
-`'verify_qr_bataan': 'social_services'`, matching the existing
-`'admin_list_social_services'` / `'admin_update_social_service_status'`
-entries for that same permission string.
+in `endpoints/social_services_bataan.py`. **Not** added to
+`ADMIN_SESSION_REQUIRED_ENDPOINTS` — that mechanism's `_check_admin_session`
+hardcodes `if tenant_db != 'cebu_lgu_db': return fail(...)`, so it would
+reject every call against `bataan_db` outright. Instead this uses plain
+app-token auth via the handler's existing `check_token()` path, the same
+tier as `submit_social_service_bataan` / `get_social_services_bataan`
+(neither of which is in `ADMIN_SESSION_REQUIRED_ENDPOINTS` either) — no
+staff-permission distinction, matching how this backend already treats
+every Bataan endpoint.
 
 - **In:** `{endpoint: 'verify_qr_bataan', token, db_name, qr_code}`
 - **Logic:** `SELECT * FROM app_social_services WHERE qr_code = %s`
@@ -152,6 +156,14 @@ currently absent from `pubspec.yaml`). Wraps the `{endpoint, token, db_name,
 (`helpers/parse.py` `parse_event` / `parse_form_data`). Shared, not specific
 to this feature, so future features can reuse it.
 
+The app has no login/token-storage flow at all today. Since this is a
+single-purpose LGU-staff scanner app (no multi-user login UI exists or is
+in scope here), `lib/core/config/app_config.dart` holds a fixed staff
+`token` and `dbName = 'bataan_db'` compiled into the app, read by
+`ApiClient` for every request. This is a known, explicitly-flagged gap —
+replacing it with real staff login/credential storage is future work, not
+part of this pass.
+
 ### Flow
 
 1. **ScannerPage** (existing, unchanged) — on detect, navigates to
@@ -196,3 +208,5 @@ request logging; verify failures never mutate server state.
 - iOS-specific config.
 - Automated face-match identity check (deferred; manual staff confirmation
   chosen for this pass).
+- Real staff login/credential storage (deferred; hardcoded `app_config.dart`
+  token used instead, see Networking above).
