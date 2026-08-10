@@ -37,21 +37,27 @@ ALTER TABLE app_social_services
   ADD COLUMN claimant_signature VARCHAR(500) NULL;
 ```
 
-`status` and `date_claimed` already exist on the table (see
-`backend/database/bataan_db.sql` `app_social_services`, ~line 1997). No
+`status`, `date_claimed`, and `claimed_amount` already exist on the table
+(see `backend/database/bataan_db.sql` `app_social_services`, ~line 1997). No
 in-repo migration files exist for this project — following the codebase's
 existing convention, add a `_has_claim_columns(cur)` feature-detect helper
-(mirrors `_has_appointment_columns` / `_has_qr_code_column` in
-`social_services_bataan.py` / `social_services.py`), and update the dumped
-schema `backend/database/bataan_db.sql` inline. The `ALTER TABLE` above is
-the migration instruction to run manually against `bataan_db`.
+(mirrors `_has_appointment_columns` / `_has_qr_code_column`, both defined in
+`social_services_bataan.py` itself, checking
+`information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND
+TABLE_NAME = 'app_social_services' AND COLUMN_NAME = '<col>'`), and update
+the dumped schema `backend/database/bataan_db.sql` inline. The `ALTER
+TABLE` above is the migration instruction to run manually against
+`bataan_db`.
 
 ### Endpoint 1 — `verify_qr_bataan`
 
 Registered in `ROUTES` in
 `backend/_external_lambdas/UniversalLGU-MainPost/lambda_function.py`, lives
-in `endpoints/social_services_bataan.py`. Requires the staff `token` (not
-added to `NO_TOKEN_ENDPOINTS`).
+in `endpoints/social_services_bataan.py`. This is staff-facing (counter
+scanning), so it's added to `ADMIN_SESSION_REQUIRED_ENDPOINTS` as
+`'verify_qr_bataan': 'social_services'`, matching the existing
+`'admin_list_social_services'` / `'admin_update_social_service_status'`
+entries for that same permission string.
 
 - **In:** `{endpoint: 'verify_qr_bataan', token, db_name, qr_code}`
 - **Logic:** `SELECT * FROM app_social_services WHERE qr_code = %s`
@@ -60,8 +66,14 @@ added to `NO_TOKEN_ENDPOINTS`).
   - `status not in ('APPROVED', 'RELEASED')` →
     `fail('Not yet eligible — status is <status>')`
   - Else → `ok({data: {id, application_number, beneficiary_name, status,
-    photo_2x2, requested_for_fname, requested_for_mname, requested_for_lname,
-    date_approved, date_released, ...}})`
+    image_verification, requested_for_fname, requested_for_mname,
+    requested_for_lname, date_approved, date_released, ...}})`
+
+  `image_verification` (not `photo_2x2`) is the column returned for the
+  identity-confirm step — it's the applicant's face/identity-verification
+  photo captured at application time (`submit_social_service_bataan`
+  already writes it); `photo_2x2` is a separate 2x2 ID-style photo and is
+  not used for this step.
 
 These three failure branches are the diagram's "Eligibility gates → Stop,
 show reason" step.
@@ -87,8 +99,17 @@ show reason" step.
      WHERE id=%s AND status != 'CLAIMED'` — the `AND status != 'CLAIMED'`
      guard prevents a double-claim race between two staff devices.
   5. 0 rows affected → `fail('Already claimed by another session')`.
-  6. `record_audit_log(...)` (mirrors `admin_update_social_service_status` in
-     `endpoints/social_services.py`), then `ok({success: true})`.
+  6. `record_audit_log(...)`, then `ok({success: true})`.
+
+Neither endpoint reuses code from `endpoints/social_services.py` — that file
+belongs to a different (non-Bataan) tenant's social services table and has
+no bearing on this feature. `social_services_bataan.py` currently has no
+status-update function of its own (only `submit_social_service_bataan` /
+`get_social_services_bataan`); the `UPDATE ... SET status=..., date_claimed=NOW()`
++ `record_audit_log(...)` shape above is written fresh in
+`social_services_bataan.py`, following the general
+`require()`/`ok()`/`fail()`/`record_audit_log()` conventions shared across
+*all* endpoint files in this backend (not specific to any one tenant file).
 
 ## Flutter
 
@@ -138,11 +159,12 @@ to this feature, so future features can reuse it.
    `qr_code`. Loading spinner, then:
    - Failure → **StopPage**(reason) — banner with reason text + "Scan Again"
      button, returns to ScannerPage.
-   - Success → applicant summary (name, status, `photo_2x2`) → "Continue".
+   - Success → applicant summary (name, status) → "Continue".
 3. **ClaimantInfoPage** — radio `SELF` / `REPRESENTATIVE`; REPRESENTATIVE
    reveals name / relation / ID type / ID number fields. Stored into
    `ClaimBloc` session state.
-4. **ConfirmIdentityPage** — shows `photo_2x2` next to a "Confirm this is
+4. **ConfirmIdentityPage** — shows `image_verification` (the applicant's
+   identity photo captured at application time) next to a "Confirm this is
    the person" button. Manual staff check, no API call.
 5. **CaptureIdPage** — three sequential captures (ID front, ID back,
    signature) via the reused `CapturePhoto` usecase.
