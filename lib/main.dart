@@ -15,6 +15,8 @@ import 'features/social_service_claim/domain/usecases/submit_claim.dart';
 import 'features/social_service_claim/domain/usecases/verify_qr.dart';
 import 'features/social_service_claim/presentation/bloc/claim_bloc.dart';
 
+final RouteObserver<PageRoute<void>> routeObserver = RouteObserver<PageRoute<void>>();
+
 void main() {
   runApp(const MyApp());
 }
@@ -51,6 +53,7 @@ class MyApp extends StatelessWidget {
               child: MaterialApp(
                 title: 'Bataan LGU Scanner',
                 theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
+                navigatorObservers: [routeObserver],
                 home: const ScannerPage(),
               ),
             ),

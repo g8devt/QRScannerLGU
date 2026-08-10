@@ -777,6 +777,9 @@ def submit_claim_bataan(cur, data, files, ts):
         if not existing:
             return fail('Application not found', 404)
 
+        if existing['status'] not in ('APPROVED', 'RELEASED'):
+            return fail(f"Not eligible for claim — status is {existing['status']}", 409)
+
         if not _has_claim_columns(cur):
             return fail('Claim capture is not configured for this LGU', 500)
 
@@ -790,7 +793,7 @@ def submit_claim_bataan(cur, data, files, ts):
                 claimant_relation=%s, claimant_id_type=%s, claimant_id_number=%s,
                 claimant_id_front=%s, claimant_id_back=%s, claimant_signature=%s,
                 claimant_face_photo=%s
-            WHERE id=%s AND status != 'CLAIMED'
+            WHERE id=%s AND status IN ('APPROVED', 'RELEASED')
             """,
             (
                 ts,

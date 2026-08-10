@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../../main.dart';
 import '../../../social_service_claim/presentation/pages/verify_page.dart';
 import '../../data/datasources/mobile_scanner_datasource.dart';
 import '../bloc/scanner_bloc.dart';
@@ -17,7 +18,7 @@ class ScannerPage extends StatefulWidget {
   State<ScannerPage> createState() => _ScannerPageState();
 }
 
-class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver {
+class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver, RouteAware {
   @override
   void initState() {
     super.initState();
@@ -26,9 +27,21 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context) as PageRoute<void>);
+  }
+
+  @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    context.read<ScannerBloc>().add(const StartScan());
   }
 
   @override
@@ -59,13 +72,9 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver {
       body: BlocConsumer<ScannerBloc, ScannerState>(
         listener: (context, state) {
           if (state is ScannerDetected) {
-            Navigator.of(context)
-                .push(
-                  MaterialPageRoute(builder: (_) => VerifyPage(rawValue: state.rawValue)),
-                )
-                .then((_) {
-                  if (context.mounted) context.read<ScannerBloc>().add(const StartScan());
-                });
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => VerifyPage(rawValue: state.rawValue)),
+            );
           }
         },
         builder: (context, state) {

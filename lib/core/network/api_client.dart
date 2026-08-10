@@ -21,11 +21,13 @@ class ApiClient {
       'db_name': AppConfig.dbName,
       ...fields,
     };
-    final response = await _client.post(
-      Uri.parse(AppConfig.apiBaseUrl),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final response = await _client
+        .post(
+          Uri.parse(AppConfig.apiBaseUrl),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 20));
     return _decode(response);
   }
 
@@ -46,7 +48,7 @@ class ApiClient {
       request.files.add(await http.MultipartFile.fromPath(entry.key, entry.value));
     }
 
-    final streamed = await _client.send(request);
+    final streamed = await _client.send(request).timeout(const Duration(seconds: 20));
     final response = await http.Response.fromStream(streamed);
     return _decode(response);
   }

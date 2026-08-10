@@ -10,7 +10,11 @@ class ImagePickerDatasource {
   /// Opens the device camera for a single photo. Returns the local file
   /// path, or `null` if the user cancelled.
   Future<String?> pickFromCamera() async {
-    final XFile? file = await _picker.pickImage(source: ImageSource.camera);
+    final XFile? file = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 70,
+      maxWidth: 1600,
+    );
     return file?.path;
   }
 }

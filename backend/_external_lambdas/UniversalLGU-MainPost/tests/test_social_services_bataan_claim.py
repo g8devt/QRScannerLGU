@@ -82,6 +82,12 @@ class SubmitClaimBataanTest(unittest.TestCase):
         result = submit_claim_bataan(cur, self._base_data(), _claim_files(), '2026-08-10 00:00:00')
         self.assertEqual(result['statusCode'], 404)
 
+    def test_not_eligible_status_returns_409(self):
+        cur = MagicMock()
+        cur.fetchone.return_value = {'status': 'PENDING'}
+        result = submit_claim_bataan(cur, self._base_data(), _claim_files(), '2026-08-10 00:00:00')
+        self.assertEqual(result['statusCode'], 409)
+
     @patch('endpoints.social_services_bataan.upload_files_from_list')
     def test_already_claimed_race_returns_409(self, mock_upload):
         mock_upload.return_value = {

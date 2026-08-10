@@ -19,7 +19,7 @@ class ClaimRepositoryImpl implements ClaimRepository {
     } on ApiException catch (e) {
       throw ClaimVerifyException(e.message);
     } catch (e) {
-      throw ClaimVerifyException('Could not verify QR code: $e');
+      throw ClaimVerifyException('Network error — could not reach the server: $e');
     }
   }
 
@@ -48,7 +48,7 @@ class ClaimRepositoryImpl implements ClaimRepository {
     } on ApiException catch (e) {
       throw ClaimSubmitException(e.message);
     } catch (e) {
-      throw ClaimSubmitException('Could not submit claim: $e');
+      throw ClaimSubmitException('Network error — could not reach the server: $e');
     }
   }
 }
