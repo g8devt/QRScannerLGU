@@ -18,7 +18,7 @@ def login_scanner_bataan(cur, data, files, ts):
         hashed = hash_scanner_password(data['password'])
 
         cur.execute(
-            "SELECT * FROM app_users_scanner WHERE LOWER(username)=LOWER(%s) "
+            "SELECT * FROM app_users_scanner WHERE username=%s "
             "AND password=%s AND is_active=1 AND user_status != 'DEACTIVATED'",
             (username, hashed),
         )
@@ -40,4 +40,4 @@ def login_scanner_bataan(cur, data, files, ts):
         return fail(str(e))
     except Exception as e:
         logger.error(f"login_scanner_bataan error: {e}", exc_info=True)
-        return fail(f'Server error: {e}', 500)
+        return fail('Server error', 500)

@@ -1,6 +1,8 @@
 /// Hardcoded backend config for this single-purpose LGU-staff scanner app.
-/// There is no login flow yet — replacing this with real staff
-/// authentication is tracked as future work, not part of this feature.
+/// `staffToken` below is a shared app-level token (gates reaching the
+/// backend Lambda at all) — distinct from the per-staff username/password
+/// login added in `lib/features/auth/`, which authenticates individual
+/// staff on top of this.
 class AppConfig {
   const AppConfig._();
 

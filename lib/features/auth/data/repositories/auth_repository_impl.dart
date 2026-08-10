@@ -20,8 +20,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return user;
     } on ApiException catch (e) {
       throw AuthException(e.message);
-    } catch (e) {
-      throw AuthException('Network error — could not reach the server: $e');
+    } catch (_) {
+      throw AuthException('Network error — could not reach the server.');
     }
   }
 

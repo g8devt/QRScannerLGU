@@ -12,6 +12,7 @@ class _FakeAuthRepository implements AuthRepository {
   ScannerUser? loginResult;
   Object? loginError;
   ScannerUser? restoredSession;
+  Object? restoreSessionError;
   bool loggedOut = false;
 
   @override
@@ -21,7 +22,10 @@ class _FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<ScannerUser?> restoreSession() async => restoredSession;
+  Future<ScannerUser?> restoreSession() async {
+    if (restoreSessionError != null) throw restoreSessionError!;
+    return restoredSession;
+  }
 
   @override
   Future<void> logout() async => loggedOut = true;
@@ -68,6 +72,19 @@ void main() {
     await sub.cancel();
 
     expect(states, [const AuthState(status: AuthStatus.unauthenticated)]);
+  });
+
+  test('AppStarted emits unauthenticated when restoreSession throws', () async {
+    repository.restoreSessionError = Exception('corrupted session');
+    final states = <AuthState>[];
+    final sub = bloc.stream.listen(states.add);
+
+    bloc.add(const AppStarted());
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect(states, [const AuthState(status: AuthStatus.unauthenticated)]);
+    expect(repository.loggedOut, isTrue);
   });
 
   test('LoginRequested emits loading then authenticated on success', () async {

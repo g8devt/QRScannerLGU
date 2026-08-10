@@ -18,11 +18,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final RestoreSessionUsecase _restoreSession;
 
   Future<void> _onAppStarted(AppStarted event, Emitter<AuthState> emit) async {
-    final user = await _restoreSession();
-    if (user != null) {
-      emit(state.copyWith(status: AuthStatus.authenticated, user: user));
-    } else {
-      emit(state.copyWith(status: AuthStatus.unauthenticated));
+    try {
+      final user = await _restoreSession();
+      if (user != null) {
+        emit(state.copyWith(status: AuthStatus.authenticated, user: user));
+      } else {
+        emit(state.copyWith(status: AuthStatus.unauthenticated));
+      }
+    } catch (_) {
+      await _logout();
+      emit(const AuthState(status: AuthStatus.unauthenticated));
     }
   }
 
