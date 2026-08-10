@@ -6,6 +6,25 @@ import '../bloc/claim_bloc.dart';
 import '../bloc/claim_event.dart';
 import 'confirm_identity_page.dart';
 
+/// Government-issued ID types accepted for claimant verification in the
+/// Philippines. Matches the standard "valid ID" list LGUs and banks use for
+/// over-the-counter identity checks.
+const List<String> philippineIdTypes = [
+  'Philippine Passport',
+  "Driver's License",
+  'UMID (SSS/GSIS/PhilHealth/Pag-IBIG)',
+  'PhilSys National ID',
+  'PhilHealth ID',
+  'Postal ID',
+  "Voter's ID / Voter's Certification",
+  'PRC ID',
+  'TIN ID',
+  'Senior Citizen ID',
+  'PWD ID',
+  'Barangay ID',
+  'Other',
+];
+
 class ClaimantInfoPage extends StatefulWidget {
   const ClaimantInfoPage({super.key});
 
@@ -15,9 +34,9 @@ class ClaimantInfoPage extends StatefulWidget {
 
 class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
   ClaimantType _type = ClaimantType.self;
+  String? _idType;
   final _nameController = TextEditingController();
   final _relationController = TextEditingController();
-  final _idTypeController = TextEditingController();
   final _idNumberController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
@@ -25,7 +44,6 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
   void dispose() {
     _nameController.dispose();
     _relationController.dispose();
-    _idTypeController.dispose();
     _idNumberController.dispose();
     super.dispose();
   }
@@ -36,7 +54,7 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
       type: _type,
       name: _type == ClaimantType.representative ? _nameController.text.trim() : '',
       relation: _type == ClaimantType.representative ? _relationController.text.trim() : '',
-      idType: _idTypeController.text.trim(),
+      idType: _idType ?? '',
       idNumber: _idNumberController.text.trim(),
     );
     context.read<ClaimBloc>().add(ClaimantInfoSaved(info));
@@ -86,10 +104,14 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
               ],
-              TextFormField(
-                controller: _idTypeController,
-                decoration: const InputDecoration(labelText: "ID type (e.g. Driver's License)"),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              DropdownButtonFormField<String>(
+                initialValue: _idType,
+                decoration: const InputDecoration(labelText: 'ID type'),
+                items: [
+                  for (final type in philippineIdTypes) DropdownMenuItem(value: type, child: Text(type)),
+                ],
+                onChanged: (v) => setState(() => _idType = v),
+                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
               ),
               TextFormField(
                 controller: _idNumberController,
