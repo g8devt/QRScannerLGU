@@ -19,6 +19,11 @@ MAX_BOOKING_HORIZON_DAYS = 30  # proposed default; confirm with LGU alongside sl
 ONLINE_APPOINTMENT_LOCATION = 'Orani District Office (sa tabi ng simbahan)'
 _CLAIM_FILE_FIELDS = ('claimant_id_front', 'claimant_id_back', 'claimant_signature', 'claimant_face_photo')
 
+# Statuses eligible for claim capture. SCHEDULED is included alongside
+# APPROVED/RELEASED so an auto-scheduled appointment can be claimed at the
+# counter without waiting on a separate review/approval step.
+_CLAIM_ELIGIBLE_STATUSES = ('APPROVED', 'RELEASED', 'SCHEDULED')
+
 
 def _time_from_db(value):
     """pymysql returns MySQL `TIME` columns as `datetime.timedelta`, not
@@ -746,7 +751,7 @@ def verify_qr_bataan(cur, data, files, ts):
             claimed_on = row.get('date_claimed')
             message = f'Already claimed on {claimed_on}' if claimed_on else 'Already claimed'
             return fail(message, 409)
-        if status not in ('APPROVED', 'RELEASED'):
+        if status not in _CLAIM_ELIGIBLE_STATUSES:
             return fail(f'Not yet eligible for claim — status is {status}', 409)
 
         return ok({'status': True, 'data': serialize_row(row)})
@@ -777,7 +782,7 @@ def submit_claim_bataan(cur, data, files, ts):
         if not existing:
             return fail('Application not found', 404)
 
-        if existing['status'] not in ('APPROVED', 'RELEASED'):
+        if existing['status'] not in _CLAIM_ELIGIBLE_STATUSES:
             return fail(f"Not eligible for claim — status is {existing['status']}", 409)
 
         if not _has_claim_columns(cur):
@@ -785,15 +790,16 @@ def submit_claim_bataan(cur, data, files, ts):
 
         file_urls = upload_files_from_list(files, f'social_services/{app_id}/claim', app_id)
 
+        status_placeholders = ', '.join(['%s'] * len(_CLAIM_ELIGIBLE_STATUSES))
         cur.execute(
-            """
+            f"""
             UPDATE app_social_services
             SET status='CLAIMED', date_claimed=%s,
                 claim_method=%s, claimant_type=%s, claimant_name=%s,
                 claimant_relation=%s, claimant_id_type=%s, claimant_id_number=%s,
                 claimant_id_front=%s, claimant_id_back=%s, claimant_signature=%s,
                 claimant_face_photo=%s
-            WHERE id=%s AND status IN ('APPROVED', 'RELEASED')
+            WHERE id=%s AND status IN ({status_placeholders})
             """,
             (
                 ts,
@@ -807,6 +813,7 @@ def submit_claim_bataan(cur, data, files, ts):
                 file_urls.get('claimant_signature'),
                 file_urls.get('claimant_face_photo'),
                 app_id,
+                *_CLAIM_ELIGIBLE_STATUSES,
             ),
         )
         if cur.rowcount == 0:

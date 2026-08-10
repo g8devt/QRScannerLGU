@@ -48,6 +48,16 @@ class VerifyQrBataanTest(unittest.TestCase):
         result = verify_qr_bataan(cur, {}, [], '2026-08-10 00:00:00')
         self.assertEqual(result['statusCode'], 400)
 
+    def test_scheduled_status_returns_200_with_data(self):
+        cur = self._cur({
+            'id': 1, 'application_number': 'SS-000001', 'beneficiary_name': 'Juan',
+            'status': 'SCHEDULED', 'requested_for_fname': 'Juan', 'requested_for_mname': '',
+            'requested_for_lname': 'Dela Cruz', 'date_approved': None,
+            'date_released': None, 'date_claimed': None,
+        })
+        result = verify_qr_bataan(cur, {'qr_code': 'SS-000001-ABC'}, [], '2026-08-10 00:00:00')
+        self.assertEqual(result['statusCode'], 200)
+
 
 def _claim_files():
     return [
@@ -108,6 +118,18 @@ class SubmitClaimBataanTest(unittest.TestCase):
         }
         cur = MagicMock()
         cur.fetchone.side_effect = [{'status': 'APPROVED'}, {'c': 1}]
+        cur.rowcount = 1
+        result = submit_claim_bataan(cur, self._base_data(), _claim_files(), '2026-08-10 00:00:00')
+        self.assertEqual(result['statusCode'], 200)
+
+    @patch('endpoints.social_services_bataan.upload_files_from_list')
+    def test_scheduled_status_returns_200(self, mock_upload):
+        mock_upload.return_value = {
+            'claimant_id_front': 'url1', 'claimant_id_back': 'url2',
+            'claimant_signature': 'url3', 'claimant_face_photo': 'url4',
+        }
+        cur = MagicMock()
+        cur.fetchone.side_effect = [{'status': 'SCHEDULED'}, {'c': 1}]
         cur.rowcount = 1
         result = submit_claim_bataan(cur, self._base_data(), _claim_files(), '2026-08-10 00:00:00')
         self.assertEqual(result['statusCode'], 200)
