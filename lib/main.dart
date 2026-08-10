@@ -52,6 +52,7 @@ class MyApp extends StatelessWidget {
               ],
               child: MaterialApp(
                 title: 'Bataan LGU Scanner',
+                debugShowCheckedModeBanner: false,
                 theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
                 navigatorObservers: [routeObserver],
                 home: const ScannerPage(),
