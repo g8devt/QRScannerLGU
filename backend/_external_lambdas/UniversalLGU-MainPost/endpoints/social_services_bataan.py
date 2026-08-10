@@ -720,3 +720,36 @@ def get_social_services_bataan(cur, data, files, ts):
     except Exception as e:
         logger.error(f"get_social_services_bataan error: {e}", exc_info=True)
         return fail(f'Server error: {str(e)}', 500)
+
+def verify_qr_bataan(cur, data, files, ts):
+    try:
+        require(data, 'qr_code')
+        qr_code = data['qr_code']
+
+        cur.execute(
+            """
+            SELECT id, application_number, beneficiary_name, status,
+                   requested_for_fname, requested_for_mname, requested_for_lname,
+                   date_approved, date_released, date_claimed
+            FROM app_social_services WHERE qr_code=%s
+            """,
+            (qr_code,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return fail('QR code not found', 404)
+
+        status = row['status']
+        if status == 'CLAIMED':
+            claimed_on = row.get('date_claimed')
+            message = f'Already claimed on {claimed_on}' if claimed_on else 'Already claimed'
+            return fail(message, 409)
+        if status not in ('APPROVED', 'RELEASED'):
+            return fail(f'Not yet eligible for claim — status is {status}', 409)
+
+        return ok({'status': True, 'data': serialize_row(row)})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f"verify_qr_bataan error: {e}", exc_info=True)
+        return fail(f'Server error: {str(e)}', 500)
