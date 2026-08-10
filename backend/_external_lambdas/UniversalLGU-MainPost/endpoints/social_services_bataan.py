@@ -17,7 +17,7 @@ logger = logging.getLogger()
 # citizen can be booked and names where the appointment happens.
 MAX_BOOKING_HORIZON_DAYS = 30  # proposed default; confirm with LGU alongside slot-seeding cadence
 ONLINE_APPOINTMENT_LOCATION = 'Orani District Office (sa tabi ng simbahan)'
-_CLAIM_FILE_FIELDS = ('claimant_id_front', 'claimant_id_back', 'claimant_signature', 'claimant_face_photo')
+_CLAIM_FILE_FIELDS = ('claimant_id_front', 'claimant_signature', 'claimant_face_photo')
 
 # Statuses eligible for claim capture. SCHEDULED is included alongside
 # APPROVED/RELEASED so an auto-scheduled appointment can be claimed at the
