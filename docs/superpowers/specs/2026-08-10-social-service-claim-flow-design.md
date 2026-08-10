@@ -8,8 +8,8 @@ Status: Approved
 Wire the existing QR scanner up to a real claim workflow for the Bataan
 `app_social_services` process: scan QR → verify against the backend →
 eligibility gate → claimant info → confirm identity → capture claimant ID
-(front/back/signature) → preview → submit → confirm claim (record marked
-`CLAIMED`). Replaces the current dead-end `ResultPage` stub.
+(front/back/signature/face photo) → preview → submit → confirm claim (record
+marked `CLAIMED`). Replaces the current dead-end `ResultPage` stub.
 
 ## Scope
 
@@ -26,15 +26,16 @@ eligibility gate → claimant info → confirm identity → capture claimant ID
 
 ```sql
 ALTER TABLE app_social_services
-  ADD COLUMN claim_method       VARCHAR(20)  NULL,  -- 'QR' | 'MANUAL'
-  ADD COLUMN claimant_type      VARCHAR(20)  NULL,  -- 'SELF' | 'REPRESENTATIVE'
-  ADD COLUMN claimant_name      VARCHAR(255) NULL,
-  ADD COLUMN claimant_relation  VARCHAR(100) NULL,
-  ADD COLUMN claimant_id_type   VARCHAR(50)  NULL,
-  ADD COLUMN claimant_id_number VARCHAR(100) NULL,
-  ADD COLUMN claimant_id_front  VARCHAR(500) NULL,  -- S3 key/URL
-  ADD COLUMN claimant_id_back   VARCHAR(500) NULL,
-  ADD COLUMN claimant_signature VARCHAR(500) NULL;
+  ADD COLUMN claim_method        VARCHAR(20)  NULL,  -- 'QR' | 'MANUAL'
+  ADD COLUMN claimant_type       VARCHAR(20)  NULL,  -- 'SELF' | 'REPRESENTATIVE'
+  ADD COLUMN claimant_name       VARCHAR(255) NULL,
+  ADD COLUMN claimant_relation   VARCHAR(100) NULL,
+  ADD COLUMN claimant_id_type    VARCHAR(50)  NULL,
+  ADD COLUMN claimant_id_number  VARCHAR(100) NULL,
+  ADD COLUMN claimant_id_front   VARCHAR(500) NULL,  -- S3 key/URL
+  ADD COLUMN claimant_id_back    VARCHAR(500) NULL,
+  ADD COLUMN claimant_signature  VARCHAR(500) NULL,
+  ADD COLUMN claimant_face_photo VARCHAR(500) NULL;  -- live photo taken at claim time
 ```
 
 `status`, `date_claimed`, and `claimed_amount` already exist on the table
@@ -66,14 +67,12 @@ entries for that same permission string.
   - `status not in ('APPROVED', 'RELEASED')` →
     `fail('Not yet eligible — status is <status>')`
   - Else → `ok({data: {id, application_number, beneficiary_name, status,
-    image_verification, requested_for_fname, requested_for_mname,
-    requested_for_lname, date_approved, date_released, ...}})`
+    requested_for_fname, requested_for_mname, requested_for_lname,
+    date_approved, date_released, ...}})`
 
-  `image_verification` (not `photo_2x2`) is the column returned for the
-  identity-confirm step — it's the applicant's face/identity-verification
-  photo captured at application time (`submit_social_service_bataan`
-  already writes it); `photo_2x2` is a separate 2x2 ID-style photo and is
-  not used for this step.
+  No stored photo column (`photo_2x2`, `image_verification`) is returned or
+  used for identity confirmation — see `ConfirmIdentityPage` below, which is
+  a photo-less manual judgement call.
 
 These three failure branches are the diagram's "Eligibility gates → Stop,
 show reason" step.
@@ -83,21 +82,23 @@ show reason" step.
 - **In (multipart):** `{endpoint: 'submit_claim_bataan', token, db_name, id,
   claim_method: 'QR', claimant_type, claimant_name?, claimant_relation?,
   claimant_id_type, claimant_id_number}` + files `claimant_id_front`,
-  `claimant_id_back`, `claimant_signature`
+  `claimant_id_back`, `claimant_signature`, `claimant_face_photo`
 - **Logic:**
   1. `require(data, 'id', 'claimant_type', 'claimant_id_type',
      'claimant_id_number')`; if `claimant_type == 'REPRESENTATIVE'`, also
      require `claimant_name`, `claimant_relation`.
-  2. Require all 3 files present.
+  2. Require all 4 files present (ID front, ID back, signature, live face
+     photo).
   3. `upload_files_from_list(files, f'social_services/{id}/claim', ...)` to
      get stored S3 keys (mirrors `submit_kyc`'s use of `upload_files_from_list`
      in `endpoints/kyc.py`).
   4. `UPDATE app_social_services SET status='CLAIMED', date_claimed=NOW(),
      claim_method=%s, claimant_type=%s, claimant_name=%s,
      claimant_relation=%s, claimant_id_type=%s, claimant_id_number=%s,
-     claimant_id_front=%s, claimant_id_back=%s, claimant_signature=%s
-     WHERE id=%s AND status != 'CLAIMED'` — the `AND status != 'CLAIMED'`
-     guard prevents a double-claim race between two staff devices.
+     claimant_id_front=%s, claimant_id_back=%s, claimant_signature=%s,
+     claimant_face_photo=%s WHERE id=%s AND status != 'CLAIMED'` — the
+     `AND status != 'CLAIMED'` guard prevents a double-claim race between
+     two staff devices.
   5. 0 rows affected → `fail('Already claimed by another session')`.
   6. `record_audit_log(...)`, then `ok({success: true})`.
 
@@ -140,8 +141,8 @@ lib/features/social_service_claim/
 ```
 
 Reuses `CameraRepository` / `CapturePhoto` usecase from `qr_scanner`'s
-`domain` layer for the 3 ID captures (front/back/signature) — no
-duplication of camera-capture logic.
+`domain` layer for the 4 captures (ID front, ID back, signature, live face
+photo) — no duplication of camera-capture logic.
 
 ### Networking
 
@@ -163,12 +164,16 @@ to this feature, so future features can reuse it.
 3. **ClaimantInfoPage** — radio `SELF` / `REPRESENTATIVE`; REPRESENTATIVE
    reveals name / relation / ID type / ID number fields. Stored into
    `ClaimBloc` session state.
-4. **ConfirmIdentityPage** — shows `image_verification` (the applicant's
-   identity photo captured at application time) next to a "Confirm this is
-   the person" button. Manual staff check, no API call.
-5. **CaptureIdPage** — three sequential captures (ID front, ID back,
-   signature) via the reused `CapturePhoto` usecase.
-6. **PreviewPage** — thumbnails of the 3 captures + claimant info summary;
+4. **ConfirmIdentityPage** — no stored photo to show (no `photo_2x2` /
+   `image_verification` reference exists). Displays the verified applicant's
+   name/application details and a "Confirm this is the claimant" button —
+   staff visually matches the physical person against the QR record's
+   printed/on-screen details. Purely a manual gate.
+5. **CaptureIdPage** — four sequential live captures (ID front, ID back,
+   signature, claimant's face photo) via the reused `CapturePhoto` usecase.
+   The face photo is evidentiary only (who physically claimed it), not
+   compared against any stored reference.
+6. **PreviewPage** — thumbnails of the 4 captures + claimant info summary;
    "Retake" (back to step 5) or "Submit".
 7. Submit → `submit_claim_bataan` (multipart) → loading →
    - Success → **ConfirmClaimPage** ("Claim recorded", record now
