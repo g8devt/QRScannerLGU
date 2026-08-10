@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../social_service_claim/presentation/pages/verify_page.dart';
 import '../../data/datasources/mobile_scanner_datasource.dart';
-import '../../domain/usecases/capture_photo.dart';
-import '../bloc/capture_bloc.dart';
 import '../bloc/scanner_bloc.dart';
 import '../bloc/scanner_event.dart';
 import '../bloc/scanner_state.dart';
 import '../widgets/info_banner.dart';
 import '../widgets/scanner_overlay.dart';
-import 'result_page.dart';
 
 class ScannerPage extends StatefulWidget {
   const ScannerPage({super.key});
@@ -63,12 +61,7 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver {
           if (state is ScannerDetected) {
             Navigator.of(context)
                 .push(
-                  MaterialPageRoute(
-                    builder: (_) => BlocProvider(
-                      create: (_) => CaptureBloc(context.read<CapturePhoto>()),
-                      child: ResultPage(rawValue: state.rawValue),
-                    ),
-                  ),
+                  MaterialPageRoute(builder: (_) => VerifyPage(rawValue: state.rawValue)),
                 )
                 .then((_) {
                   if (context.mounted) context.read<ScannerBloc>().add(const StartScan());
