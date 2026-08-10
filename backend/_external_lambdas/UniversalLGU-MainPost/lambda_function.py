@@ -25,6 +25,7 @@ from endpoints import admin_kyc
 from endpoints import kyc_review
 from endpoints import audit_log
 from endpoints import analytics
+from endpoints import scanner_auth_bataan
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -265,6 +266,7 @@ ROUTES = {
     'check_tourism_booking': tourism.check_tourism_booking,
     'cancel_tourism_booking': tourism.cancel_tourism_booking,
     'confirm_tourism_booking_payment': tourism.confirm_tourism_booking_payment,
+    'login_scanner_bataan': scanner_auth_bataan.login_scanner_bataan,
 }
 
 
