@@ -621,7 +621,17 @@ def get_social_services(cur, data, files, ts):
                    other_financial_assistance_type_1,
                    other_financial_assistance_agency_1,
                    other_financial_assistance_type_2,
-                   other_financial_assistance_agency_2{bene_col}{civil_status_col}{educ_year_level_col}{appt_cols}
+                   other_financial_assistance_agency_2,
+                   photo_2x2, photo_signature, image_verification,
+                   upload_file_1, upload_file_1_type,
+                   upload_file_2, upload_file_2_type,
+                   upload_file_3, upload_file_3_type,
+                   upload_file_4, upload_file_4_type,
+                   upload_file_5, upload_file_5_type,
+                   upload_file_6, upload_file_6_type,
+                   upload_file_7, upload_file_7_type,
+                   upload_file_8, upload_file_8_type
+                   {bene_col}{civil_status_col}{educ_year_level_col}{appt_cols}
             FROM app_social_services WHERE user_id=%s ORDER BY date_requested DESC
         """, (data['user_profile_id'],))
         rows = cur.fetchall()
