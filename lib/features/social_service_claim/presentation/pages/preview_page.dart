@@ -7,7 +7,7 @@ import '../../domain/entities/claimant_info.dart';
 import '../bloc/claim_bloc.dart';
 import '../bloc/claim_event.dart';
 import '../bloc/claim_state.dart';
-import 'capture_id_page.dart';
+import 'claimant_info_page.dart';
 import 'confirm_claim_page.dart';
 
 class PreviewPage extends StatelessWidget {
@@ -47,8 +47,27 @@ class PreviewPage extends StatelessWidget {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      Text('Claimant: ${claimant.type == ClaimantType.self ? 'Self' : claimant.name}'),
-                      Text('ID: ${claimant.idType} ${claimant.idNumber}'),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text('Claimant Information', style: Theme.of(context).textTheme.titleMedium),
+                          ),
+                          IconButton(
+                            tooltip: 'Edit claimant information',
+                            icon: const Icon(Icons.edit),
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const ClaimantInfoPage()),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text('Claiming as: ${claimant.type == ClaimantType.self ? 'Self' : 'Representative'}'),
+                      if (claimant.type == ClaimantType.representative) ...[
+                        Text('Representative name: ${claimant.name}'),
+                        Text('Relation to applicant: ${claimant.relation}'),
+                      ],
+                      Text('ID type: ${claimant.idType}'),
+                      Text('ID number: ${claimant.idNumber}'),
                       const SizedBox(height: 16),
                       GridView.count(
                         crossAxisCount: 2,
@@ -75,28 +94,13 @@ class PreviewPage extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const CaptureIdPage()),
-                          ),
-                          child: const Text('Retake'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: state.status == ClaimStatus.submitting
-                              ? null
-                              : () => context.read<ClaimBloc>().add(const ClaimSubmitRequested()),
-                          child: state.status == ClaimStatus.submitting
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Text('Submit'),
-                        ),
-                      ),
-                    ],
+                  child: ElevatedButton(
+                    onPressed: state.status == ClaimStatus.submitting
+                        ? null
+                        : () => context.read<ClaimBloc>().add(const ClaimSubmitRequested()),
+                    child: state.status == ClaimStatus.submitting
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('Submit'),
                   ),
                 ),
               ],

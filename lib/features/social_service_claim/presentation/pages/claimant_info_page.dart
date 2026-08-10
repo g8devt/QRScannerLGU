@@ -25,6 +25,34 @@ class _ClaimantInfoPageState extends State<ClaimantInfoPage> {
   final _formKey = GlobalKey<FormState>();
 
   @override
+  void initState() {
+    super.initState();
+    // Pre-fill from any previously saved claimant info, so reopening this
+    // page (e.g. via the edit button on Preview) shows the existing values
+    // instead of resetting the form.
+    final claimant = context.read<ClaimBloc>().state.claimant;
+    _type = claimant.type;
+    _nameController.text = claimant.name;
+    _idNumberController.text = claimant.idNumber;
+    if (claimant.relation.isNotEmpty) {
+      if (claimantRelations.contains(claimant.relation)) {
+        _relation = claimant.relation;
+      } else {
+        _relation = 'Other';
+        _otherRelationController.text = claimant.relation;
+      }
+    }
+    if (claimant.idType.isNotEmpty) {
+      if (philippineIdTypes.contains(claimant.idType)) {
+        _idType = claimant.idType;
+      } else {
+        _idType = 'Other';
+        _otherIdTypeController.text = claimant.idType;
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _idNumberController.dispose();
