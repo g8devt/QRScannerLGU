@@ -9,12 +9,14 @@ abstract class ClaimRepository {
   /// claimed, not yet eligible) or network failure.
   Future<VerifiedApplication> verifyQr(String qrCode);
 
-  /// Submits the claim: claimant info + 4 capture file paths. Throws
-  /// [ClaimSubmitException] with a human-readable reason on failure.
+  /// Submits the claim: claimant info + 4 capture file paths, plus which
+  /// scanner-staff account processed it. Throws [ClaimSubmitException]
+  /// with a human-readable reason on failure.
   Future<void> submitClaim({
     required int applicationId,
     required ClaimantInfo claimant,
     required ClaimCaptures captures,
+    int? usersScannerId,
   });
 }
 

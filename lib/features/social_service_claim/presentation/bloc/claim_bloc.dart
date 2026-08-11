@@ -55,6 +55,7 @@ class ClaimBloc extends Bloc<ClaimEvent, ClaimState> {
         applicationId: application.id,
         claimant: state.claimant,
         captures: state.captures,
+        usersScannerId: event.usersScannerId,
       );
       emit(state.copyWith(status: ClaimStatus.submitted));
     } catch (e) {

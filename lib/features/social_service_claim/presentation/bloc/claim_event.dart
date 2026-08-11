@@ -48,7 +48,16 @@ class CapturesUpdated extends ClaimEvent {
 
 /// Submits the claim (calls `submit_claim_bataan`).
 class ClaimSubmitRequested extends ClaimEvent {
-  const ClaimSubmitRequested();
+  const ClaimSubmitRequested({this.usersScannerId});
+
+  /// The logged-in scanner-staff account's id (`AuthBloc`'s current
+  /// `ScannerUser.id`), recorded on the claim so it can be traced back to
+  /// who processed it. Null when no one is logged in (shouldn't happen
+  /// past `AuthGate`, but the backend column is nullable regardless).
+  final int? usersScannerId;
+
+  @override
+  List<Object?> get props => [usersScannerId];
 }
 
 /// Resets the whole session — used after Stop or after a successful claim,

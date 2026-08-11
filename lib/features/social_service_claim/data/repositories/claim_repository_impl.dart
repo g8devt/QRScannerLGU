@@ -28,6 +28,7 @@ class ClaimRepositoryImpl implements ClaimRepository {
     required int applicationId,
     required ClaimantInfo claimant,
     required ClaimCaptures captures,
+    int? usersScannerId,
   }) async {
     if (!captures.isComplete) {
       throw ClaimSubmitException('ID front, signature, and face photo are required before submitting.');
@@ -45,6 +46,7 @@ class ClaimRepositoryImpl implements ClaimRepository {
         idBackPath: captures.idBackPath,
         signaturePath: captures.signaturePath!,
         facePhotoPath: captures.facePhotoPath!,
+        usersScannerId: usersScannerId,
       );
     } on ApiException catch (e) {
       throw ClaimSubmitException(e.message);

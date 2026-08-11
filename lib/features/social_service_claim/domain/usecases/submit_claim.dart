@@ -11,7 +11,13 @@ class SubmitClaim {
     required int applicationId,
     required ClaimantInfo claimant,
     required ClaimCaptures captures,
+    int? usersScannerId,
   }) {
-    return _repository.submitClaim(applicationId: applicationId, claimant: claimant, captures: captures);
+    return _repository.submitClaim(
+      applicationId: applicationId,
+      claimant: claimant,
+      captures: captures,
+      usersScannerId: usersScannerId,
+    );
   }
 }

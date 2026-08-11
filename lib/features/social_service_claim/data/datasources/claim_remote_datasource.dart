@@ -23,6 +23,7 @@ class ClaimRemoteDatasource {
     String? idBackPath,
     required String signaturePath,
     required String facePhotoPath,
+    int? usersScannerId,
   }) {
     return _apiClient.postMultipart(
       'submit_claim_bataan',
@@ -36,6 +37,8 @@ class ClaimRemoteDatasource {
         'claimant_id_number': claimantIdNumber,
         // ignore: use_null_aware_elements
         if (claimedAmount != null) 'claimed_amount': claimedAmount.toString(),
+        // ignore: use_null_aware_elements
+        if (usersScannerId != null) 'users_scanner_id': usersScannerId.toString(),
       },
       {
         'claimant_id_front': idFrontPath,

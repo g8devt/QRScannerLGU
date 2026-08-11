@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../domain/entities/claimant_info.dart';
 import '../bloc/claim_bloc.dart';
 import '../bloc/claim_event.dart';
@@ -97,7 +98,9 @@ class PreviewPage extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: state.status == ClaimStatus.submitting
                         ? null
-                        : () => context.read<ClaimBloc>().add(const ClaimSubmitRequested()),
+                        : () => context.read<ClaimBloc>().add(ClaimSubmitRequested(
+                              usersScannerId: context.read<AuthBloc>().state.user?.id,
+                            )),
                     child: state.status == ClaimStatus.submitting
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Text('Submit'),
