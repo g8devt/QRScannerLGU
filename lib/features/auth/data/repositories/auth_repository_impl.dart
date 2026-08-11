@@ -11,12 +11,22 @@ class AuthRepositoryImpl implements AuthRepository {
   final AuthLocalDatasource _local;
 
   @override
-  Future<ScannerUser> login({required String username, required String password}) async {
+  Future<ScannerUser> login({
+    required String username,
+    required String password,
+    required bool rememberMe,
+  }) async {
     try {
       final json = await _remote.login(username: username, password: password);
       final data = json['data'] as Map<String, dynamic>? ?? {};
       final user = ScannerUser.fromJson(data);
-      await _local.saveSession(data);
+      if (rememberMe) {
+        await _local.saveSession(data);
+      } else {
+        // Wipe any previously-remembered session so a stale one can't
+        // auto-login next launch.
+        await _local.clearSession();
+      }
       return user;
     } on ApiException catch (e) {
       throw AuthException(e.message);

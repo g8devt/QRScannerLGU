@@ -6,6 +6,10 @@ class LoginUsecase {
 
   final AuthRepository _repository;
 
-  Future<ScannerUser> call({required String username, required String password}) =>
-      _repository.login(username: username, password: password);
+  Future<ScannerUser> call({
+    required String username,
+    required String password,
+    required bool rememberMe,
+  }) =>
+      _repository.login(username: username, password: password, rememberMe: rememberMe);
 }

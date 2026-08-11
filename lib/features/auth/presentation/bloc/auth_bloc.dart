@@ -34,7 +34,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onLoginRequested(LoginRequested event, Emitter<AuthState> emit) async {
     emit(state.copyWith(status: AuthStatus.loading));
     try {
-      final user = await _login(username: event.username, password: event.password);
+      final user = await _login(
+        username: event.username,
+        password: event.password,
+        rememberMe: event.rememberMe,
+      );
       emit(state.copyWith(status: AuthStatus.authenticated, user: user));
     } catch (e) {
       emit(state.copyWith(status: AuthStatus.error, errorMessage: e.toString()));

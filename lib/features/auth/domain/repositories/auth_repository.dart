@@ -4,7 +4,14 @@ abstract class AuthRepository {
   /// Authenticates against `login_scanner_bataan`. Throws
   /// [AuthException] with a human-readable reason on invalid credentials,
   /// a deactivated account, or a network failure.
-  Future<ScannerUser> login({required String username, required String password});
+  ///
+  /// The session is persisted locally only when [rememberMe] is true, so
+  /// the app auto-logs-in on the next launch only if the user opted in.
+  Future<ScannerUser> login({
+    required String username,
+    required String password,
+    required bool rememberMe,
+  });
 
   /// Returns the locally cached session, or null if none is stored.
   Future<ScannerUser?> restoreSession();

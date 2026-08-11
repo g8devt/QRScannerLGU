@@ -17,6 +17,7 @@ class _LoginPageState extends State<LoginPage> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _rememberMe = true;
 
   @override
   void dispose() {
@@ -30,6 +31,7 @@ class _LoginPageState extends State<LoginPage> {
     context.read<AuthBloc>().add(LoginRequested(
           username: _usernameController.text.trim(),
           password: _passwordController.text,
+          rememberMe: _rememberMe,
         ));
   }
 
@@ -78,6 +80,13 @@ class _LoginPageState extends State<LoginPage> {
                         enabled: !loading,
                         onFieldSubmitted: (_) => _submit(),
                         validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                      ),
+                      CheckboxListTile(
+                        value: _rememberMe,
+                        onChanged: loading ? null : (v) => setState(() => _rememberMe = v ?? true),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Remember me'),
                       ),
                       if (state.status == AuthStatus.error) ...[
                         const SizedBox(height: 16),

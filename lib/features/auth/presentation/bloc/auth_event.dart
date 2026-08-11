@@ -14,13 +14,21 @@ class AppStarted extends AuthEvent {
 
 /// Submits the login form.
 class LoginRequested extends AuthEvent {
-  const LoginRequested({required this.username, required this.password});
+  const LoginRequested({
+    required this.username,
+    required this.password,
+    this.rememberMe = true,
+  });
 
   final String username;
   final String password;
 
+  /// Whether the session should be persisted so the app auto-logs-in on
+  /// the next launch. If false, the session only lasts for this run.
+  final bool rememberMe;
+
   @override
-  List<Object?> get props => [username, password];
+  List<Object?> get props => [username, password, rememberMe];
 }
 
 /// Staff tapped the logout control.

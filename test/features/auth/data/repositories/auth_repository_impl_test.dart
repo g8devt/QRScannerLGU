@@ -45,12 +45,31 @@ void main() {
         local,
       );
 
-      final user = await repo.login(username: 'staff1', password: 'Secret123');
+      final user = await repo.login(username: 'staff1', password: 'Secret123', rememberMe: true);
 
       expect(user.id, 7);
       expect(user.username, 'staff1');
       expect(local.stored, isNotNull);
       expect(local.stored!['username'], 'staff1');
+    });
+
+    test('does not persist the session when rememberMe is false', () async {
+      final local = _FakeAuthLocalDatasource()..stored = {'id': 1};
+      final repo = AuthRepositoryImpl(
+        _FakeAuthRemoteDatasource(response: {
+          'status': true,
+          'data': {
+            'id': 7, 'username': 'staff1', 'user_status': 'VERIFIED', 'firstname': 'Juan',
+            'middlename': '', 'lastname': 'Dela Cruz', 'suffix': '',
+          },
+        }),
+        local,
+      );
+
+      final user = await repo.login(username: 'staff1', password: 'Secret123', rememberMe: false);
+
+      expect(user.id, 7);
+      expect(local.stored, isNull);
     });
 
     test('wraps an ApiException as an AuthException', () async {
@@ -60,7 +79,7 @@ void main() {
       );
 
       expect(
-        () => repo.login(username: 'staff1', password: 'wrong'),
+        () => repo.login(username: 'staff1', password: 'wrong', rememberMe: true),
         throwsA(isA<AuthException>().having((e) => e.message, 'message', 'Invalid Credential')),
       );
     });

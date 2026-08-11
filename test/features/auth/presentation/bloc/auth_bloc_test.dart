@@ -14,9 +14,15 @@ class _FakeAuthRepository implements AuthRepository {
   ScannerUser? restoredSession;
   Object? restoreSessionError;
   bool loggedOut = false;
+  bool? lastRememberMe;
 
   @override
-  Future<ScannerUser> login({required String username, required String password}) async {
+  Future<ScannerUser> login({
+    required String username,
+    required String password,
+    required bool rememberMe,
+  }) async {
+    lastRememberMe = rememberMe;
     if (loginError != null) throw loginError!;
     return loginResult!;
   }
@@ -92,7 +98,7 @@ void main() {
     final states = <AuthState>[];
     final sub = bloc.stream.listen(states.add);
 
-    bloc.add(const LoginRequested(username: 'staff1', password: 'Secret123'));
+    bloc.add(const LoginRequested(username: 'staff1', password: 'Secret123', rememberMe: false));
     await Future<void>.delayed(Duration.zero);
     await sub.cancel();
 
@@ -100,6 +106,7 @@ void main() {
       const AuthState(status: AuthStatus.loading),
       const AuthState(status: AuthStatus.authenticated, user: _user),
     ]);
+    expect(repository.lastRememberMe, isFalse);
   });
 
   test('LoginRequested emits loading then error on invalid credentials', () async {
