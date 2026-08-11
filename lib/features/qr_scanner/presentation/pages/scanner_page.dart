@@ -77,6 +77,7 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver, 
 
   Future<void> _confirmLogout(BuildContext context) async {
     final authBloc = context.read<AuthBloc>();
+    final scannerBloc = context.read<ScannerBloc>();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -96,6 +97,13 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver, 
     );
 
     if (confirmed == true) {
+      // mobile_scanner never stops the camera on its own when this widget
+      // unmounts (our controller uses autoStart: false, so its dispose()
+      // skips stop()). Without this, the controller stays "running" after
+      // logout, so the next login's start() call becomes a no-op (see
+      // MobileScannerController.start()'s `if (value.isRunning) return;`)
+      // and the new camera preview never paints.
+      scannerBloc.add(const PauseScan());
       authBloc.add(const LogoutRequested());
     }
   }
