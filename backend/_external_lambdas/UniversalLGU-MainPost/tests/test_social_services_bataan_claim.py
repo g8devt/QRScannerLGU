@@ -75,6 +75,16 @@ class SubmitClaimBataanTest(unittest.TestCase):
             'claimant_id_type': "Driver's License", 'claimant_id_number': '123',
         }
 
+    def _update_call(self, cur):
+        """Find the `UPDATE app_social_services` call among cur.execute's
+        calls — record_audit_log's INSERT runs after it, so it's not
+        reliably the last call."""
+        for call in cur.execute.call_args_list:
+            sql = call.args[0]
+            if 'UPDATE app_social_services' in sql:
+                return call.args
+        raise AssertionError('No UPDATE app_social_services call found')
+
     def test_missing_files_returns_400(self):
         cur = MagicMock()
         result = submit_claim_bataan(cur, self._base_data(), [], '2026-08-10 00:00:00')
@@ -133,6 +143,37 @@ class SubmitClaimBataanTest(unittest.TestCase):
         cur.rowcount = 1
         result = submit_claim_bataan(cur, self._base_data(), _claim_files(), '2026-08-10 00:00:00')
         self.assertEqual(result['statusCode'], 200)
+
+    @patch('endpoints.social_services_bataan.upload_files_from_list')
+    def test_users_scanner_id_included_in_update(self, mock_upload):
+        mock_upload.return_value = {
+            'claimant_id_front': 'url1', 'claimant_id_back': 'url2',
+            'claimant_signature': 'url3', 'claimant_face_photo': 'url4',
+        }
+        cur = MagicMock()
+        cur.fetchone.side_effect = [{'status': 'APPROVED'}, {'c': 1}]
+        cur.rowcount = 1
+        data = self._base_data()
+        data['users_scanner_id'] = '7'
+        result = submit_claim_bataan(cur, data, _claim_files(), '2026-08-10 00:00:00')
+        self.assertEqual(result['statusCode'], 200)
+        sql, params = self._update_call(cur)
+        self.assertIn('users_scanner_id=%s', sql)
+        self.assertIn('7', params)
+
+    @patch('endpoints.social_services_bataan.upload_files_from_list')
+    def test_users_scanner_id_omitted_stores_none(self, mock_upload):
+        mock_upload.return_value = {
+            'claimant_id_front': 'url1', 'claimant_id_back': 'url2',
+            'claimant_signature': 'url3', 'claimant_face_photo': 'url4',
+        }
+        cur = MagicMock()
+        cur.fetchone.side_effect = [{'status': 'APPROVED'}, {'c': 1}]
+        cur.rowcount = 1
+        result = submit_claim_bataan(cur, self._base_data(), _claim_files(), '2026-08-10 00:00:00')
+        self.assertEqual(result['statusCode'], 200)
+        _, params = self._update_call(cur)
+        self.assertIsNone(params[-5])  # users_scanner_id precedes app_id + the 3 status placeholders
 
 
 if __name__ == '__main__':

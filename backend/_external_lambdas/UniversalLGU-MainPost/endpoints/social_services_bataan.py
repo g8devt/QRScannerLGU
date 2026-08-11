@@ -808,7 +808,7 @@ def submit_claim_bataan(cur, data, files, ts):
                 claim_method=%s, claimant_type=%s, claimant_name=%s,
                 claimant_relation=%s, claimant_id_type=%s, claimant_id_number=%s,
                 claimant_id_front=%s, claimant_id_back=%s, claimant_signature=%s,
-                claimant_face_photo=%s, claimed_amount=%s
+                claimant_face_photo=%s, claimed_amount=%s, users_scanner_id=%s
             WHERE id=%s AND status IN ({status_placeholders})
             """,
             (
@@ -823,6 +823,7 @@ def submit_claim_bataan(cur, data, files, ts):
                 file_urls.get('claimant_signature'),
                 file_urls.get('claimant_face_photo'),
                 claimed_amount,
+                sanitize(data.get('users_scanner_id')),
                 app_id,
                 *_CLAIM_ELIGIBLE_STATUSES,
             ),
