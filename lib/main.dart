@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'core/config/app_config.dart';
 import 'core/network/api_client.dart';
 import 'features/auth/data/datasources/auth_local_datasource.dart';
 import 'features/auth/data/datasources/auth_remote_datasource.dart';
@@ -25,6 +26,8 @@ import 'features/social_service_claim/presentation/bloc/claim_bloc.dart';
 final RouteObserver<PageRoute<void>> routeObserver = RouteObserver<PageRoute<void>>();
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  AppConfig.initPackageInfo();
   runApp(const MyApp());
 }
 
