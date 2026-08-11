@@ -27,6 +27,14 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Impeller doesn't always repaint the mobile_scanner camera texture
+             on its first attach on Android — the preview stays blank until
+             something else forces a relayout (e.g. pulling down the status
+             bar). Falling back to Skia avoids this; see:
+             https://github.com/flutter/flutter/issues/145906 -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
