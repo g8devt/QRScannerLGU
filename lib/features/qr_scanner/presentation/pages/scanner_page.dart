@@ -66,6 +66,31 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver, 
     }
   }
 
+  Future<void> _confirmLogout(BuildContext context) async {
+    final authBloc = context.read<AuthBloc>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('You will need to sign in again to continue scanning.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      authBloc.add(const LogoutRequested());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.read<MobileScannerDatasource>().controller;
@@ -95,7 +120,7 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver, 
                       trailing: IconButton(
                         icon: const Icon(Icons.logout, color: Colors.white),
                         tooltip: 'Log out',
-                        onPressed: () => context.read<AuthBloc>().add(const LogoutRequested()),
+                        onPressed: () => _confirmLogout(context),
                       ),
                       child: const Text('Scan QR to Fetch ID', style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
