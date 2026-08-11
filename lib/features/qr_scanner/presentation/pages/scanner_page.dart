@@ -25,7 +25,16 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver, 
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    context.read<ScannerBloc>().add(const StartScan());
+    // Deferred to after the first frame: when ScannerPage replaces LoginPage
+    // in place (no route push — see AuthGate), this is the widget's very
+    // first build, so the MobileScanner platform view hasn't completed its
+    // first layout/attach yet. Starting the camera before that leaves the
+    // preview blank on real devices until something forces a relayout
+    // (e.g. pulling down the status bar).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<ScannerBloc>().add(const StartScan());
+    });
   }
 
   @override
