@@ -101,7 +101,7 @@ class DashboardPage extends StatelessWidget {
                     Card(
                       child: ListTile(
                         leading: const Icon(Icons.qr_code_scanner, size: 32),
-                        title: const Text('Scan QR'),
+                        title: const Text('Scan QR for Claim'),
                         subtitle: const Text('Fetch and verify an ID'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => Navigator.of(context).push(
