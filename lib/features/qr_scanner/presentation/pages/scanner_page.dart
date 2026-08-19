@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../main.dart';
+import '../../../social_service_claim/presentation/pages/service_details_page.dart';
 import '../../../social_service_claim/presentation/pages/verify_page.dart';
 import '../../data/datasources/mobile_scanner_datasource.dart';
 import '../bloc/scanner_bloc.dart';
@@ -11,8 +12,19 @@ import '../bloc/scanner_state.dart';
 import '../widgets/info_banner.dart';
 import '../widgets/scanner_overlay.dart';
 
+/// What a scan should do once a QR code is detected.
+enum ScanPurpose {
+  /// Route into the claim-verification flow (VerifyPage).
+  claim,
+
+  /// Route into the read-only application-details view.
+  viewDetails,
+}
+
 class ScannerPage extends StatefulWidget {
-  const ScannerPage({super.key});
+  const ScannerPage({super.key, this.purpose = ScanPurpose.claim});
+
+  final ScanPurpose purpose;
 
   @override
   State<ScannerPage> createState() => _ScannerPageState();
@@ -101,7 +113,9 @@ class _ScannerPageState extends State<ScannerPage>
             if (state is ScannerDetected) {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => VerifyPage(rawValue: state.rawValue),
+                  builder: (_) => widget.purpose == ScanPurpose.viewDetails
+                      ? ServiceDetailsPage(rawValue: state.rawValue)
+                      : VerifyPage(rawValue: state.rawValue),
                 ),
               );
             }
@@ -127,9 +141,11 @@ class _ScannerPageState extends State<ScannerPage>
                           tooltip: 'Back',
                           onPressed: () => _goBack(context),
                         ),
-                        child: const Text(
-                          'Scan QR to Fetch ID',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        child: Text(
+                          widget.purpose == ScanPurpose.viewDetails
+                              ? 'Scan QR to View Details'
+                              : 'Scan QR to Fetch ID',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -155,8 +171,10 @@ class _ScannerPageState extends State<ScannerPage>
                                     .add(const ToggleTorch()),
                               )
                             : null,
-                        child: const Text(
-                          'Align the QR within the frame. After scan, you can capture a verification photo.',
+                        child: Text(
+                          widget.purpose == ScanPurpose.viewDetails
+                              ? 'Align the QR within the frame to view application details.'
+                              : 'Align the QR within the frame. After scan, you can capture a verification photo.',
                         ),
                       ),
                     ),

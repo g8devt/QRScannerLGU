@@ -322,20 +322,98 @@ def toggle_tourism_favorite(cur, data, files, ts):
     return ok({'status': True, 'destination_code': code, 'is_favorite': is_fav})
 
 
+def _gen_destination_code(cur, name):
+    """Unique, uppercase, underscore-joined code derived from `name`. Re-rolls
+    with a numeric suffix until unused (matches the seeded KAWASAN_FALLS style)."""
+    import re
+    base = re.sub(r'[^A-Z0-9]+', '_', name.strip().upper()).strip('_') or 'DESTINATION'
+    code = base
+    suffix = 1
+    while True:
+        cur.execute(
+            "SELECT COUNT(*) AS c FROM app_tourism_destinations WHERE code=%s", (code,))
+        if cur.fetchone()['c'] == 0:
+            return code
+        suffix += 1
+        code = f'{base}_{suffix}'
+
+
+def admin_create_destination(cur, data, files, ts):
+    try:
+        require(data, 'name', 'category')
+        name = data['name'].strip()
+        if not name:
+            return fail('Name is required')
+        category = (data['category'] or '').strip().upper()
+        if category not in _DESTINATION_CATEGORIES:
+            return fail(f'Invalid category: {category}')
+
+        code = _gen_destination_code(cur, name)
+
+        cols = ['code', 'name', 'category', 'location', 'blurb', 'overview',
+                'amenities', 'address', 'price', 'sort_order', 'is_top_pick',
+                'is_trending', 'is_active']
+        vals = [
+            code, name, category,
+            sanitize(data.get('location')), sanitize(data.get('blurb')),
+            sanitize(data.get('overview')), sanitize(data.get('amenities')),
+            sanitize(data.get('address')), data.get('price') or 0,
+            data.get('sort_order') or 0,
+            1 if str(data.get('is_top_pick', '')).strip().lower() in ('1', 'true', 'yes') else 0,
+            1 if str(data.get('is_trending', '')).strip().lower() in ('1', 'true', 'yes') else 0,
+            1 if str(data.get('is_active', '1')).strip().lower() in ('1', 'true', 'yes') else 0,
+        ]
+        # latitude/longitude land in migration 031 — only insert them when
+        # present so a tenant mid-migration still creates the row successfully.
+        if _has_columns(cur, 'app_tourism_destinations', 'latitude', 'longitude'):
+            for field in ('latitude', 'longitude'):
+                if data.get(field) not in (None, ''):
+                    cols.append(field)
+                    vals.append(data[field])
+        placeholders = ','.join(['%s'] * len(cols))
+        cur.execute(
+            f"INSERT INTO app_tourism_destinations ({','.join(cols)}) "
+            f"VALUES ({placeholders})", vals)
+
+        admin = data.get('_admin') or {}
+        record_audit_log(cur, admin.get('id'), admin.get('role'), 'admin_create_destination',
+                          'destination', code, {'name': name}, ts)
+
+        return ok({'status': True, 'id': str(cur.lastrowid), 'code': code})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_create_destination error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
 def admin_list_destinations(cur, data, files, ts):
     try:
         page = max(parse_int(data.get('page')) or 1, 1)
         limit = min(max(parse_int(data.get('limit')) or 20, 1), 100)
         offset = (page - 1) * limit
         category = (data.get('category') or '').strip().upper()
+        search = (data.get('search') or '').strip()
+        active = (data.get('active') or '').strip().upper()
 
         where = []
         params = []
-        if category and category != 'ALL':
+        if category == 'TOP_PICK':
+            where.append('is_top_pick=1')
+        elif category == 'TRENDING':
+            where.append('is_trending=1')
+        elif category and category != 'ALL':
             if category not in _DESTINATION_CATEGORIES:
                 return fail(f'Invalid category: {category}')
             where.append('category=%s')
             params.append(category)
+        if search:
+            where.append('(name LIKE %s OR location LIKE %s)')
+            like = f"%{search}%"
+            params += [like, like]
+        if active and active != 'ALL':
+            where.append('is_active=%s')
+            params.append(1 if active in ('1', 'YES', 'TRUE') else 0)
         clause = ('WHERE ' + ' AND '.join(where)) if where else ''
 
         coords = ', latitude, longitude' if _has_columns(
@@ -356,11 +434,119 @@ def admin_list_destinations(cur, data, files, ts):
         rows = cur.fetchall() or []
         has_more = len(rows) > limit
         rows = rows[:limit]
+
+        cur.execute(
+            "SELECT category, COUNT(*) AS c, SUM(is_top_pick) AS top_pick_c, "
+            "SUM(is_trending) AS trending_c FROM app_tourism_destinations "
+            "GROUP BY category")
+        cat_counts = {}
+        top_pick_total = 0
+        trending_total = 0
+        all_total = 0
+        for row in cur.fetchall():
+            cat_counts[row['category']] = row['c']
+            top_pick_total += row['top_pick_c'] or 0
+            trending_total += row['trending_c'] or 0
+            all_total += row['c']
+        stat_counts = {c: cat_counts.get(c, 0) for c in _DESTINATION_CATEGORIES}
+        stat_counts['ALL'] = all_total
+        stat_counts['TOP_PICK'] = top_pick_total
+        stat_counts['TRENDING'] = trending_total
+
         return ok({'status': True,
                    'data': {'items': [serialize_row(r) for r in rows],
-                            'page': page, 'has_more': has_more}})
+                            'page': page, 'has_more': has_more,
+                            'counts': stat_counts}})
     except Exception as e:
         logger.error(f'admin_list_destinations error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def admin_get_destination_detail(cur, data, files, ts):
+    """Full destination record for the admin detail page, plus its room types
+    (if migration 037 has run) and a summary of recent bookings (migration 038)."""
+    try:
+        require(data, 'id')
+
+        coords = ', latitude, longitude' if _has_columns(
+            cur, 'app_tourism_destinations', 'latitude', 'longitude') else ''
+        gallery = ', gallery_list_url' if _has_columns(
+            cur, 'app_tourism_destinations', 'gallery_list_url') else ''
+
+        cur.execute(f"""
+            SELECT id, code, name, category, location, blurb, overview,
+                   amenities, address, image_url{gallery}, rating,
+                   review_count, price, is_top_pick, is_trending, is_active,
+                   sort_order{coords}
+            FROM app_tourism_destinations
+            WHERE id=%s
+        """, (data['id'],))
+        dest = cur.fetchone()
+        if not dest:
+            return fail('Destination not found', 404)
+
+        rooms = []
+        if _table_exists(cur, 'app_tourism_rooms'):
+            cur.execute(
+                """SELECT id, code, name, bed_type, view_type, inclusions,
+                          price_per_night, image_url, is_active, sort_order
+                   FROM app_tourism_rooms
+                   WHERE destination_code=%s
+                   ORDER BY sort_order ASC, id ASC""",
+                (dest['code'],))
+            rooms = [serialize_row(r) for r in cur.fetchall()]
+
+        bookings = []
+        if _table_exists(cur, 'app_tourism_bookings'):
+            cur.execute(
+                """SELECT id, reference_no, room_name, check_in_date,
+                          check_out_date, nights, total, status, created_at
+                   FROM app_tourism_bookings
+                   WHERE destination_code=%s
+                   ORDER BY created_at DESC
+                   LIMIT 20""",
+                (dest['code'],))
+            bookings = [serialize_row(b) for b in cur.fetchall()]
+
+        data_out = serialize_row(dest)
+        data_out['rooms'] = rooms
+        data_out['bookings'] = bookings
+        return ok({'status': True, 'data': data_out})
+    except Exception as e:
+        logger.error(f'admin_get_destination_detail error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def admin_get_booking_detail(cur, data, files, ts):
+    """Full booking record for the admin detail popup. Destination + room
+    details are snapshotted on the booking row itself (see migration 038),
+    so this needs no joins."""
+    try:
+        require(data, 'id')
+        if not _table_exists(cur, 'app_tourism_bookings'):
+            return fail('Booking not found', 404)
+
+        cur.execute(
+            """SELECT id, reference_no, qr_code, user_profile_id,
+                      destination_id, destination_code, destination_name,
+                      room_id, room_name, nightly_rate, check_in_date,
+                      check_out_date, nights, adults, children,
+                      guest_first_name, guest_middle_name, guest_last_name,
+                      guest_suffix, guest_age, guest_gender, guest_type,
+                      contact_email, contact_number, special_requests,
+                      room_subtotal, room_upgrade_discount, promo_code,
+                      promo_discount, tourism_tax, vat, total, status,
+                      created_at, updated_at
+               FROM app_tourism_bookings
+               WHERE id=%s""",
+            (data['id'],))
+        booking = cur.fetchone()
+        if not booking:
+            return fail('Booking not found', 404)
+
+        return ok({'status': True, 'data': serialize_row(booking)})
+    except Exception as e:
+        logger.error(f'admin_get_booking_detail error: {e}', exc_info=True)
         return fail(f'Server error: {e}', 500)
 
 
@@ -421,6 +607,208 @@ def admin_update_destination(cur, data, files, ts):
     except Exception as e:
         logger.error(f'admin_update_destination error: {e}', exc_info=True)
         return fail(f'Server error: {e}', 500)
+
+
+def admin_delete_destination(cur, data, files, ts):
+    try:
+        require(data, 'id')
+        dest_id = data['id']
+
+        cur.execute("SELECT code, name FROM app_tourism_destinations WHERE id=%s", (dest_id,))
+        row = cur.fetchone()
+        if not row:
+            return fail('Destination not found', 404)
+
+        cur.execute("DELETE FROM app_tourism_destinations WHERE id=%s", (dest_id,))
+
+        admin = data.get('_admin') or {}
+        record_audit_log(cur, admin.get('id'), admin.get('role'),
+                          'admin_delete_destination', 'destination',
+                          row['code'], {'name': row['name']}, ts)
+
+        return ok({'status': True, 'id': str(dest_id)})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_delete_destination error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def _gen_room_code(cur, destination_code, name):
+    """Unique, uppercase, underscore-joined room code, scoped to the
+    destination (matches the seeded STANDARD/DELUXE/SUITE style). Re-rolls
+    with a numeric suffix until unused within that destination."""
+    import re
+    base = re.sub(r'[^A-Z0-9]+', '_', name.strip().upper()).strip('_') or 'ROOM'
+    code = base
+    suffix = 1
+    while True:
+        cur.execute(
+            "SELECT COUNT(*) AS c FROM app_tourism_rooms "
+            "WHERE destination_code=%s AND code=%s", (destination_code, code))
+        if cur.fetchone()['c'] == 0:
+            return code
+        suffix += 1
+        code = f'{base}_{suffix}'
+
+
+def admin_create_room(cur, data, files, ts):
+    try:
+        require(data, 'name')
+        name = data['name'].strip()
+        if not name:
+            return fail('Name is required')
+
+        destination_id = data.get('destination_id')
+        destination_code = (data.get('destination_code') or '').strip()
+        if destination_id:
+            cur.execute(
+                "SELECT id, code FROM app_tourism_destinations WHERE id=%s", (destination_id,))
+        elif destination_code:
+            cur.execute(
+                "SELECT id, code FROM app_tourism_destinations WHERE code=%s", (destination_code,))
+        else:
+            return fail('destination_id or destination_code is required')
+        dest = cur.fetchone()
+        if not dest:
+            return fail('Destination not found', 404)
+
+        code = _gen_room_code(cur, dest['code'], name)
+
+        cols = ['destination_id', 'destination_code', 'code', 'name', 'bed_type',
+                'view_type', 'inclusions', 'price_per_night', 'sort_order', 'is_active']
+        vals = [
+            dest['id'], dest['code'], code, name,
+            sanitize(data.get('bed_type')), sanitize(data.get('view_type')),
+            sanitize(data.get('inclusions')), data.get('price_per_night') or 0,
+            data.get('sort_order') or 0,
+            1 if str(data.get('is_active', '1')).strip().lower() in ('1', 'true', 'yes') else 0,
+        ]
+        placeholders = ','.join(['%s'] * len(cols))
+        cur.execute(
+            f"INSERT INTO app_tourism_rooms ({','.join(cols)}) "
+            f"VALUES ({placeholders})", vals)
+
+        admin = data.get('_admin') or {}
+        record_audit_log(cur, admin.get('id'), admin.get('role'), 'admin_create_room',
+                          'room', code, {'name': name, 'destination_code': dest['code']}, ts)
+
+        return ok({'status': True, 'id': str(cur.lastrowid), 'code': code})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_create_room error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def admin_update_room(cur, data, files, ts):
+    try:
+        require(data, 'id')
+        room_id = data['id']
+
+        cur.execute("SELECT code FROM app_tourism_rooms WHERE id=%s", (room_id,))
+        row = cur.fetchone()
+        if not row:
+            return fail('Room not found', 404)
+
+        sets = []
+        params = []
+        for field in ('name', 'bed_type', 'view_type', 'inclusions'):
+            if field in data:
+                sets.append(f'{field}=%s')
+                params.append(sanitize(data[field]))
+        if 'price_per_night' in data:
+            sets.append('price_per_night=%s')
+            params.append(data['price_per_night'])
+        if 'sort_order' in data:
+            sets.append('sort_order=%s')
+            params.append(data['sort_order'])
+        if 'is_active' in data:
+            sets.append('is_active=%s')
+            params.append(1 if str(data['is_active']).strip().lower() in ('1', 'true', 'yes') else 0)
+
+        if not sets:
+            return fail('No fields to update')
+
+        params.append(room_id)
+        cur.execute(
+            f"UPDATE app_tourism_rooms SET {', '.join(sets)} WHERE id=%s",
+            tuple(params))
+
+        admin = data.get('_admin') or {}
+        record_audit_log(cur, admin.get('id'), admin.get('role'), 'admin_update_room',
+                          'room', row['code'], {'updated_fields': [s.split('=')[0] for s in sets]}, ts)
+
+        return ok({'status': True, 'id': str(room_id),
+                   'updated_fields': [s.split('=')[0] for s in sets]})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_update_room error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def admin_delete_room(cur, data, files, ts):
+    try:
+        require(data, 'id')
+        room_id = data['id']
+
+        cur.execute("SELECT code, name FROM app_tourism_rooms WHERE id=%s", (room_id,))
+        row = cur.fetchone()
+        if not row:
+            return fail('Room not found', 404)
+
+        cur.execute("DELETE FROM app_tourism_rooms WHERE id=%s", (room_id,))
+
+        admin = data.get('_admin') or {}
+        record_audit_log(cur, admin.get('id'), admin.get('role'), 'admin_delete_room',
+                          'room', row['code'], {'name': row['name']}, ts)
+
+        return ok({'status': True, 'id': str(room_id)})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_delete_room error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def upload_room_image(cur, data, files, ts):
+    """Admin: upload a single room-type image to S3 and update its catalog
+    row. Send the room `id` plus a multipart `image` file. Keys are
+    deterministic (derived from the destination + room code) so re-uploads
+    replace the existing image."""
+    from helpers.s3 import upload_to_s3
+    require(data, 'id')
+    room_id = data['id']
+
+    cur.execute(
+        "SELECT code, destination_code FROM app_tourism_rooms WHERE id=%s", (room_id,))
+    room = cur.fetchone()
+    if not room:
+        return fail('Room not found', 404)
+
+    image_url = None
+    for f in files or []:
+        field = (f.get('field_name') or '').strip()
+        if field == 'image':
+            f['content'].seek(0)
+            content = f['content'].read()
+            ext, ctype = _image_ext_and_type(f.get('filename') or '')
+            slug = f"{room['destination_code']}_{room['code']}".lower()
+            image_url = upload_to_s3(
+                content, f"tourism/rooms/{slug}.{ext}", content_type=ctype)
+            break
+
+    if not image_url:
+        return fail('No image uploaded (send `image`)')
+
+    cur.execute("UPDATE app_tourism_rooms SET image_url=%s WHERE id=%s", (image_url, room_id))
+
+    admin = data.get('_admin') or {}
+    record_audit_log(cur, admin.get('id'), admin.get('role'), 'upload_room_image',
+                      'room', room['code'], {'updated': True}, ts)
+
+    return ok({'status': True, 'id': str(room_id), 'image_url': image_url})
 
 
 def _load_catalog(cur):
@@ -594,6 +982,9 @@ def admin_list_ipass(cur, data, files, ts):
         limit = min(max(parse_int(data.get('limit')) or 20, 1), 100)
         offset = (page - 1) * limit
         status = (data.get('status') or '').strip().upper()
+        search = sanitize(data.get('search'))
+        date_from = sanitize(data.get('date_from'))
+        date_to = sanitize(data.get('date_to'))
 
         where = []
         params = []
@@ -602,10 +993,21 @@ def admin_list_ipass(cur, data, files, ts):
                 return fail(f'Invalid status: {status}')
             where.append('status=%s')
             params.append(status)
+        if search:
+            like = f'%{search}%'
+            where.append('(reference_no LIKE %s OR email LIKE %s)')
+            params += [like, like]
+        if date_from:
+            where.append('arrival_date >= %s')
+            params.append(date_from)
+        if date_to:
+            where.append('arrival_date <= %s')
+            params.append(date_to)
         clause = ('WHERE ' + ' AND '.join(where)) if where else ''
 
         qr = ', qr_code' if _has_columns(cur, 'app_tourism_ipass', 'qr_code') else ''
         exp = ', expiration_date' if _has_columns(cur, 'app_tourism_ipass', 'expiration_date') else ''
+        has_exp = bool(exp)
 
         cur.execute(f"""
             SELECT id, reference_no{qr}, user_profile_id, email, trip_type,
@@ -620,12 +1022,110 @@ def admin_list_ipass(cur, data, files, ts):
         has_more = len(rows) > limit
         rows = rows[:limit]
         for r in rows:
-            r['status'] = _effective_ipass_status(r, ts, bool(exp))
+            r['status'] = _effective_ipass_status(r, ts, has_exp)
+
+        cur.execute(f"SELECT status{exp} FROM app_tourism_ipass")
+        count_rows = cur.fetchall() or []
+        counts = {s: 0 for s in _IPASS_STATUSES}
+        for r in count_rows:
+            eff = _effective_ipass_status(r, ts, has_exp)
+            counts[eff] = counts.get(eff, 0) + 1
+        counts['ALL'] = len(count_rows)
+
         return ok({'status': True,
                    'data': {'items': [serialize_row(r) for r in rows],
-                            'page': page, 'has_more': has_more}})
+                            'page': page, 'has_more': has_more,
+                            'counts': counts}})
     except Exception as e:
         logger.error(f'admin_list_ipass error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def _get_user_profile(cur, user_id):
+    """The account holder who submitted the pass, looked up from app_users --
+    distinct from app_tourism_ipass_guests, which is a snapshot of the
+    travellers named on the pass (may differ from the account owner)."""
+    if not user_id:
+        return None
+    cur.execute("""
+        SELECT id, fullname, first_name, middle_name, last_name, suffix_name,
+               mobile_number, email_address, address, region, province,
+               municipality, barangay, gender, birth_date, profile_photo, status
+        FROM app_users WHERE id=%s LIMIT 1
+    """, (user_id,))
+    row = cur.fetchone()
+    return serialize_row(row) if row else None
+
+
+def admin_get_ipass_detail(cur, data, files, ts):
+    try:
+        require(data, 'id')
+        ipass_id = data['id']
+        qr = ', qr_code' if _has_columns(cur, 'app_tourism_ipass', 'qr_code') else ''
+        exp = ', expiration_date' if _has_columns(cur, 'app_tourism_ipass', 'expiration_date') else ''
+
+        cur.execute(f"""
+            SELECT id, reference_no{qr}, user_profile_id, email, trip_type,
+                   arrival_date, departure_date, guest_count, grand_total,
+                   status{exp}, created_at
+            FROM app_tourism_ipass
+            WHERE id=%s
+        """, (ipass_id,))
+        row = cur.fetchone()
+        if not row:
+            return fail('iPass not found', 404)
+        row['status'] = _effective_ipass_status(row, ts, bool(exp))
+
+        cur.execute("""
+            SELECT is_main_guest, first_name, middle_name, last_name, suffix,
+                   age, gender, guest_type, contact_type, contact_value, address
+            FROM app_tourism_ipass_guests WHERE ipass_id=%s
+            ORDER BY is_main_guest DESC, id
+        """, (ipass_id,))
+        guests = [serialize_row(g) for g in cur.fetchall()]
+
+        cur.execute("""
+            SELECT service_code, service_name, unit_price, quantity, line_total,
+                   variant_label
+            FROM app_tourism_ipass_services WHERE ipass_id=%s
+        """, (ipass_id,))
+        services = [serialize_row(s) for s in cur.fetchall()]
+
+        data_out = serialize_row(row)
+        data_out['guests'] = guests
+        data_out['services'] = services
+        data_out['user'] = _get_user_profile(cur, row.get('user_profile_id'))
+        return ok({'status': True, 'data': data_out})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_get_ipass_detail error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def admin_delete_ipass(cur, data, files, ts):
+    try:
+        require(data, 'id')
+        ipass_id = data['id']
+
+        cur.execute("SELECT reference_no FROM app_tourism_ipass WHERE id=%s", (ipass_id,))
+        row = cur.fetchone()
+        if not row:
+            return fail('iPass not found', 404)
+
+        cur.execute("DELETE FROM app_tourism_ipass_guests WHERE ipass_id=%s", (ipass_id,))
+        cur.execute("DELETE FROM app_tourism_ipass_services WHERE ipass_id=%s", (ipass_id,))
+        cur.execute("DELETE FROM app_tourism_ipass WHERE id=%s", (ipass_id,))
+
+        admin = data.get('_admin') or {}
+        record_audit_log(cur, admin.get('id'), admin.get('role'), 'admin_delete_ipass',
+                          'ipass', ipass_id, {'reference_no': row['reference_no']}, ts)
+
+        return ok({'status': True, 'id': str(ipass_id)})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_delete_ipass error: {e}', exc_info=True)
         return fail(f'Server error: {e}', 500)
 
 

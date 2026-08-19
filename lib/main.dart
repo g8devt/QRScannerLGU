@@ -19,9 +19,11 @@ import 'features/qr_scanner/domain/usecases/capture_photo.dart';
 import 'features/qr_scanner/presentation/bloc/scanner_bloc.dart';
 import 'features/social_service_claim/data/datasources/claim_remote_datasource.dart';
 import 'features/social_service_claim/data/repositories/claim_repository_impl.dart';
+import 'features/social_service_claim/domain/usecases/get_service_details.dart';
 import 'features/social_service_claim/domain/usecases/submit_claim.dart';
 import 'features/social_service_claim/domain/usecases/verify_qr.dart';
 import 'features/social_service_claim/presentation/bloc/claim_bloc.dart';
+import 'features/social_service_claim/presentation/bloc/service_details_cubit.dart';
 
 final RouteObserver<PageRoute<void>> routeObserver = RouteObserver<PageRoute<void>>();
 
@@ -52,6 +54,7 @@ class MyApp extends StatelessWidget {
           final claimRepository = ClaimRepositoryImpl(claimRemoteDatasource);
           final verifyQr = VerifyQr(claimRepository);
           final submitClaim = SubmitClaim(claimRepository);
+          final getServiceDetails = GetServiceDetails(claimRepository);
 
           final authRemoteDatasource = AuthRemoteDatasource(apiClient);
           final authLocalDatasource = AuthLocalDatasource();
@@ -66,6 +69,7 @@ class MyApp extends StatelessWidget {
               providers: [
                 BlocProvider(create: (_) => ScannerBloc(scannerRepository)),
                 BlocProvider(create: (_) => ClaimBloc(verifyQr, submitClaim)),
+                BlocProvider(create: (_) => ServiceDetailsCubit(getServiceDetails)),
                 BlocProvider(create: (_) => AuthBloc(loginUsecase, logoutUsecase, restoreSessionUsecase)),
               ],
               child: MaterialApp(

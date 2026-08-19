@@ -11,6 +11,10 @@ class ClaimRemoteDatasource {
     return _apiClient.post('verify_qr_bataan', {'qr_code': qrCode});
   }
 
+  Future<Map<String, dynamic>> getServiceDetails(String qrCode) {
+    return _apiClient.post('get_service_details_bataan', {'qr_code': qrCode});
+  }
+
   Future<void> submitClaim({
     required int applicationId,
     required String claimantType,

@@ -1,5 +1,6 @@
 import '../entities/claim_captures.dart';
 import '../entities/claimant_info.dart';
+import '../entities/social_service_details.dart';
 import '../entities/verified_application.dart';
 
 abstract class ClaimRepository {
@@ -8,6 +9,12 @@ abstract class ClaimRepository {
   /// with a human-readable reason on any rejection (not found, already
   /// claimed, not yet eligible) or network failure.
   Future<VerifiedApplication> verifyQr(String qrCode);
+
+  /// Looks up [qrCode] and returns the full application details for
+  /// read-only viewing, regardless of status. Throws
+  /// [ServiceDetailsException] with a human-readable reason on any
+  /// rejection (not found) or network failure.
+  Future<SocialServiceDetails> getServiceDetails(String qrCode);
 
   /// Submits the claim: claimant info + 4 capture file paths, plus which
   /// scanner-staff account processed it. Throws [ClaimSubmitException]
@@ -29,6 +36,13 @@ class ClaimVerifyException implements Exception {
 
 class ClaimSubmitException implements Exception {
   ClaimSubmitException(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
+class ServiceDetailsException implements Exception {
+  ServiceDetailsException(this.message);
   final String message;
   @override
   String toString() => message;

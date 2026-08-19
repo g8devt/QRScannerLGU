@@ -1,6 +1,7 @@
 import '../../../../core/network/api_client.dart';
 import '../../domain/entities/claim_captures.dart';
 import '../../domain/entities/claimant_info.dart';
+import '../../domain/entities/social_service_details.dart';
 import '../../domain/entities/verified_application.dart';
 import '../../domain/repositories/claim_repository.dart';
 import '../datasources/claim_remote_datasource.dart';
@@ -20,6 +21,19 @@ class ClaimRepositoryImpl implements ClaimRepository {
       throw ClaimVerifyException(e.message);
     } catch (e) {
       throw ClaimVerifyException('Network error — could not reach the server: $e');
+    }
+  }
+
+  @override
+  Future<SocialServiceDetails> getServiceDetails(String qrCode) async {
+    try {
+      final json = await _datasource.getServiceDetails(qrCode);
+      final data = json['data'] as Map<String, dynamic>? ?? {};
+      return SocialServiceDetails.fromJson(data);
+    } on ApiException catch (e) {
+      throw ServiceDetailsException(e.message);
+    } catch (e) {
+      throw ServiceDetailsException('Network error — could not reach the server: $e');
     }
   }
 

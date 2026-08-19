@@ -50,6 +50,7 @@ _LGU_LABELS = {
 }
 
 _JOB_POSTING_STATUSES = {'PENDING', 'OPEN', 'CLOSED', 'FILLED', 'REJECTED'}
+_JOB_POSTING_EMPLOYMENT_TYPES = {'FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP'}
 
 
 def _lgu_label(db_name):
@@ -159,6 +160,10 @@ def admin_list_job_postings(cur, data, files, ts):
         limit = min(max(parse_int(data.get('limit')) or 20, 1), 100)
         offset = (page - 1) * limit
         status = (data.get('status') or '').strip().upper()
+        employment_type = (data.get('employment_type') or '').strip().upper()
+        search = sanitize(data.get('search'))
+        date_from = sanitize(data.get('date_from'))
+        date_to = sanitize(data.get('date_to'))
 
         where = []
         params = []
@@ -167,6 +172,21 @@ def admin_list_job_postings(cur, data, files, ts):
                 return fail(f'Invalid status: {status}')
             where.append('status=%s')
             params.append(status)
+        if employment_type and employment_type != 'ALL':
+            if employment_type not in _JOB_POSTING_EMPLOYMENT_TYPES:
+                return fail(f'Invalid employment_type: {employment_type}')
+            where.append('employment_type=%s')
+            params.append(employment_type)
+        if search:
+            like = f'%{search}%'
+            where.append('(title LIKE %s OR department LIKE %s)')
+            params += [like, like]
+        if date_from:
+            where.append('posted_at >= %s')
+            params.append(date_from)
+        if date_to:
+            where.append('posted_at <= %s')
+            params.append(f'{date_to} 23:59:59')
         clause = ('WHERE ' + ' AND '.join(where)) if where else ''
 
         cur.execute(f"""
@@ -181,11 +201,44 @@ def admin_list_job_postings(cur, data, files, ts):
         rows = cur.fetchall() or []
         has_more = len(rows) > limit
         rows = rows[:limit]
+
+        cur.execute("SELECT status, COUNT(*) AS c FROM app_job_postings GROUP BY status")
+        raw_counts = {row['status']: row['c'] for row in cur.fetchall()}
+        stat_counts = {s: raw_counts.get(s, 0) for s in _JOB_POSTING_STATUSES}
+        stat_counts['ALL'] = sum(stat_counts.values())
+
         return ok({'status': True,
                    'data': {'items': [serialize_row(r) for r in rows],
-                            'page': page, 'has_more': has_more}})
+                            'page': page, 'has_more': has_more,
+                            'counts': stat_counts}})
     except Exception as e:
         logger.error(f'admin_list_job_postings error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def admin_get_job_posting_detail(cur, data, files, ts):
+    try:
+        require(data, 'id')
+        posting_id = data['id']
+
+        cur.execute(_POSTING_SELECT + " WHERE p.id=%s LIMIT 1", (posting_id,))
+        row = cur.fetchone()
+        if not row:
+            return fail('Job posting not found', 404)
+
+        cur.execute("""
+            SELECT reviewed_by, reviewed_at, review_remarks
+            FROM app_job_postings WHERE id=%s
+        """, (posting_id,))
+        review = cur.fetchone() or {}
+
+        detail = serialize_row(row)
+        detail.update(serialize_row(review))
+        return ok({'status': True, 'data': detail})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_get_job_posting_detail error: {e}', exc_info=True)
         return fail(f'Server error: {e}', 500)
 
 
@@ -194,7 +247,7 @@ def admin_review_job_posting(cur, data, files, ts):
         require(data, 'id', 'decision')
         posting_id = data['id']
         decision = (data['decision'] or '').strip().upper()
-        if decision not in ('OPEN', 'REJECTED'):
+        if decision not in _JOB_POSTING_STATUSES:
             return fail('Invalid decision')
         remarks = sanitize(data.get('remarks'))
         if decision == 'REJECTED' and not remarks:
@@ -220,6 +273,91 @@ def admin_review_job_posting(cur, data, files, ts):
         return fail(str(e))
     except Exception as e:
         logger.error(f'admin_review_job_posting error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+_JOB_POSTING_EDITABLE_FIELDS = (
+    'title', 'department', 'location', 'employment_type',
+    'salary_min', 'salary_max', 'description', 'requirements', 'closes_at',
+)
+
+
+def admin_update_job_posting(cur, data, files, ts):
+    """Edit a job posting's own fields (title/department/salary/etc). Status
+    changes go through `admin_review_job_posting` instead, since those carry
+    reviewer/remarks bookkeeping."""
+    try:
+        require(data, 'id')
+        posting_id = data['id']
+
+        cur.execute("SELECT id FROM app_job_postings WHERE id=%s", (posting_id,))
+        if not cur.fetchone():
+            return fail('Job posting not found', 404)
+
+        employment_type = data.get('employment_type')
+        if employment_type is not None:
+            employment_type = (employment_type or '').strip().upper()
+            if employment_type and employment_type not in _JOB_POSTING_EMPLOYMENT_TYPES:
+                return fail(f'Invalid employment_type: {employment_type}')
+
+        sets = []
+        params = []
+        for field in _JOB_POSTING_EDITABLE_FIELDS:
+            if field not in data:
+                continue
+            val = data.get(field)
+            if field in ('salary_min', 'salary_max'):
+                val = parse_int(val) if val not in (None, '') else None
+            elif field == 'employment_type':
+                val = employment_type or None
+            elif isinstance(val, str):
+                val = sanitize(val.strip()) or None
+            sets.append(f'{field}=%s')
+            params.append(val)
+
+        if not sets:
+            return fail('No editable fields provided')
+
+        params.append(posting_id)
+        cur.execute(f"""
+            UPDATE app_job_postings SET {', '.join(sets)} WHERE id=%s
+        """, tuple(params))
+
+        admin = data.get('_admin') or {}
+        record_audit_log(cur, admin.get('id'), admin.get('role'),
+                          'admin_update_job_posting', 'job_posting',
+                          posting_id, {'fields': [f for f in _JOB_POSTING_EDITABLE_FIELDS if f in data]}, ts)
+
+        return ok({'status': True, 'message': 'Job posting updated'})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_update_job_posting error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def admin_delete_job_posting(cur, data, files, ts):
+    try:
+        require(data, 'id')
+        posting_id = data['id']
+
+        cur.execute("SELECT title FROM app_job_postings WHERE id=%s", (posting_id,))
+        row = cur.fetchone()
+        if not row:
+            return fail('Job posting not found', 404)
+
+        cur.execute("DELETE FROM app_job_postings WHERE id=%s", (posting_id,))
+
+        admin = data.get('_admin') or {}
+        record_audit_log(cur, admin.get('id'), admin.get('role'),
+                          'admin_delete_job_posting', 'job_posting',
+                          posting_id, {'title': row['title']}, ts)
+
+        return ok({'status': True, 'id': str(posting_id)})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_delete_job_posting error: {e}', exc_info=True)
         return fail(f'Server error: {e}', 500)
 
 

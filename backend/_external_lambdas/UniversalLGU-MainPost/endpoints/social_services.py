@@ -649,6 +649,11 @@ def admin_list_social_services(cur, data, files, ts):
         limit = min(max(parse_int(data.get('limit')) or 20, 1), 100)
         offset = (page - 1) * limit
         status = (data.get('status') or '').strip().upper()
+        service_type = sanitize(data.get('service_type'))
+        requested_from = (data.get('requested_from') or '').strip().upper()
+        search = sanitize(data.get('search'))
+        date_from = sanitize(data.get('date_from'))
+        date_to = sanitize(data.get('date_to'))
 
         where = []
         params = []
@@ -657,12 +662,33 @@ def admin_list_social_services(cur, data, files, ts):
                 return fail(f'Invalid status: {status}')
             where.append('status=%s')
             params.append(status)
+        if service_type and service_type != 'ALL':
+            where.append('service_type=%s')
+            params.append(service_type)
+        if requested_from and requested_from != 'ALL':
+            if requested_from not in _SOCIAL_SERVICES_REQUESTED_FROM:
+                return fail(f'Invalid requested_from: {requested_from}')
+            where.append('requested_from=%s')
+            params.append(requested_from)
+        if search:
+            like = f'%{search}%'
+            where.append(
+                '(application_number LIKE %s OR requested_for_fname LIKE %s '
+                'OR requested_for_lname LIKE %s)'
+            )
+            params += [like, like, like]
+        if date_from:
+            where.append('date_requested >= %s')
+            params.append(date_from)
+        if date_to:
+            where.append('date_requested <= %s')
+            params.append(f'{date_to} 23:59:59')
         clause = ('WHERE ' + ' AND '.join(where)) if where else ''
 
         cur.execute(f"""
             SELECT id, application_number, user_id, service_type, service_sub_category,
                    assistance_type, status, requested_for, requested_for_fname,
-                   requested_for_lname, amount, date_requested, date_reviewed,
+                   requested_for_lname, amount, requested_from, date_requested, date_reviewed,
                    date_approved, date_declined, date_released, date_claimed
             FROM app_social_services
             {clause}
@@ -672,11 +698,269 @@ def admin_list_social_services(cur, data, files, ts):
         rows = cur.fetchall() or []
         has_more = len(rows) > limit
         rows = rows[:limit]
+
+        cur.execute("SELECT status, COUNT(*) AS c FROM app_social_services GROUP BY status")
+        raw_counts = {row['status']: row['c'] for row in cur.fetchall()}
+        stat_counts = {s: raw_counts.get(s, 0) for s in _SOCIAL_SERVICES_ALL_STATUSES}
+        stat_counts['ALL'] = sum(stat_counts.values())
+
         return ok({'status': True,
                    'data': {'items': [serialize_row(r) for r in rows],
-                            'page': page, 'has_more': has_more}})
+                            'page': page, 'has_more': has_more,
+                            'counts': stat_counts}})
     except Exception as e:
         logger.error(f'admin_list_social_services error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+_SOCIAL_SERVICE_TYPES = {
+    'MEDICAL ASSISTANCE', 'EDUCATIONAL ASSISTANCE',
+    'BURIAL ASSISTANCE', 'LIVELIHOOD ASSISTANCE',
+}
+
+# `requested_from` only ever takes one of these two values: a citizen
+# submission via the mobile app, or a staff-entered walk-in record
+# created from the admin console.
+_SOCIAL_SERVICES_REQUESTED_FROM = {'MOBILE', 'WALK-IN'}
+
+
+def admin_get_social_service_detail(cur, data, files, ts):
+    try:
+        require(data, 'id')
+        app_id = data['id']
+
+        appt_cols = (
+            ', submission_method, appointment_date, '
+            'appointment_time, appointment_location'
+            if _has_appointment_columns(cur) else ''
+        )
+        bene_col = (
+            ', beneficiary_name'
+            if _has_beneficiary_name_column(cur) else ''
+        )
+        civil_status_col = (
+            ', requested_for_civil_status'
+            if _has_civil_status_column(cur) else ''
+        )
+        educ_year_level_col = (
+            ', educ_year_level, educ_is_scholar'
+            if _has_educ_year_level_column(cur) else ''
+        )
+        qr_col = ', qr_code' if _has_qr_code_column(cur) else ''
+
+        cur.execute(f"""
+            SELECT id, application_number, user_id, service_type, service_sub_category,
+                   status, date_requested, date_reviewed, date_approved,
+                   date_scheduled, date_released, date_claimed, date_declined,
+                   requested_for, requested_for_relation,
+                   assistance_type, brief_description, medicine_needed,
+                   requested_for_fname, requested_for_mname, requested_for_lname,
+                   requested_for_birthdate, requested_for_gender,
+                   requested_for_contact, requested_for_email,
+                   requested_for_region, requested_for_province,
+                   requested_for_municipality, requested_for_barangay,
+                   requested_for_address, requested_for_zipcode,
+                   preferred_contact,
+                   amount, claimed_amount,
+                   deceased_fullname, deceased_birthdate, deceased_deathdate,
+                   educ_school_name, educ_grade_level, educ_course,
+                   educ_school_sector, educ_school_id_number,
+                   educ_school_address,
+                   tribal_membership, disability,
+                   other_financial_assistance,
+                   other_financial_assistance_type_1,
+                   other_financial_assistance_agency_1,
+                   other_financial_assistance_type_2,
+                   other_financial_assistance_agency_2,
+                   photo_2x2, photo_signature, image_verification,
+                   upload_file_1, upload_file_1_type,
+                   upload_file_2, upload_file_2_type,
+                   upload_file_3, upload_file_3_type,
+                   upload_file_4, upload_file_4_type,
+                   upload_file_5, upload_file_5_type,
+                   upload_file_6, upload_file_6_type,
+                   upload_file_7, upload_file_7_type,
+                   upload_file_8, upload_file_8_type
+                   {bene_col}{civil_status_col}{educ_year_level_col}{appt_cols}{qr_col}
+            FROM app_social_services WHERE id=%s
+        """, (app_id,))
+        row = cur.fetchone()
+        if not row:
+            return fail('Application not found', 404)
+
+        cur.execute("""
+            SELECT id, name, birthdate, relationship, skill_occupation,
+                   gender, birthplace, civl_status, highest_educ, est_income
+            FROM app_social_services_family
+            WHERE social_services_id=%s
+        """, (app_id,))
+        family = cur.fetchall() or []
+
+        cur.execute("""
+            SELECT id, application_number, service_type, assistance_type,
+                   status, amount, date_requested
+            FROM app_social_services
+            WHERE user_id=%s
+            ORDER BY date_requested DESC
+        """, (row['user_id'],))
+        history = cur.fetchall() or []
+
+        detail = serialize_row(row)
+        detail['family'] = [serialize_row(m) for m in family]
+        detail['history'] = [serialize_row(h) for h in history]
+        return ok({'status': True, 'data': detail})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_get_social_service_detail error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def admin_create_social_service(cur, data, files, ts):
+    """
+    Staff-entered walk-in application. Unlike `submit_social_service`
+    (mobile), this skips the KYC-verified gate and appointment
+    auto-scheduling -- the citizen is physically at the counter, so
+    there's no identity check or online-slot booking to do. Always
+    lands as PENDING with no linked user account (user_id NULL) since
+    walk-ins may not have a mobile account at all.
+    """
+    try:
+        form = parse_form_data(data)
+        require(form, 'service_type')
+        service_type = (form.get('service_type') or '').strip().upper()
+        if service_type not in _SOCIAL_SERVICE_TYPES:
+            return fail(f'Invalid service type: {service_type}')
+
+        app_number = generate_number_id(cur, 'app_social_services')
+
+        applying_for = 'OTHER' if str(form.get('help_for') or '').strip().upper() == 'OTHERS' else 'SELF'
+
+        base_cols = [
+            'application_number', 'service_type', 'requested_for', 'requested_for_relation',
+            'assistance_type', 'brief_description',
+            'requested_for_fname', 'requested_for_mname', 'requested_for_lname',
+            'requested_for_birthdate', 'requested_for_gender', 'requested_for_contact', 'requested_for_email',
+            'requested_for_region', 'requested_for_province', 'requested_for_municipality',
+            'requested_for_barangay', 'requested_for_address', 'requested_for_zipcode',
+            'educ_school_name', 'educ_grade_level', 'educ_course', 'educ_school_sector',
+            'educ_school_id_number', 'educ_school_address',
+            'tribal_membership', 'disability', 'other_financial_assistance',
+            'other_financial_assistance_type_1', 'other_financial_assistance_agency_1',
+            'other_financial_assistance_type_2', 'other_financial_assistance_agency_2',
+            'deceased_fullname', 'deceased_birthdate', 'deceased_deathdate',
+            'amount', 'medicine_needed',
+            'date_requested', 'status', 'requested_from',
+        ]
+        base_vals = [
+            app_number, service_type, applying_for,
+            sanitize(form.get('beneficiary_relationship')), sanitize(form.get('assistance_type')),
+            sanitize(form.get('description')),
+            sanitize(form.get('first_name')), sanitize(form.get('middle_name')), sanitize(form.get('last_name')),
+            sanitize(form.get('birthdate')), sanitize(form.get('gender')),
+            sanitize(form.get('phone')), sanitize(form.get('email')),
+            sanitize(form.get('region')), sanitize(form.get('province')), sanitize(form.get('municipality')),
+            sanitize(form.get('barangay')), sanitize(form.get('address')), sanitize(form.get('zipcode')),
+            sanitize(form.get('school_name')), sanitize(form.get('grade_level')), sanitize(form.get('course')),
+            sanitize(form.get('school_sector')), sanitize(form.get('school_id_number')),
+            sanitize(form.get('school_address')),
+            sanitize(form.get('tribal')), sanitize(form.get('disability')),
+            sanitize(form.get('other_financial_assistance')),
+            sanitize(form.get('other_financial_assistance_type_1')),
+            sanitize(form.get('other_financial_assistance_agency_1')),
+            sanitize(form.get('other_financial_assistance_type_2')),
+            sanitize(form.get('other_financial_assistance_agency_2')),
+            sanitize(form.get('deceased_fullname')), sanitize(form.get('deceased_birthdate')),
+            sanitize(form.get('deceased_deathdate')),
+            form.get('amount') or None, sanitize(form.get('medicine_needed')),
+            ts, 'PENDING', 'WALK-IN',
+        ]
+
+        if _has_beneficiary_name_column(cur):
+            base_cols.append('beneficiary_name')
+            base_vals.append(sanitize(form.get('beneficiary_name')))
+
+        cols_sql = ', '.join(base_cols)
+        placeholders = ', '.join(['%s'] * len(base_vals))
+        cur.execute(
+            f'INSERT INTO app_social_services ({cols_sql}) VALUES ({placeholders})',
+            tuple(base_vals),
+        )
+        social_services_id = cur.lastrowid
+
+        qr_code = None
+        if _has_qr_code_column(cur):
+            qr_code = _generate_qr_code(cur, social_services_id)
+            cur.execute(
+                "UPDATE app_social_services SET qr_code=%s WHERE id=%s",
+                (qr_code, social_services_id),
+            )
+
+        admin = data.get('_admin') or {}
+        record_audit_log(cur, admin.get('id'), admin.get('role'),
+                          'admin_create_social_service', 'social_service',
+                          social_services_id, {'application_number': app_number, 'service_type': service_type}, ts)
+
+        return ok({'status': True, 'id': str(social_services_id), 'application_number': app_number, 'qr_code': qr_code})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_create_social_service error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def admin_delete_social_service(cur, data, files, ts):
+    try:
+        require(data, 'id')
+        app_id = data['id']
+
+        cur.execute("SELECT application_number FROM app_social_services WHERE id=%s", (app_id,))
+        row = cur.fetchone()
+        if not row:
+            return fail('Application not found', 404)
+
+        cur.execute("DELETE FROM app_social_services_family WHERE social_services_id=%s", (app_id,))
+        cur.execute("DELETE FROM app_social_services WHERE id=%s", (app_id,))
+
+        admin = data.get('_admin') or {}
+        record_audit_log(cur, admin.get('id'), admin.get('role'),
+                          'admin_delete_social_service', 'social_service',
+                          app_id, {'application_number': row['application_number']}, ts)
+
+        return ok({'status': True, 'id': str(app_id)})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_delete_social_service error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def admin_update_social_service_type(cur, data, files, ts):
+    try:
+        require(data, 'id', 'service_type')
+        app_id = data['id']
+        service_type = (data['service_type'] or '').strip().upper()
+        if service_type not in _SOCIAL_SERVICE_TYPES:
+            return fail(f'Invalid service type: {service_type}')
+
+        cur.execute("SELECT id FROM app_social_services WHERE id=%s", (app_id,))
+        if not cur.fetchone():
+            return fail('Application not found', 404)
+
+        cur.execute(
+            "UPDATE app_social_services SET service_type=%s WHERE id=%s",
+            (service_type, app_id))
+
+        admin = data.get('_admin') or {}
+        record_audit_log(cur, admin.get('id'), admin.get('role'),
+                          'admin_update_social_service_type', 'social_service',
+                          app_id, {'service_type': service_type}, ts)
+
+        return ok({'status': True, 'id': str(app_id), 'service_type': service_type})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_update_social_service_type error: {e}', exc_info=True)
         return fail(f'Server error: {e}', 500)
 
 

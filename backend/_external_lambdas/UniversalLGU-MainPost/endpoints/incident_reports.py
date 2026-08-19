@@ -201,6 +201,45 @@ def list_incident_reports(cur, data, files, ts):
         return fail(f'List failed: {e}', 500)
 
 
+def _parse_photo_urls(row):
+    row = dict(row) if not isinstance(row, dict) else row
+    raw = row.get('photo_urls')
+    if isinstance(raw, str) and raw:
+        try:
+            row['photo_urls'] = json.loads(raw)
+        except Exception:
+            row['photo_urls'] = []
+    elif raw is None:
+        row['photo_urls'] = []
+    return row
+
+
+def admin_get_incident_report_detail(cur, data, files, ts):
+    try:
+        require(data, 'id')
+        report_id = data['id']
+
+        cur.execute("""
+            SELECT id, user_id, reference_number, reporter_name, report_type,
+                   description, latitude, longitude, address_text, photo_urls,
+                   video_url, status, remarks, date_submitted, expires_at,
+                   date_modified
+            FROM app_incident_reports
+            WHERE id=%s
+            LIMIT 1
+        """, (report_id,))
+        row = cur.fetchone()
+        if not row:
+            return fail('Incident report not found', 404)
+
+        return ok({'status': True, 'data': serialize_row(_parse_photo_urls(row))})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.exception('admin_get_incident_report_detail failed')
+        return fail(f'Server error: {e}', 500)
+
+
 def admin_list_incident_reports(cur, data, files, ts):
     try:
         page = max(parse_int(data.get('page')) or 1, 1)
@@ -208,6 +247,9 @@ def admin_list_incident_reports(cur, data, files, ts):
         offset = (page - 1) * limit
         status = (data.get('status') or '').strip().upper()
         report_type = (data.get('report_type') or '').strip().upper()
+        search = sanitize(data.get('search'))
+        date_from = sanitize(data.get('date_from'))
+        date_to = sanitize(data.get('date_to'))
 
         where = []
         params = []
@@ -221,6 +263,16 @@ def admin_list_incident_reports(cur, data, files, ts):
                 return fail(f'Invalid report_type: {report_type}')
             where.append('report_type=%s')
             params.append(report_type)
+        if search:
+            like = f'%{search}%'
+            where.append('(reference_number LIKE %s OR reporter_name LIKE %s)')
+            params += [like, like]
+        if date_from:
+            where.append('date_submitted >= %s')
+            params.append(date_from)
+        if date_to:
+            where.append('date_submitted <= %s')
+            params.append(f'{date_to} 23:59:59')
         clause = ('WHERE ' + ' AND '.join(where)) if where else ''
 
         cur.execute(f"""
@@ -236,25 +288,46 @@ def admin_list_incident_reports(cur, data, files, ts):
         rows = cur.fetchall() or []
         has_more = len(rows) > limit
         rows = rows[:limit]
-        out = []
-        for r in rows:
-            r = dict(r) if not isinstance(r, dict) else r
-            raw = r.get('photo_urls')
-            if isinstance(raw, str) and raw:
-                try:
-                    r['photo_urls'] = json.loads(raw)
-                except Exception:
-                    r['photo_urls'] = []
-            elif raw is None:
-                r['photo_urls'] = []
-            out.append(serialize_row(r))
+        out = [serialize_row(_parse_photo_urls(r)) for r in rows]
+
+        cur.execute("SELECT status, COUNT(*) AS c FROM app_incident_reports GROUP BY status")
+        raw_counts = {row['status']: row['c'] for row in cur.fetchall()}
+        stat_counts = {s: raw_counts.get(s, 0) for s in _ALLOWED_STATUSES}
+        stat_counts['ALL'] = sum(stat_counts.values())
+
         return ok({'status': True,
-                   'data': {'items': out, 'page': page, 'has_more': has_more}})
+                   'data': {'items': out, 'page': page, 'has_more': has_more,
+                             'counts': stat_counts}})
     except ValueError as e:
         return fail(str(e))
     except Exception as e:
         logger.exception('admin_list_incident_reports failed')
         return fail(f'List failed: {e}', 500)
+
+
+def admin_delete_incident_report(cur, data, files, ts):
+    try:
+        require(data, 'id')
+        report_id = data['id']
+
+        cur.execute("SELECT reference_number FROM app_incident_reports WHERE id=%s", (report_id,))
+        row = cur.fetchone()
+        if not row:
+            return fail('Incident report not found', 404)
+
+        cur.execute("DELETE FROM app_incident_reports WHERE id=%s", (report_id,))
+
+        admin = data.get('_admin') or {}
+        record_audit_log(cur, admin.get('id'), admin.get('role'),
+                          'admin_delete_incident_report', 'incident_report',
+                          report_id, {'reference_number': row['reference_number']}, ts)
+
+        return ok({'status': True, 'id': str(report_id)})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.exception('admin_delete_incident_report failed')
+        return fail(f'Server error: {e}', 500)
 
 
 def admin_update_incident_status(cur, data, files, ts):

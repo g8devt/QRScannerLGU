@@ -122,6 +122,21 @@ def _has_qr_code_column(cur):
     return bool(row and row.get('c'))
 
 
+def _has_educ_year_level_column(cur):
+    """True when migration 029 (educ_year_level, educ_is_scholar) is applied."""
+    cur.execute(
+        """
+        SELECT COUNT(*) AS c
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'app_social_services'
+          AND COLUMN_NAME = 'educ_year_level'
+        """
+    )
+    row = cur.fetchone()
+    return bool(row and row.get('c'))
+
+
 def _has_claim_columns(cur):
     """True when migration 031 (claimant_* claim-capture columns) is
     applied on this tenant."""
@@ -132,21 +147,6 @@ def _has_claim_columns(cur):
         WHERE TABLE_SCHEMA = DATABASE()
           AND TABLE_NAME = 'app_social_services'
           AND COLUMN_NAME = 'claimant_face_photo'
-        """
-    )
-    row = cur.fetchone()
-    return bool(row and row.get('c'))
-
-
-def _has_educ_year_level_column(cur):
-    """True when migration 029 (educ_year_level, educ_is_scholar) is applied."""
-    cur.execute(
-        """
-        SELECT COUNT(*) AS c
-        FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = 'app_social_services'
-          AND COLUMN_NAME = 'educ_year_level'
         """
     )
     row = cur.fetchone()
@@ -760,6 +760,84 @@ def verify_qr_bataan(cur, data, files, ts):
     except Exception as e:
         logger.error(f"verify_qr_bataan error: {e}", exc_info=True)
         return fail(f'Server error: {str(e)}', 500)
+
+def get_service_details_bataan(cur, data, files, ts):
+    """Read-only lookup by QR code for staff to view an application's full
+    details, regardless of status — unlike `verify_qr_bataan`, this never
+    gates on claim eligibility (PENDING/DECLINED/CLAIMED all viewable)."""
+    try:
+        require(data, 'qr_code')
+        qr_code = data['qr_code']
+
+        appt_cols = (
+            ', submission_method, appointment_date, '
+            'appointment_time, appointment_location'
+            if _has_appointment_columns(cur) else ''
+        )
+        slot_col = (
+            ', schedule_slot_id'
+            if _has_schedule_slot_column(cur) else ''
+        )
+        bene_col = (
+            ', beneficiary_name'
+            if _has_beneficiary_name_column(cur) else ''
+        )
+        civil_status_col = (
+            ', requested_for_civil_status'
+            if _has_civil_status_column(cur) else ''
+        )
+        educ_year_level_col = (
+            ', educ_year_level, educ_is_scholar'
+            if _has_educ_year_level_column(cur) else ''
+        )
+        cur.execute(f"""
+            SELECT id, application_number, service_type, service_sub_category,
+                   status, date_requested, date_reviewed, date_approved,
+                   date_scheduled, date_released, date_claimed, date_declined,
+                   qr_code,
+                   requested_for, requested_for_relation,
+                   assistance_type, brief_description, medicine_needed,
+                   requested_for_fname, requested_for_mname, requested_for_lname,
+                   requested_for_birthdate, requested_for_gender,
+                   requested_for_contact, requested_for_email,
+                   requested_for_region, requested_for_province,
+                   requested_for_municipality, requested_for_barangay,
+                   requested_for_address, requested_for_zipcode,
+                   preferred_contact,
+                   amount, claimed_amount,
+                   deceased_fullname, deceased_birthdate, deceased_deathdate,
+                   educ_school_name, educ_grade_level, educ_course,
+                   educ_school_sector, educ_school_id_number,
+                   educ_school_address,
+                   tribal_membership, disability,
+                   other_financial_assistance,
+                   other_financial_assistance_type_1,
+                   other_financial_assistance_agency_1,
+                   other_financial_assistance_type_2,
+                   other_financial_assistance_agency_2,
+                   photo_2x2, photo_signature, image_verification,
+                   upload_file_1, upload_file_1_type,
+                   upload_file_2, upload_file_2_type,
+                   upload_file_3, upload_file_3_type,
+                   upload_file_4, upload_file_4_type,
+                   upload_file_5, upload_file_5_type,
+                   upload_file_6, upload_file_6_type,
+                   upload_file_7, upload_file_7_type,
+                   upload_file_8, upload_file_8_type
+                   {bene_col}{civil_status_col}{educ_year_level_col}{appt_cols}{slot_col}
+            FROM app_social_services WHERE qr_code=%s
+        """, (qr_code,))
+        row = cur.fetchone()
+        if not row:
+            return fail('QR code not found', 404)
+
+        return ok({'status': True, 'data': serialize_row(row)})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f"get_service_details_bataan error: {e}", exc_info=True)
+        return fail(f'Server error: {str(e)}', 500)
+
 
 def submit_claim_bataan(cur, data, files, ts):
     try:
