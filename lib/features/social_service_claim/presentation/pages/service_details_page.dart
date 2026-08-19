@@ -18,15 +18,18 @@ class ServiceDetailsPage extends StatefulWidget {
 }
 
 class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
+  late final ServiceDetailsCubit _cubit;
+
   @override
   void initState() {
     super.initState();
-    context.read<ServiceDetailsCubit>().fetch(widget.rawValue);
+    _cubit = context.read<ServiceDetailsCubit>();
+    _cubit.fetch(widget.rawValue);
   }
 
   @override
   void dispose() {
-    context.read<ServiceDetailsCubit>().reset();
+    _cubit.reset();
     super.dispose();
   }
 
@@ -129,8 +132,8 @@ class _DetailsView extends StatelessWidget {
           _SectionCard(
             title: 'Amount',
             rows: {
-              if (details.amount.isNotEmpty) 'Requested Amount': details.amount,
-              if (details.claimedAmount.isNotEmpty) 'Claimed Amount': details.claimedAmount,
+              if (details.amount.isNotEmpty) 'Requested Amount': _formatAmount(details.amount),
+              if (details.claimedAmount.isNotEmpty) 'Claimed Amount': _formatAmount(details.claimedAmount),
             },
           ),
           _SectionCard(
@@ -161,6 +164,24 @@ class _DetailsView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Formats a raw numeric string (e.g. `"1500"`, `"2340.5"`) as
+/// `1,500.00` — comma thousands separators, always 2 decimal places.
+/// Falls back to the original string if it isn't a valid number.
+String _formatAmount(String raw) {
+  final value = double.tryParse(raw);
+  if (value == null) return raw;
+  final fixed = value.toStringAsFixed(2);
+  final parts = fixed.split('.');
+  final wholeDigits = parts[0].replaceFirst('-', '');
+  final sign = parts[0].startsWith('-') ? '-' : '';
+  final buffer = StringBuffer();
+  for (var i = 0; i < wholeDigits.length; i++) {
+    if (i > 0 && (wholeDigits.length - i) % 3 == 0) buffer.write(',');
+    buffer.write(wholeDigits[i]);
+  }
+  return '$sign$buffer.${parts[1]}';
 }
 
 class _SectionCard extends StatelessWidget {

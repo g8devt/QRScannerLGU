@@ -2,7 +2,7 @@ name: bataan_lgu_scanner
 description: "LGU Scanner App for Bataan Province"
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.1+1
+version: 1.0.2+2
 
 environment:
   sdk: ^3.10.7
