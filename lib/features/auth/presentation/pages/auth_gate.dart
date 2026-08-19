@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../qr_scanner/presentation/pages/scanner_page.dart';
+import '../../../dashboard/presentation/pages/dashboard_page.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import 'login_page.dart';
 
 /// Shown as the app's `home`. Dispatches [AppStarted] once, then swaps
-/// between [LoginPage] and [ScannerPage] based on auth status.
+/// between [LoginPage] and [DashboardPage] based on auth status.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -29,7 +29,7 @@ class _AuthGateState extends State<AuthGate> {
       builder: (context, state) {
         switch (state.status) {
           case AuthStatus.authenticated:
-            return const ScannerPage();
+            return const DashboardPage();
           case AuthStatus.unknown:
           case AuthStatus.loading:
             return const Scaffold(body: Center(child: CircularProgressIndicator()));

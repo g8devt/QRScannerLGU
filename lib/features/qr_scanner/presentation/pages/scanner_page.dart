@@ -105,6 +105,7 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver, 
       // and the new camera preview never paints.
       scannerBloc.add(const PauseScan());
       authBloc.add(const LogoutRequested());
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
