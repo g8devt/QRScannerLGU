@@ -1,5 +1,17 @@
 import 'package:equatable/equatable.dart';
 
+/// One uploaded supporting document — a label (e.g. "Barangay Certificate")
+/// paired with its S3 URL.
+class ServiceDocument extends Equatable {
+  const ServiceDocument({required this.label, required this.url});
+
+  final String label;
+  final String url;
+
+  @override
+  List<Object?> get props => [label, url];
+}
+
 /// Full application record returned by `get_service_details_bataan` for
 /// read-only viewing — unlike [VerifiedApplication], this is not gated on
 /// claim eligibility and may reflect any status.
@@ -35,6 +47,10 @@ class SocialServiceDetails extends Equatable {
     required this.appointmentDate,
     required this.appointmentTime,
     required this.appointmentLocation,
+    required this.photo2x2,
+    required this.photoSignature,
+    required this.imageVerification,
+    required this.documents,
   });
 
   final int id;
@@ -67,6 +83,10 @@ class SocialServiceDetails extends Equatable {
   final String appointmentDate;
   final String appointmentTime;
   final String appointmentLocation;
+  final String photo2x2;
+  final String photoSignature;
+  final String imageVerification;
+  final List<ServiceDocument> documents;
 
   String get applicantFullName => [requestedForFname, requestedForMname, requestedForLname]
       .where((s) => s.isNotEmpty)
@@ -106,6 +126,19 @@ class SocialServiceDetails extends Equatable {
       appointmentDate: _str(json['appointment_date']),
       appointmentTime: _str(json['appointment_time']),
       appointmentLocation: _str(json['appointment_location']),
+      photo2x2: _str(json['photo_2x2']),
+      photoSignature: _str(json['photo_signature']),
+      imageVerification: _str(json['image_verification']),
+      documents: [
+        for (var n = 1; n <= 8; n++)
+          if (_str(json['upload_file_$n']).isNotEmpty)
+            ServiceDocument(
+              label: _str(json['upload_file_${n}_type']).isNotEmpty
+                  ? _str(json['upload_file_${n}_type'])
+                  : 'Document $n',
+              url: _str(json['upload_file_$n']),
+            ),
+      ],
     );
   }
 
@@ -141,5 +174,9 @@ class SocialServiceDetails extends Equatable {
         appointmentDate,
         appointmentTime,
         appointmentLocation,
+        photo2x2,
+        photoSignature,
+        imageVerification,
+        documents,
       ];
 }

@@ -154,6 +154,7 @@ class _DetailsView extends StatelessWidget {
               if (details.dateClaimed.isNotEmpty) 'Claimed': details.dateClaimed,
             },
           ),
+          _DocumentsSection(details: details),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () => Navigator.of(context).pop(),
@@ -182,6 +183,131 @@ String _formatAmount(String raw) {
     buffer.write(wholeDigits[i]);
   }
   return '$sign$buffer.${parts[1]}';
+}
+
+class _DocumentsSection extends StatelessWidget {
+  const _DocumentsSection({required this.details});
+
+  final SocialServiceDetails details;
+
+  @override
+  Widget build(BuildContext context) {
+    final documents = [
+      if (details.photo2x2.isNotEmpty) ServiceDocument(label: '2x2 Photo', url: details.photo2x2),
+      if (details.photoSignature.isNotEmpty) ServiceDocument(label: 'Signature', url: details.photoSignature),
+      if (details.imageVerification.isNotEmpty)
+        ServiceDocument(label: 'Verification Photo', url: details.imageVerification),
+      ...details.documents,
+    ];
+    if (documents.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Documents', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [for (final doc in documents) _DocumentThumbnail(document: doc)],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DocumentThumbnail extends StatelessWidget {
+  const _DocumentThumbnail({required this.document});
+
+  final ServiceDocument document;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => _ImageViewerPage(document: document)),
+      ),
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        width: 100,
+        child: Column(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 100,
+                height: 100,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Image.network(
+                  document.url,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return const Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) => Icon(
+                    Icons.broken_image_outlined,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              document.label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ImageViewerPage extends StatelessWidget {
+  const _ImageViewerPage({required this.document});
+
+  final ServiceDocument document;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(document.label),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          maxScale: 5,
+          child: Image.network(
+            document.url,
+            errorBuilder: (context, error, stackTrace) => const Icon(
+              Icons.broken_image_outlined,
+              color: Colors.white54,
+              size: 64,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _SectionCard extends StatelessWidget {
