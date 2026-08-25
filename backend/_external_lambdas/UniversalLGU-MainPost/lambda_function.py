@@ -8,6 +8,7 @@ from helpers.db import get_conn, now_ph, resolve_tenant_db, AUTH_DB
 from helpers.parse import parse_event
 from endpoints import kyc, social_services, profile, account, preferences, business_permits
 from endpoints import social_services_bataan
+from endpoints import cvl_records_bataan
 from endpoints import sanitary_permits, building_permits, inspections, admin_permits
 from endpoints import legacy_business_permit
 from endpoints import card_registrations, card_transactions, card_qr, card_request, service_toggles, locations, medicines, face_verify
@@ -181,6 +182,7 @@ ROUTES = {
     'verify_qr_bataan': social_services_bataan.verify_qr_bataan,
     'get_service_details_bataan': social_services_bataan.get_service_details_bataan,
     'submit_claim_bataan': social_services_bataan.submit_claim_bataan,
+    'find_cvl_by_qr_bataan': cvl_records_bataan.find_cvl_by_qr_bataan,
     'request_profile_update': profile.request_profile_update,
     'get_user_profile': profile.get_user_profile,
     'get_profile_update_requests': profile.get_profile_update_requests,
