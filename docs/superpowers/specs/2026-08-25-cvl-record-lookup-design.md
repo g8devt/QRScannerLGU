@@ -50,15 +50,27 @@ every tenant DB except `cebu_lgu_db`).
   WHERE q.qr_code = %s
      OR (%s != '' AND REPLACE(q.qr_code, 'QR-', '') = %s)
      OR (%s = 1 AND q.id = %s)
+  ORDER BY
+     CASE
+        WHEN q.qr_code = %s THEN 1
+        WHEN %s != '' AND REPLACE(q.qr_code, 'QR-', '') = %s THEN 2
+        WHEN %s = 1 AND q.id = %s THEN 3
+        ELSE 4
+     END
   LIMIT 1
   ```
   Same three-way match as the PHP version: exact `qr_code` string, the
   `QR-` prefix stripped down to its numeric suffix, or (if the scanned
   value is purely numeric) a direct `app_qr_code.id` match. Python params
   computed the same way PHP does (`normalizeQrNumericValue` →
-  `preg_replace('/\D+/', '', ...)`, `ctype_digit` check) rather than
-  ordering by match-quality — a single unambiguous `LIMIT 1` match is
-  sufficient since QR codes are unique per record.
+  `preg_replace('/\D+/', '', ...)`, `ctype_digit` check), and the same
+  `ORDER BY CASE` ranking as the PHP version is required, not optional:
+  an `OR`-only match with no ranking lets `LIMIT 1` return an arbitrary
+  row when a scanned value ambiguously satisfies more than one branch
+  (e.g. scanning `42` can match both `app_qr_code.id = 42` and a
+  different row whose `qr_code` happens to be `QR-42`) — QR codes being
+  unique per record does not prevent that cross-branch collision, so the
+  ranking is what actually picks the correct row.
   - No row → `fail('No CVL record was found for this QR code.', 404)`
   - Row found → `ok({data: serialize_row(row)})`
 
