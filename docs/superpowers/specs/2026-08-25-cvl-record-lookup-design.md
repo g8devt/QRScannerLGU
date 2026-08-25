@@ -14,8 +14,13 @@ no code or table overlap with it.
 
 ## Scope
 
-- Two new backend endpoints: `find_cvl_by_qr_bataan` (read-only lookup)
-  and `update_cvl_photo_bataan` (the one write this feature performs).
+- Four backend endpoints: `find_cvl_by_qr_bataan` (read-only lookup by
+  scanned QR), `get_cvl_by_id_bataan` (read-only lookup by primary key,
+  for the search flow), `search_cvl_by_name_bataan` (read-only search by
+  name), and `update_cvl_photo_bataan` (the one write this feature
+  performs).
+- A second entry point besides scanning: search by name from the
+  dashboard, landing on the same detail view.
 - New Flutter feature module `cvl_lookup`, mirroring the existing
   `social_service_claim`'s `service_details_*` slice (fetch-by-QR →
   loading → details view / error view), not the claim-submission flow.
@@ -120,6 +125,40 @@ displayable afterward, but a record whose photo was last set by the PHP
 admin will show a placeholder until someone edits it from here (or the
 admin panel's photo is separately made public — out of scope).
 
+### New endpoint — `get_cvl_by_id_bataan`
+
+Same module, same auth tier. Read-only lookup by `app_cvl_list.id` — the
+search flow's counterpart to `find_cvl_by_qr_bataan`. Same column list
+(factored into a shared `_CVL_DETAIL_COLUMNS` constant so the two SELECTs
+can't drift apart), but `LEFT JOIN`s `app_qr_code` instead of
+`INNER JOIN`ing it — a record with `cvl_qr IS NULL` is a valid result
+here (search intentionally surfaces those; a QR scan obviously can't
+reach a record with no QR to scan).
+
+- **In:** `{endpoint: 'get_cvl_by_id_bataan', token, db_name, id}`
+- No row → `fail('CVL record not found', 404)`; row found →
+  `ok({data: serialize_row(row)})`.
+
+### New endpoint — `search_cvl_by_name_bataan`
+
+Same module, same auth tier. Requires `name`, at least 2 characters after
+trimming. Mirrors `bataan_lgu_admin`'s `EMS/index.php` search logic
+against the same `ft_cvl_fullname` fulltext index: each whitespace-
+separated keyword of 3+ alphanumeric characters becomes a `+word*`
+fulltext boolean-mode term (prefix match); if any keyword is shorter than
+that, the whole search falls back to `LIKE '%word%'` per keyword instead
+(MySQL's fulltext minimum indexed word length would silently drop short
+words otherwise). `LEFT JOIN`s `app_qr_code` (same reasoning as
+`get_cvl_by_id_bataan`). Capped at 25 results, ordered by name.
+
+- **In:** `{endpoint: 'search_cvl_by_name_bataan', token, db_name, name}`
+- Returns lightweight rows, not the full record: `id, cvl_fullname,
+  cvl_mun, cvl_brgy, cvl_qr_code` — enough to render a results list and
+  know whether each match has a QR assigned, without the cost of the
+  full column list for what might be dozens of rows.
+- `ok({data: {results: [...], truncated: bool}})` — `truncated` is true
+  when the 25-row cap was hit, so the UI can hint "refine your search".
+
 ## Flutter
 
 ### Feature boundary
@@ -128,16 +167,22 @@ admin panel's photo is separately made public — out of scope).
 lib/features/cvl_lookup/
   domain/
     entities/cvl_record.dart           // + imgPath, hasDisplayableImage, copyWith
-    repositories/cvl_repository.dart   // abstract: findByQr(), updatePhoto()
+    entities/cvl_search_result.dart    // lightweight: id, name, mun/brgy, qrCode
+    repositories/cvl_repository.dart   // abstract: findByQr(), findById(), searchByName(), updatePhoto()
     usecases/find_cvl_by_qr.dart
+    usecases/find_cvl_by_id.dart
+    usecases/search_cvl_by_name.dart
     usecases/update_cvl_photo.dart
   data/
-    datasources/cvl_remote_datasource.dart  // calls find_cvl_by_qr_bataan, update_cvl_photo_bataan
+    datasources/cvl_remote_datasource.dart  // + get_cvl_by_id_bataan, search_cvl_by_name_bataan
     repositories/cvl_repository_impl.dart
   presentation/
-    bloc/cvl_lookup_cubit.dart          // mirrors ServiceDetailsCubit
+    bloc/cvl_lookup_cubit.dart          // mirrors ServiceDetailsCubit; fetch() and fetchById()
     bloc/cvl_lookup_state.dart
-    pages/cvl_lookup_page.dart          // mirrors ServiceDetailsPage
+    bloc/cvl_search_cubit.dart          // debounced-by-the-page search(name)
+    bloc/cvl_search_state.dart
+    pages/cvl_lookup_page.dart          // mirrors ServiceDetailsPage; two entry constructors
+    pages/cvl_search_page.dart          // text field + results list
 ```
 
 Mirrors `social_service_claim`'s `service_details_cubit.dart` /
@@ -177,6 +222,30 @@ uses, no changes to `ApiClient` or `AppConfig`.
      - **Sector**: Sector (if non-empty)
      - **QR Code**: the resolved `cvl_qr_code` string
      followed by a "Scan Another" button, same as `ServiceDetailsPage`.
+     The "QR Code" row shows "Not assigned" instead of a blank value
+     when `qrCode` is empty — reachable now that search can surface
+     no-QR records.
+
+### Search flow
+
+4. **DashboardPage** — a fourth tile: "Search CVL Record" / "Find a
+   voter record by name", pushes `CvlSearchPage` directly (no camera
+   involved — this entry point never touches `ScannerPage`).
+5. **CvlSearchPage** — a `TextField` (400ms debounce, implemented as a
+   `Timer` in the page itself, not the cubit — keeps `CvlSearchCubit`
+   a plain "search now" cubit rather than owning timing logic) driving
+   `CvlSearchCubit.search(name)`. Below it: `initial` → a hint icon +
+   message; `loading` → spinner; `failed` → error icon + message;
+   `loaded` with no results → "No matching records found."; `loaded`
+   with results → a `ListView` of name + barangay/municipality rows,
+   each with a QR/no-QR icon, plus a trailing hint row when `truncated`
+   is true. Tapping a row pushes
+   `CvlLookupPage.byId(recordId: result.id)`.
+6. **CvlLookupPage** gains a second constructor, `.byId(recordId)`,
+   alongside the existing `rawValue`-taking default constructor —
+   `initState` calls `CvlLookupCubit.fetchById(recordId)` instead of
+   `fetch(rawValue)`. Both land on the identical `_DetailsView`/photo/edit
+   UI; the only difference is which backend endpoint resolved the record.
 
 ### Photo edit
 

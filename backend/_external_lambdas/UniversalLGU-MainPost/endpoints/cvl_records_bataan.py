@@ -17,6 +17,17 @@ from helpers.s3 import upload_files_from_list
 
 logger = logging.getLogger()
 
+# Shared by every endpoint in this module that returns a full CVL record
+# (as opposed to the lightweight rows `search_cvl_by_name_bataan` returns
+# for its results list) — keeps the two SELECTs from drifting apart.
+_CVL_DETAIL_COLUMNS = """
+    c.id, c.cvl_id, c.cvl_fullname, c.cvl_fname, c.cvl_mname,
+    c.cvl_lname, c.cvl_suffix, c.cvl_address, c.cvl_mun,
+    c.cvl_brgy, c.cvl_precinct_no, c.cvl_birthdate,
+    c.cvl_contact_no, c.cvl_email, c.cvl_gender, c.cvl_sector,
+    c.cvl_img_path, c.cvl_qr, q.qr_code AS cvl_qr_code
+"""
+
 
 def _numeric_suffix(value):
     """Strips everything but digits, e.g. 'QR-00042' -> '00042'."""
@@ -43,12 +54,8 @@ def find_cvl_by_qr_bataan(cur, data, files, ts):
         numeric_id = int(raw_value) if is_numeric else 0
 
         cur.execute(
-            """
-            SELECT c.id, c.cvl_id, c.cvl_fullname, c.cvl_fname, c.cvl_mname,
-                   c.cvl_lname, c.cvl_suffix, c.cvl_address, c.cvl_mun,
-                   c.cvl_brgy, c.cvl_precinct_no, c.cvl_birthdate,
-                   c.cvl_contact_no, c.cvl_email, c.cvl_gender, c.cvl_sector,
-                   c.cvl_img_path, c.cvl_qr, q.qr_code AS cvl_qr_code
+            f"""
+            SELECT {_CVL_DETAIL_COLUMNS}
             FROM app_cvl_list c
             INNER JOIN app_qr_code q ON q.id = c.cvl_qr
             WHERE q.qr_code = %s
@@ -125,4 +132,114 @@ def update_cvl_photo_bataan(cur, data, files, ts):
         return fail(str(e))
     except Exception as e:
         logger.error(f'update_cvl_photo_bataan error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def get_cvl_by_id_bataan(cur, data, files, ts):
+    """Looks up a single `app_cvl_list` record by its primary key.
+
+    Used by the search flow: `search_cvl_by_name_bataan` returns
+    lightweight rows, and tapping one calls this to load the full detail
+    view. Unlike `find_cvl_by_qr_bataan`, this `LEFT JOIN`s
+    `app_qr_code` — a record with no QR assigned yet is still a valid
+    result here (search intentionally surfaces those; scanning obviously
+    can't).
+    """
+    try:
+        require(data, 'id')
+        record_id = data['id']
+
+        cur.execute(
+            f"""
+            SELECT {_CVL_DETAIL_COLUMNS}
+            FROM app_cvl_list c
+            LEFT JOIN app_qr_code q ON q.id = c.cvl_qr
+            WHERE c.id = %s
+            LIMIT 1
+            """,
+            (record_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return fail('CVL record not found', 404)
+
+        return ok({'status': True, 'data': serialize_row(row)})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'get_cvl_by_id_bataan error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def search_cvl_by_name_bataan(cur, data, files, ts):
+    """Searches `app_cvl_list` by full name for the scanner app's staff-
+    facing "Search CVL Record" flow (a separate entry point from
+    scanning a QR).
+
+    Requires `name`, at least 2 characters after trimming. Mirrors
+    `bataan_lgu_admin`'s `EMS/index.php` search logic: each whitespace-
+    separated keyword of 3+ alphanumeric characters becomes a `+word*`
+    fulltext boolean-mode term (prefix match, via the `ft_cvl_fullname`
+    index); if any keyword is shorter than that, the whole search falls
+    back to `LIKE '%word%'` per keyword instead (fulltext's default
+    minimum indexed word length would silently drop short words).
+    `LEFT JOIN`s `app_qr_code` so records with no QR assigned yet still
+    show up. Capped at 25 results, ordered by name. Responds with
+    `{status, data: {results, truncated}}` — `results` is a list of
+    lightweight rows (id, name, location, QR code if any), not the full
+    record; `truncated` is true when more than 25 matches exist.
+    """
+    try:
+        require(data, 'name')
+        raw_term = (data.get('name') or '').strip()
+        if len(raw_term) < 2:
+            return fail('Enter at least 2 characters to search')
+
+        keywords = [k for k in re.split(r'\s+', raw_term) if k]
+
+        fulltext_terms = []
+        can_use_fulltext = True
+        for keyword in keywords:
+            normalized = re.sub(r'[^0-9A-Za-z]+', '', keyword)
+            if len(normalized) < 3:
+                can_use_fulltext = False
+                break
+            fulltext_terms.append(f'+{normalized}*')
+
+        if can_use_fulltext and fulltext_terms:
+            where_clause = 'MATCH(c.cvl_fullname) AGAINST (%s IN BOOLEAN MODE)'
+            params = [' '.join(fulltext_terms)]
+        else:
+            conditions = []
+            params = []
+            for keyword in keywords:
+                conditions.append('c.cvl_fullname LIKE %s')
+                params.append(f'%{keyword}%')
+            where_clause = ' AND '.join(conditions)
+
+        cur.execute(
+            f"""
+            SELECT c.id, c.cvl_fullname, c.cvl_mun, c.cvl_brgy,
+                   q.qr_code AS cvl_qr_code
+            FROM app_cvl_list c
+            LEFT JOIN app_qr_code q ON q.id = c.cvl_qr
+            WHERE {where_clause}
+            ORDER BY c.cvl_fullname
+            LIMIT 25
+            """,
+            tuple(params),
+        )
+        rows = cur.fetchall()
+
+        return ok({
+            'status': True,
+            'data': {
+                'results': [serialize_row(r) for r in rows],
+                'truncated': len(rows) == 25,
+            },
+        })
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'search_cvl_by_name_bataan error: {e}', exc_info=True)
         return fail(f'Server error: {e}', 500)

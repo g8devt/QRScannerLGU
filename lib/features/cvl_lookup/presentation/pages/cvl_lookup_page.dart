@@ -7,12 +7,16 @@ import '../../domain/entities/cvl_record.dart';
 import '../bloc/cvl_lookup_cubit.dart';
 import '../bloc/cvl_lookup_state.dart';
 
-/// Read-only view of a scanned CVL record, or a "no record found" message
-/// when the scanned QR doesn't match anything in `app_cvl_list`.
+/// Read-only view of a CVL record — reached either by scanning a QR
+/// ([rawValue]) or by tapping a search result ([recordId]) — or a "no
+/// record found" message when the lookup doesn't match anything.
 class CvlLookupPage extends StatefulWidget {
-  const CvlLookupPage({super.key, required this.rawValue});
+  const CvlLookupPage({super.key, required String this.rawValue}) : recordId = null;
 
-  final String rawValue;
+  const CvlLookupPage.byId({super.key, required int this.recordId}) : rawValue = null;
+
+  final String? rawValue;
+  final int? recordId;
 
   @override
   State<CvlLookupPage> createState() => _CvlLookupPageState();
@@ -25,7 +29,13 @@ class _CvlLookupPageState extends State<CvlLookupPage> {
   void initState() {
     super.initState();
     _cubit = context.read<CvlLookupCubit>();
-    _cubit.fetch(widget.rawValue);
+    final rawValue = widget.rawValue;
+    final recordId = widget.recordId;
+    if (rawValue != null) {
+      _cubit.fetch(rawValue);
+    } else {
+      _cubit.fetchById(recordId!);
+    }
   }
 
   @override
@@ -136,7 +146,7 @@ class _DetailsView extends StatelessWidget {
             _SectionCard(title: 'Sector', rows: {'Sector': record.sector}),
           _SectionCard(
             title: 'QR Code',
-            rows: {'Code': record.qrCode},
+            rows: {'Code': record.qrCode.isNotEmpty ? record.qrCode : 'Not assigned'},
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(

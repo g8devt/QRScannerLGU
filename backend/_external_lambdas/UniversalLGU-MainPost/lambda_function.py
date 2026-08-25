@@ -184,6 +184,8 @@ ROUTES = {
     'submit_claim_bataan': social_services_bataan.submit_claim_bataan,
     'find_cvl_by_qr_bataan': cvl_records_bataan.find_cvl_by_qr_bataan,
     'update_cvl_photo_bataan': cvl_records_bataan.update_cvl_photo_bataan,
+    'get_cvl_by_id_bataan': cvl_records_bataan.get_cvl_by_id_bataan,
+    'search_cvl_by_name_bataan': cvl_records_bataan.search_cvl_by_name_bataan,
     'request_profile_update': profile.request_profile_update,
     'get_user_profile': profile.get_user_profile,
     'get_profile_update_requests': profile.get_profile_update_requests,

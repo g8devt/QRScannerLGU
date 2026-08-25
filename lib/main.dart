@@ -13,9 +13,12 @@ import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/pages/auth_gate.dart';
 import 'features/cvl_lookup/data/datasources/cvl_remote_datasource.dart';
 import 'features/cvl_lookup/data/repositories/cvl_repository_impl.dart';
+import 'features/cvl_lookup/domain/usecases/find_cvl_by_id.dart';
 import 'features/cvl_lookup/domain/usecases/find_cvl_by_qr.dart';
+import 'features/cvl_lookup/domain/usecases/search_cvl_by_name.dart';
 import 'features/cvl_lookup/domain/usecases/update_cvl_photo.dart';
 import 'features/cvl_lookup/presentation/bloc/cvl_lookup_cubit.dart';
+import 'features/cvl_lookup/presentation/bloc/cvl_search_cubit.dart';
 import 'features/qr_scanner/data/datasources/image_picker_datasource.dart';
 import 'features/qr_scanner/data/datasources/mobile_scanner_datasource.dart';
 import 'features/qr_scanner/data/repositories/camera_repository_impl.dart';
@@ -65,6 +68,8 @@ class MyApp extends StatelessWidget {
           final cvlRepository = CvlRepositoryImpl(cvlRemoteDatasource);
           final findCvlByQr = FindCvlByQr(cvlRepository);
           final updateCvlPhoto = UpdateCvlPhoto(cvlRepository);
+          final findCvlById = FindCvlById(cvlRepository);
+          final searchCvlByName = SearchCvlByName(cvlRepository);
 
           final authRemoteDatasource = AuthRemoteDatasource(apiClient);
           final authLocalDatasource = AuthLocalDatasource();
@@ -80,7 +85,8 @@ class MyApp extends StatelessWidget {
                 BlocProvider(create: (_) => ScannerBloc(scannerRepository)),
                 BlocProvider(create: (_) => ClaimBloc(verifyQr, submitClaim)),
                 BlocProvider(create: (_) => ServiceDetailsCubit(getServiceDetails)),
-                BlocProvider(create: (_) => CvlLookupCubit(findCvlByQr, updateCvlPhoto)),
+                BlocProvider(create: (_) => CvlLookupCubit(findCvlByQr, updateCvlPhoto, findCvlById)),
+                BlocProvider(create: (_) => CvlSearchCubit(searchCvlByName)),
                 BlocProvider(create: (_) => AuthBloc(loginUsecase, logoutUsecase, restoreSessionUsecase)),
               ],
               child: MaterialApp(
