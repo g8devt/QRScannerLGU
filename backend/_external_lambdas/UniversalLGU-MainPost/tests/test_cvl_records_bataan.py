@@ -2,11 +2,15 @@ import json
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from endpoints.cvl_records_bataan import find_cvl_by_qr_bataan
+from endpoints.cvl_records_bataan import find_cvl_by_qr_bataan, update_cvl_photo_bataan
+
+
+def _photo_files():
+    return [{'field_name': 'cvl_photo', 'filename': 'photo.jpg', 'content': MagicMock()}]
 
 
 class FindCvlByQrBataanTest(unittest.TestCase):
@@ -78,6 +82,62 @@ class FindCvlByQrBataanTest(unittest.TestCase):
         cur = MagicMock()
         cur.execute.side_effect = RuntimeError('connection lost')
         result = find_cvl_by_qr_bataan(cur, {'qr_code': 'QR-00042'}, [], '2026-08-25 00:00:00')
+        self.assertEqual(result['statusCode'], 500)
+
+
+class UpdateCvlPhotoBataanTest(unittest.TestCase):
+    def test_missing_id_returns_400(self):
+        cur = MagicMock()
+        result = update_cvl_photo_bataan(cur, {}, _photo_files(), '2026-08-25 00:00:00')
+        self.assertEqual(result['statusCode'], 400)
+
+    def test_missing_photo_file_returns_400(self):
+        cur = MagicMock()
+        result = update_cvl_photo_bataan(cur, {'id': 1}, [], '2026-08-25 00:00:00')
+        self.assertEqual(result['statusCode'], 400)
+
+    def test_record_not_found_returns_404(self):
+        cur = MagicMock()
+        cur.fetchone.return_value = None
+        result = update_cvl_photo_bataan(cur, {'id': 999}, _photo_files(), '2026-08-25 00:00:00')
+        self.assertEqual(result['statusCode'], 404)
+
+    @patch('endpoints.cvl_records_bataan.upload_files_from_list')
+    def test_success_returns_200_with_new_url(self, mock_upload):
+        mock_upload.return_value = {'cvl_photo': 'https://bucket.s3.amazonaws.com/cvl/1/photo_abcd1234.jpg'}
+        cur = MagicMock()
+        cur.fetchone.return_value = {'id': 1}
+        result = update_cvl_photo_bataan(
+            cur, {'id': 1, 'updated_by': 'jdoe'}, _photo_files(), '2026-08-25 00:00:00',
+        )
+        self.assertEqual(result['statusCode'], 200)
+        body = json.loads(result['body'])
+        self.assertEqual(body['data']['cvl_img_path'], 'https://bucket.s3.amazonaws.com/cvl/1/photo_abcd1234.jpg')
+
+        update_call = cur.execute.call_args_list[-1]
+        args, _ = update_call
+        params = args[1]
+        self.assertEqual(
+            params,
+            ('https://bucket.s3.amazonaws.com/cvl/1/photo_abcd1234.jpg', 'jdoe', '2026-08-25 00:00:00', 1),
+        )
+
+    @patch('endpoints.cvl_records_bataan.upload_files_from_list')
+    def test_missing_updated_by_falls_back_to_mobile_scanner(self, mock_upload):
+        mock_upload.return_value = {'cvl_photo': 'https://bucket.s3.amazonaws.com/cvl/1/photo_abcd1234.jpg'}
+        cur = MagicMock()
+        cur.fetchone.return_value = {'id': 1}
+        update_cvl_photo_bataan(cur, {'id': 1}, _photo_files(), '2026-08-25 00:00:00')
+
+        update_call = cur.execute.call_args_list[-1]
+        args, _ = update_call
+        params = args[1]
+        self.assertEqual(params[1], 'MOBILE_SCANNER')
+
+    def test_db_error_returns_500(self):
+        cur = MagicMock()
+        cur.execute.side_effect = RuntimeError('connection lost')
+        result = update_cvl_photo_bataan(cur, {'id': 1}, _photo_files(), '2026-08-25 00:00:00')
         self.assertEqual(result['statusCode'], 500)
 
 

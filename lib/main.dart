@@ -14,6 +14,7 @@ import 'features/auth/presentation/pages/auth_gate.dart';
 import 'features/cvl_lookup/data/datasources/cvl_remote_datasource.dart';
 import 'features/cvl_lookup/data/repositories/cvl_repository_impl.dart';
 import 'features/cvl_lookup/domain/usecases/find_cvl_by_qr.dart';
+import 'features/cvl_lookup/domain/usecases/update_cvl_photo.dart';
 import 'features/cvl_lookup/presentation/bloc/cvl_lookup_cubit.dart';
 import 'features/qr_scanner/data/datasources/image_picker_datasource.dart';
 import 'features/qr_scanner/data/datasources/mobile_scanner_datasource.dart';
@@ -63,6 +64,7 @@ class MyApp extends StatelessWidget {
           final cvlRemoteDatasource = CvlRemoteDatasource(apiClient);
           final cvlRepository = CvlRepositoryImpl(cvlRemoteDatasource);
           final findCvlByQr = FindCvlByQr(cvlRepository);
+          final updateCvlPhoto = UpdateCvlPhoto(cvlRepository);
 
           final authRemoteDatasource = AuthRemoteDatasource(apiClient);
           final authLocalDatasource = AuthLocalDatasource();
@@ -78,7 +80,7 @@ class MyApp extends StatelessWidget {
                 BlocProvider(create: (_) => ScannerBloc(scannerRepository)),
                 BlocProvider(create: (_) => ClaimBloc(verifyQr, submitClaim)),
                 BlocProvider(create: (_) => ServiceDetailsCubit(getServiceDetails)),
-                BlocProvider(create: (_) => CvlLookupCubit(findCvlByQr)),
+                BlocProvider(create: (_) => CvlLookupCubit(findCvlByQr, updateCvlPhoto)),
                 BlocProvider(create: (_) => AuthBloc(loginUsecase, logoutUsecase, restoreSessionUsecase)),
               ],
               child: MaterialApp(

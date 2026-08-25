@@ -13,6 +13,7 @@ import re
 
 from helpers.auth import ok, fail, require
 from helpers.db import serialize_row
+from helpers.s3 import upload_files_from_list
 
 logger = logging.getLogger()
 
@@ -76,4 +77,52 @@ def find_cvl_by_qr_bataan(cur, data, files, ts):
         return fail(str(e))
     except Exception as e:
         logger.error(f'find_cvl_by_qr_bataan error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def update_cvl_photo_bataan(cur, data, files, ts):
+    """Replaces a CVL record's photo (`cvl_img_path`).
+
+    The only write this module performs — everything else on this record
+    stays read-only from the app, per the design spec. Requires `id` (the
+    `app_cvl_list` primary key, from a prior `find_cvl_by_qr_bataan` call)
+    and a `cvl_photo` file. Uploads to S3 (mirrors the pattern in
+    `social_services_bataan.submit_claim_bataan`) and overwrites
+    `cvl_img_path` with the resulting URL — a fresh upload each time, no
+    reuse of the previous file. Responds with `{status, data: {cvl_img_path}}`
+    on success, or a 404 `fail(...)` if the record doesn't exist.
+    """
+    try:
+        require(data, 'id')
+        record_id = data['id']
+
+        provided_fields = {f['field_name'] for f in files}
+        if 'cvl_photo' not in provided_fields:
+            return fail('Missing: cvl_photo')
+
+        cur.execute('SELECT id FROM app_cvl_list WHERE id=%s LIMIT 1', (record_id,))
+        if not cur.fetchone():
+            return fail('CVL record not found', 404)
+
+        updated_by = (data.get('updated_by') or '').strip() or 'MOBILE_SCANNER'
+
+        file_urls = upload_files_from_list(files, f'cvl/{record_id}', record_id)
+        new_url = file_urls.get('cvl_photo')
+        if not new_url:
+            return fail('Photo upload failed', 500)
+
+        cur.execute(
+            """
+            UPDATE app_cvl_list
+            SET cvl_img_path=%s, cvl_updated_by=%s, cvl_last_date_updated=%s
+            WHERE id=%s
+            """,
+            (new_url, updated_by, ts, record_id),
+        )
+
+        return ok({'status': True, 'data': {'cvl_img_path': new_url}})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'update_cvl_photo_bataan error: {e}', exc_info=True)
         return fail(f'Server error: {e}', 500)

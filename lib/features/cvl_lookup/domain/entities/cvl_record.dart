@@ -21,6 +21,7 @@ class CvlRecord extends Equatable {
     required this.gender,
     required this.sector,
     required this.qrCode,
+    required this.imgPath,
   });
 
   final int id;
@@ -40,6 +41,17 @@ class CvlRecord extends Equatable {
   final String gender;
   final String sector;
   final String qrCode;
+
+  /// `app_cvl_list.cvl_img_path` — may be an absolute URL (photo uploaded
+  /// via this app or the KYC-connect flow, both S3) or a relative path
+  /// like `storage/cvl/xxx.jpg` (uploaded via the PHP admin, only
+  /// reachable from inside its login-gated session — not loadable here).
+  /// [hasDisplayableImage] is what UI code should actually check.
+  final String imgPath;
+
+  /// Whether [imgPath] is something this app can actually render —
+  /// i.e. an absolute URL, not a PHP-admin-relative path.
+  bool get hasDisplayableImage => imgPath.startsWith('http://') || imgPath.startsWith('https://');
 
   static String _str(dynamic v) => v == null ? '' : v.toString();
 
@@ -62,6 +74,30 @@ class CvlRecord extends Equatable {
       gender: _str(json['cvl_gender']),
       sector: _str(json['cvl_sector']),
       qrCode: _str(json['cvl_qr_code']),
+      imgPath: _str(json['cvl_img_path']),
+    );
+  }
+
+  CvlRecord copyWith({String? imgPath}) {
+    return CvlRecord(
+      id: id,
+      cvlId: cvlId,
+      fullName: fullName,
+      firstName: firstName,
+      middleName: middleName,
+      lastName: lastName,
+      suffix: suffix,
+      address: address,
+      municipality: municipality,
+      barangay: barangay,
+      precinctNo: precinctNo,
+      birthdate: birthdate,
+      contactNo: contactNo,
+      email: email,
+      gender: gender,
+      sector: sector,
+      qrCode: qrCode,
+      imgPath: imgPath ?? this.imgPath,
     );
   }
 
@@ -84,5 +120,6 @@ class CvlRecord extends Equatable {
         gender,
         sector,
         qrCode,
+        imgPath,
       ];
 }

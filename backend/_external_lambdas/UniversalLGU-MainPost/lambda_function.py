@@ -183,6 +183,7 @@ ROUTES = {
     'get_service_details_bataan': social_services_bataan.get_service_details_bataan,
     'submit_claim_bataan': social_services_bataan.submit_claim_bataan,
     'find_cvl_by_qr_bataan': cvl_records_bataan.find_cvl_by_qr_bataan,
+    'update_cvl_photo_bataan': cvl_records_bataan.update_cvl_photo_bataan,
     'request_profile_update': profile.request_profile_update,
     'get_user_profile': profile.get_user_profile,
     'get_profile_update_requests': profile.get_profile_update_requests,
