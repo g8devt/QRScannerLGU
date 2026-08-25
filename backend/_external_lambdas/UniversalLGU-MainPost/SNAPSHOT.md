@@ -12,6 +12,12 @@
   `FunctionError: null` (proves the new module imports cleanly at cold
   start — an import/syntax error there would break every tenant's every
   request, not just this endpoint).
+- **Deployed from this repo:** 2026-08-26 — added `update_cvl_photo_bataan`
+  to the same `cvl_records_bataan.py` + its `ROUTES` entry. Same
+  pull-live/merge-diff/deploy method as above (drift-checked against the
+  repo first via a line-ending-insensitive diff — none found). Verified
+  post-deploy: `LastUpdateStatus: Successful`, clean invoke with
+  `FunctionError: null`.
 
 ## Configuration
 
@@ -21,8 +27,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-08-25T15:36:32.000+0000",
-    "CodeSha256": "XiQGkHHW3u2+ovnV93mppFDuIUIUF5FKWvMBl1wQArI="
+    "LastModified": "2026-08-25T16:03:30.000+0000",
+    "CodeSha256": "3q1DBs2WT+OxOV5lY/HIpZt+OXrC4KG3yCliJHCpQ5Y="
 }
 ```
 
