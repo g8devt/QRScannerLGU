@@ -11,7 +11,7 @@ import logging
 
 from helpers.auth import ok, fail, require
 from helpers.audit import record_audit_log
-from helpers.db import serialize_row
+from helpers.db import sanitize, serialize_row
 from helpers.forms import parse_int
 
 logger = logging.getLogger()
@@ -56,13 +56,92 @@ def _ensure_indexes(cur):
         cur.execute("DEALLOCATE PREPARE stmt")
 
 
+# app_card_request has no column to record why a request was declined —
+# add one the same idempotent way _ensure_indexes adds indexes above, so
+# the admin-supplied reason (shown to the citizen) has somewhere to land.
+_COLUMN_ALTERS = [
+    """
+    SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+               WHERE TABLE_SCHEMA = DATABASE()
+                 AND TABLE_NAME = 'app_card_request'
+                 AND COLUMN_NAME = 'decline_reason')
+    """,
+    """
+    SET @s := IF(@c = 0,
+        'ALTER TABLE app_card_request ADD COLUMN decline_reason TEXT NULL AFTER status',
+        'SELECT 1')
+    """,
+    "PREPARE stmt FROM @s",
+    "EXECUTE stmt",
+    "DEALLOCATE PREPARE stmt",
+]
+
+
+def _ensure_columns(cur):
+    for sql in _COLUMN_ALTERS:
+        cur.execute(sql)
+
+
+# app_qr_code's raw DDL declares no index on status; a search endpoint
+# filtering WHERE status='AVAILABLE' AND qr_code LIKE ... wants one.
+_QR_INDEX_ALTERS = [
+    """
+    SET @c := (SELECT COUNT(*) FROM information_schema.STATISTICS
+               WHERE TABLE_SCHEMA = DATABASE()
+                 AND TABLE_NAME = 'app_qr_code'
+                 AND INDEX_NAME = 'idx_qrcode_status')
+    """,
+    """
+    SET @s := IF(@c = 0,
+        'ALTER TABLE app_qr_code ADD INDEX idx_qrcode_status (status)',
+        'SELECT 1')
+    """,
+    "PREPARE stmt FROM @s",
+    "EXECUTE stmt",
+    "DEALLOCATE PREPARE stmt",
+]
+
+
+def _ensure_qr_indexes(cur):
+    for sql in _QR_INDEX_ALTERS:
+        cur.execute(sql)
+
+
 _CARD_REQUEST_STATUSES = {'PENDING', 'APPROVED', 'DECLINED'}
+
+_IMAGE_CONTENT_TYPES = {
+    'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+    'webp': 'image/webp', 'gif': 'image/gif',
+}
+
+
+def _image_ext_and_type(filename):
+    ext = (filename.rsplit('.', 1)[-1] if '.' in filename else 'jpg').lower()
+    if ext not in _IMAGE_CONTENT_TYPES:
+        ext = 'jpg'
+    return ext, _IMAGE_CONTENT_TYPES[ext]
+
+
+def _extract_selfie(files):
+    """Pull the multipart `selfie` file (if any) from the request. Returns
+    (content_bytes, ext, content_type) or None when no usable selfie was sent."""
+    for f in files or []:
+        if (f.get('field_name') or '').strip() == 'selfie':
+            f['content'].seek(0)
+            content = f['content'].read()
+            if not content:
+                return None
+            ext, ctype = _image_ext_and_type(f.get('filename') or '')
+            return content, ext, ctype
+    return None
 
 
 def request_card_link(cur, data, files, ts):
     """Create a PENDING link request for the caller, or return the existing one.
 
-    Requires `user_profile_id`. Responds with `{status, status: 'PENDING'}`.
+    Requires `user_profile_id`. A `selfie` file is uploaded to S3 and stored
+    as `verify_photo` when present — the caller must capture one before
+    submitting the request. Responds with `{status, status: 'PENDING'}`.
     """
     try:
         require(data, 'user_profile_id')
@@ -76,13 +155,24 @@ def request_card_link(cur, data, files, ts):
         if cur.fetchone():
             return ok({'status': True, 'request_status': 'PENDING'})
 
+        verify_photo = None
+        selfie = _extract_selfie(files)
+        if selfie is not None:
+            import uuid
+            from helpers.s3 import upload_to_s3
+            content, ext, ctype = selfie
+            unique = uuid.uuid4().hex[:8]
+            verify_photo = upload_to_s3(
+                content, f"card_request/link/{user_id}_{unique}.{ext}",
+                content_type=ctype)
+
         cur.execute("""
             INSERT INTO app_card_request (
                 type, date_requested, verify_photo, status, card_id, user_profile_id
             ) VALUES (
-                'REQUEST', %s, NULL, 'PENDING', NULL, %s
+                'REQUEST', %s, %s, 'PENDING', NULL, %s
             )
-        """, (ts, user_id))
+        """, (ts, verify_photo, user_id))
 
         return ok({'status': True, 'request_status': 'PENDING'})
     except ValueError as e:
@@ -117,6 +207,9 @@ def admin_list_card_requests(cur, data, files, ts):
         limit = min(max(parse_int(data.get('limit')) or 20, 1), 100)
         offset = (page - 1) * limit
         status = (data.get('status') or '').strip().upper()
+        search = sanitize(data.get('search'))
+        date_from = sanitize(data.get('date_from'))
+        date_to = sanitize(data.get('date_to'))
 
         where = []
         params = []
@@ -125,6 +218,18 @@ def admin_list_card_requests(cur, data, files, ts):
                 return fail(f'Invalid status: {status}')
             where.append('r.status=%s')
             params.append(status)
+        if search:
+            like = f'%{search}%'
+            where.append(
+                '(u.first_name LIKE %s OR u.last_name LIKE %s OR u.mobile_number LIKE %s)'
+            )
+            params += [like, like, like]
+        if date_from:
+            where.append('r.date_requested >= %s')
+            params.append(date_from)
+        if date_to:
+            where.append('r.date_requested <= %s')
+            params.append(f'{date_to} 23:59:59')
         clause = ('WHERE ' + ' AND '.join(where)) if where else ''
 
         # Validation passed — only now touch the DB (ensure indexes exist,
@@ -146,9 +251,19 @@ def admin_list_card_requests(cur, data, files, ts):
         rows = cur.fetchall() or []
         has_more = len(rows) > limit
         rows = rows[:limit]
+
+        cur.execute("SELECT status, COUNT(*) AS c FROM app_card_request GROUP BY status")
+        raw_counts = {row['status']: row['c'] for row in cur.fetchall()}
+        stat_counts = {s: raw_counts.get(s, 0) for s in _CARD_REQUEST_STATUSES}
+        # Sum raw_counts directly (not stat_counts) so legacy rows with a
+        # NULL/unrecognized status — e.g. pre-dating this table's status
+        # column being populated — still count toward ALL.
+        stat_counts['ALL'] = sum(raw_counts.values())
+
         return ok({'status': True,
                    'data': {'items': [serialize_row(r) for r in rows],
-                            'page': page, 'has_more': has_more}})
+                            'page': page, 'has_more': has_more,
+                            'counts': stat_counts}})
     except Exception as e:
         logger.error(f'admin_list_card_requests error: {e}', exc_info=True)
         return fail(f'Server error: {e}', 500)
@@ -181,18 +296,23 @@ def admin_review_card_request(cur, data, files, ts):
         user_profile_id = existing['user_profile_id']
 
         if decision == 'DECLINED':
+            reason = sanitize(data.get('reason') or '') or ''
+            if len(reason) < 10:
+                return fail('reason must be at least 10 characters when rejecting a request')
+
+            _ensure_columns(cur)
             cur.execute("""
                 UPDATE app_card_request
-                   SET status='DECLINED', date_declined=%s
+                   SET status='DECLINED', date_declined=%s, decline_reason=%s
                  WHERE id=%s AND status='PENDING'
-            """, (ts, request_id))
+            """, (ts, reason, request_id))
             if cur.rowcount == 0:
                 # Lost a race between the SELECT above and this UPDATE.
                 return fail('Card request already reviewed', 409)
 
             record_audit_log(cur, admin.get('id'), admin.get('role'),
                               'admin_review_card_request', 'card_request',
-                              request_id, {'decision': 'DECLINED'}, ts)
+                              request_id, {'decision': 'DECLINED', 'reason': reason}, ts)
             return ok({'status': True, 'message': 'Card request declined'})
 
         # Guard against clobbering an existing card assignment: nothing in
@@ -286,4 +406,145 @@ def admin_review_card_request(cur, data, files, ts):
         return fail(str(e))
     except Exception as e:
         logger.error(f'admin_review_card_request error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def admin_get_card_request_detail(cur, data, files, ts):
+    """Return a card request joined with the requesting user's profile fields
+    for the admin detail page (name, contact info, address, account status)."""
+    try:
+        require(data, 'id')
+        request_id = data['id']
+
+        _ensure_columns(cur)
+        cur.execute("""
+            SELECT r.id, r.type, r.date_requested, r.date_approved, r.date_declined,
+                   r.verify_photo, r.status, r.decline_reason, r.card_id, r.user_profile_id,
+                   u.fullname, u.first_name, u.last_name, u.email_address, u.mobile_number,
+                   u.gender, u.birth_date, u.address, u.user_status, u.assign_card,
+                   q.qr_code AS assigned_qr_code
+            FROM app_card_request r
+            LEFT JOIN app_users u ON u.id = r.user_profile_id
+            LEFT JOIN app_qr_code q ON q.id = r.card_id
+            WHERE r.id=%s
+        """, (request_id,))
+        row = cur.fetchone()
+        if not row:
+            return fail('Card request not found', 404)
+
+        return ok({'status': True, 'data': serialize_row(row)})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_get_card_request_detail error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def admin_search_qr_codes(cur, data, files, ts):
+    """Search AVAILABLE app_qr_code rows by qr_code substring for the
+    "Search available QR codes" picker. Empty search returns the oldest
+    available codes first, matching the auto-assign order used elsewhere."""
+    try:
+        _ensure_qr_indexes(cur)
+
+        search = sanitize(data.get('search'))
+        limit = min(max(parse_int(data.get('limit')) or 50, 1), 100)
+
+        where = "status='AVAILABLE'"
+        params = []
+        if search:
+            where += " AND qr_code LIKE %s"
+            params.append(f'%{search}%')
+
+        cur.execute(f"""
+            SELECT id, qr_code FROM app_qr_code
+            WHERE {where}
+            ORDER BY id ASC
+            LIMIT %s
+        """, tuple(params + [limit]))
+        rows = cur.fetchall() or []
+
+        return ok({'status': True, 'data': {'items': [serialize_row(r) for r in rows]}})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_search_qr_codes error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+def admin_assign_card(cur, data, files, ts):
+    """Manually assign an admin-chosen app_qr_code to a PENDING card request,
+    the counterpart to admin_review_card_request's auto-assign APPROVED path."""
+    try:
+        require(data, 'id', 'qr_code_id')
+        request_id = data['id']
+        qr_code_id = data['qr_code_id']
+
+        cur.execute(
+            "SELECT r.id, r.status, r.user_profile_id, u.assign_card "
+            "FROM app_card_request r LEFT JOIN app_users u ON u.id = r.user_profile_id "
+            "WHERE r.id=%s",
+            (request_id,),
+        )
+        existing = cur.fetchone()
+        if not existing:
+            return fail('Card request not found', 404)
+        if existing['status'] != 'PENDING':
+            return fail('Card request already reviewed', 409)
+        if existing.get('assign_card'):
+            return fail('User already has a card assigned', 409)
+
+        admin = data.get('_admin') or {}
+        user_profile_id = existing['user_profile_id']
+
+        # Same claim-then-stamp sequence as admin_review_card_request's
+        # APPROVED path, wrapped in an explicit transaction for the same
+        # reason: a failure between claiming the QR code and stamping the
+        # request must not leave a card USED with nothing to show for it.
+        cur.connection.begin()
+        try:
+            cur.execute("""
+                UPDATE app_card_request
+                   SET status='APPROVED'
+                 WHERE id=%s AND status='PENDING'
+            """, (request_id,))
+            if cur.rowcount == 0:
+                cur.connection.commit()
+                return fail('Card request already reviewed', 409)
+
+            cur.execute("""
+                UPDATE app_qr_code
+                   SET status='USED', date_assigned=%s, date_updated=%s
+                 WHERE id=%s AND status='AVAILABLE'
+            """, (ts, ts, qr_code_id))
+            if cur.rowcount == 0:
+                cur.execute("""
+                    UPDATE app_card_request SET status='PENDING' WHERE id=%s
+                """, (request_id,))
+                cur.connection.commit()
+                return fail('The selected QR code is no longer available', 409)
+
+            cur.execute("""
+                UPDATE app_users SET assign_card=%s WHERE id=%s
+            """, (qr_code_id, user_profile_id))
+            if cur.rowcount == 0:
+                raise Exception(f'app_users update matched no row for id={user_profile_id}')
+
+            cur.execute("""
+                UPDATE app_card_request SET card_id=%s, date_approved=%s WHERE id=%s
+            """, (qr_code_id, ts, request_id))
+
+            cur.connection.commit()
+        except Exception:
+            cur.connection.rollback()
+            raise
+
+        record_audit_log(cur, admin.get('id'), admin.get('role'),
+                          'admin_assign_card', 'card_request',
+                          request_id, {'qr_code_id': qr_code_id}, ts)
+        return ok({'status': True, 'message': 'Card assigned', 'card_id': qr_code_id})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'admin_assign_card error: {e}', exc_info=True)
         return fail(f'Server error: {e}', 500)

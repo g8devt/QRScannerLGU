@@ -11,6 +11,7 @@ _KNOWN_ACTIONS = {
     'review_admin_kyc', 'admin_review_permit', 'admin_review_business_link',
     'admin_update_incident_status', 'admin_assess_permit',
     'create_staff', 'update_staff_permissions', 'deactivate_staff',
+    'create_admin_account', 'update_admin_account', 'deactivate_admin_account',
     'create_invite', 'revoke_invite',
     'admin_update_destination', 'upload_tourism_images',
     'admin_update_social_service_status', 'admin_review_birth_registration',
@@ -21,9 +22,9 @@ _KNOWN_ACTIONS = {
 }
 _KNOWN_TARGET_TYPES = {
     'kyc_submission', 'permit', 'business_link', 'incident_report',
-    'staff', 'invite', 'destination', 'social_service', 'birth_registration',
-    'card_registration', 'service_toggles', 'job_posting', 'card_request',
-    'notification', 'kyc',
+    'staff', 'admin_account', 'invite', 'destination', 'social_service',
+    'birth_registration', 'card_registration', 'service_toggles',
+    'job_posting', 'card_request', 'notification', 'kyc',
 }
 
 
@@ -34,6 +35,8 @@ def admin_list_audit_log(cur, data, files, ts):
         offset = (page - 1) * limit
         action = (data.get('action') or '').strip()
         target_type = (data.get('target_type') or '').strip()
+        date_from = (data.get('date_from') or '').strip()
+        date_to = (data.get('date_to') or '').strip()
 
         where = []
         params = []
@@ -47,6 +50,12 @@ def admin_list_audit_log(cur, data, files, ts):
                 return fail(f'Invalid target_type: {target_type}')
             where.append('a.target_type=%s')
             params.append(target_type)
+        if date_from:
+            where.append('a.created_at >= %s')
+            params.append(date_from)
+        if date_to:
+            where.append('a.created_at <= %s')
+            params.append(f'{date_to} 23:59:59')
         clause = ('WHERE ' + ' AND '.join(where)) if where else ''
 
         cur.execute(f"""
@@ -72,8 +81,15 @@ def admin_list_audit_log(cur, data, files, ts):
                 except Exception:
                     r['details'] = None
             out.append(serialize_row(r))
+
+        cur.execute("SELECT target_type, COUNT(*) AS c FROM app_admin_audit_log GROUP BY target_type")
+        raw_counts = {row['target_type']: row['c'] for row in cur.fetchall()}
+        stat_counts = {t: raw_counts.get(t, 0) for t in _KNOWN_TARGET_TYPES}
+        stat_counts['ALL'] = sum(stat_counts.values())
+
         return ok({'status': True,
-                   'data': {'items': out, 'page': page, 'has_more': has_more}})
+                   'data': {'items': out, 'page': page, 'has_more': has_more,
+                            'counts': stat_counts}})
     except Exception as e:
         logger.error(f'admin_list_audit_log error: {e}', exc_info=True)
         return fail(f'Server error: {e}', 500)

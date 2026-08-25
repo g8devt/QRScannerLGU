@@ -18,7 +18,8 @@ logger = logging.getLogger()
 # the same code stores/reads notifications in whichever tenant DB the caller
 # targets.
 #
-# Table `app_notifications` (created by migration 002 in every tenant DB):
+# Table `app_announcements` (created by migration 053 in every tenant DB;
+# formerly `app_notifications` from migration 002, left in place unused):
 #   id INT PK
 #   user_profile_id INT NULL   -- NULL = broadcast (visible to all users)
 #   title VARCHAR(255)
@@ -107,7 +108,7 @@ def _row_to_json(row):
 
 
 def save_notification(cur, data, files, ts):
-    """Persist one received notification into `app_notifications`.
+    """Persist one received notification into `app_announcements`.
 
     Required: title, message.
     Optional: user_profile_id (omit / blank → broadcast), type, data (JSON).
@@ -127,7 +128,7 @@ def save_notification(cur, data, files, ts):
 
         cur.execute(
             """
-            INSERT INTO app_notifications
+            INSERT INTO app_announcements
                 (user_profile_id, title, message, type, is_read, data, date_created)
             VALUES (%s, %s, %s, %s, 0, %s, %s)
             """,
@@ -139,7 +140,7 @@ def save_notification(cur, data, files, ts):
         cur.execute(
             """
             SELECT id, user_profile_id, title, message, type, is_read, data, date_created
-            FROM app_notifications WHERE id=%s
+            FROM app_announcements WHERE id=%s
             """,
             (new_id,),
         )
@@ -160,7 +161,7 @@ def send_notification(cur, data, files, ts):
     """Persist a notification AND push it to the target device via FCM.
 
     This is the authoritative path for server-originated notifications: the row
-    is always written to `app_notifications` (so it shows in-app regardless of
+    is always written to `app_announcements` (so it shows in-app regardless of
     app state), then a best-effort FCM HTTP v1 push is delivered.
 
     Required: title, message.
@@ -184,7 +185,7 @@ def send_notification(cur, data, files, ts):
         # 1) Persist — authoritative, always happens.
         cur.execute(
             """
-            INSERT INTO app_notifications
+            INSERT INTO app_announcements
                 (user_profile_id, title, message, type, is_read, data, date_created)
             VALUES (%s, %s, %s, %s, 0, %s, %s)
             """,
@@ -233,7 +234,7 @@ def send_notification(cur, data, files, ts):
         cur.execute(
             """
             SELECT id, user_profile_id, title, message, type, is_read, data, date_created
-            FROM app_notifications WHERE id=%s
+            FROM app_announcements WHERE id=%s
             """,
             (new_id,),
         )
@@ -275,7 +276,7 @@ def admin_send_notification(cur, data, files, ts):
 
         cur.execute(
             """
-            INSERT INTO app_notifications
+            INSERT INTO app_announcements
                 (user_profile_id, title, message, type, is_read, data, date_created)
             VALUES (%s, %s, %s, %s, 0, %s, %s)
             """,
@@ -319,7 +320,7 @@ def admin_send_notification(cur, data, files, ts):
         cur.execute(
             """
             SELECT id, user_profile_id, title, message, type, is_read, data, date_created
-            FROM app_notifications WHERE id=%s
+            FROM app_announcements WHERE id=%s
             """,
             (new_id,),
         )
@@ -369,7 +370,7 @@ def admin_list_notifications(cur, data, files, ts):
 
         cur.execute(f"""
             SELECT id, user_profile_id, title, message, type, is_read, data, date_created
-            FROM app_notifications
+            FROM app_announcements
             {clause}
             ORDER BY date_created DESC, id DESC
             LIMIT %s OFFSET %s
@@ -377,9 +378,16 @@ def admin_list_notifications(cur, data, files, ts):
         rows = cur.fetchall() or []
         has_more = len(rows) > limit
         rows = rows[:limit]
+
+        cur.execute("SELECT type, COUNT(*) AS c FROM app_announcements GROUP BY type")
+        raw_counts = {row['type']: row['c'] for row in cur.fetchall()}
+        stat_counts = {t: raw_counts.get(t, 0) for t in _NOTIFICATION_TYPES}
+        stat_counts['ALL'] = sum(stat_counts.values())
+
         return ok({'status': True,
                    'data': {'items': [_row_to_json(r) for r in rows],
-                            'page': page, 'has_more': has_more}})
+                            'page': page, 'has_more': has_more,
+                            'counts': stat_counts}})
     except Exception as e:
         logger.error(f'admin_list_notifications error: {e}', exc_info=True)
         return fail(f'Server error: {e}', 500)
@@ -392,7 +400,7 @@ def admin_delete_notification(cur, data, files, ts):
         if nid is None:
             return fail('Invalid id')
 
-        cur.execute("DELETE FROM app_notifications WHERE id=%s", (nid,))
+        cur.execute("DELETE FROM app_announcements WHERE id=%s", (nid,))
         if cur.rowcount == 0:
             return fail('Notification not found', 404)
         cur.connection.commit()
@@ -429,7 +437,7 @@ def list_notifications(cur, data, files, ts):
 
         sql = """
             SELECT id, user_profile_id, title, message, type, is_read, data, date_created
-            FROM app_notifications
+            FROM app_announcements
             WHERE (user_profile_id=%s OR user_profile_id IS NULL)
         """
         params = [user_profile_id]
@@ -462,7 +470,7 @@ def mark_notification_read(cur, data, files, ts):
         nid = _coerce_int(data.get('id'))
         if nid is None:
             return fail('Invalid id')
-        cur.execute("UPDATE app_notifications SET is_read=1 WHERE id=%s", (nid,))
+        cur.execute("UPDATE app_announcements SET is_read=1 WHERE id=%s", (nid,))
         cur.connection.commit()
         return ok({'status': 'success', 'message': 'Marked as read', 'updated': cur.rowcount})
     except ValueError as e:
@@ -481,7 +489,7 @@ def mark_all_notifications_read(cur, data, files, ts):
             return fail('Invalid user_profile_id')
         cur.execute(
             """
-            UPDATE app_notifications SET is_read=1
+            UPDATE app_announcements SET is_read=1
             WHERE is_read=0 AND (user_profile_id=%s OR user_profile_id IS NULL)
             """,
             (user_profile_id,),
@@ -502,7 +510,7 @@ def delete_notification(cur, data, files, ts):
         nid = _coerce_int(data.get('id'))
         if nid is None:
             return fail('Invalid id')
-        cur.execute("DELETE FROM app_notifications WHERE id=%s", (nid,))
+        cur.execute("DELETE FROM app_announcements WHERE id=%s", (nid,))
         cur.connection.commit()
         return ok({'status': 'success', 'message': 'Deleted', 'deleted': cur.rowcount})
     except ValueError as e:

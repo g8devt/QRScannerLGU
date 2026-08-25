@@ -6,7 +6,7 @@ logger = logging.getLogger()
 
 _MODULE_TABLES = {
     'business_permits': 'app_business_permits',
-    'kyc': 'app_admin_kyc_submissions',
+    'kyc': 'app_kyc',
     'incident_reports': 'app_incident_reports',
     'tourism_ipass': 'app_tourism_ipass',
     'social_services': 'app_social_services',
@@ -47,4 +47,39 @@ def admin_get_dashboard_summary(cur, data, files, ts):
         return ok({'status': True, 'data': summary, 'unavailable': unavailable})
     except Exception as e:
         logger.error(f'admin_get_dashboard_summary error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
+# The home Dashboard shows only these four tiles (unlike the full
+# cross-domain /analytics page, which uses every _MODULE_TABLES entry) --
+# each tile is gated by its own module permission, not by 'analytics'.
+_HOME_CARD_MODULES = {
+    'kyc': 'kyc_review',
+    'social_services': 'social_services',
+    'incident_reports': 'incident_reports',
+    'job_postings': 'job_applications',
+}
+
+
+def admin_get_dashboard_home_summary(cur, data, files, ts):
+    try:
+        admin = data.get('_admin') or {}
+        role = admin.get('role')
+        permissions = admin.get('permissions') or []
+
+        summary = {}
+        unavailable = []
+        for module, required_permission in _HOME_CARD_MODULES.items():
+            if role != 'SUPER_ADMIN' and required_permission not in permissions:
+                summary[module] = None
+                unavailable.append(module)
+                continue
+            counts = _status_counts(cur, _MODULE_TABLES[module])
+            summary[module] = counts
+            if counts is None:
+                unavailable.append(module)
+
+        return ok({'status': True, 'data': summary, 'unavailable': unavailable})
+    except Exception as e:
+        logger.error(f'admin_get_dashboard_home_summary error: {e}', exc_info=True)
         return fail(f'Server error: {e}', 500)
