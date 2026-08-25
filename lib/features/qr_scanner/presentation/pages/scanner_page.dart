@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../main.dart';
+import '../../../cvl_lookup/presentation/pages/cvl_lookup_page.dart';
 import '../../../social_service_claim/presentation/pages/service_details_page.dart';
 import '../../../social_service_claim/presentation/pages/verify_page.dart';
 import '../../data/datasources/mobile_scanner_datasource.dart';
@@ -19,6 +20,9 @@ enum ScanPurpose {
 
   /// Route into the read-only application-details view.
   viewDetails,
+
+  /// Route into the read-only CVL record lookup view.
+  cvlLookup,
 }
 
 class ScannerPage extends StatefulWidget {
@@ -113,9 +117,11 @@ class _ScannerPageState extends State<ScannerPage>
             if (state is ScannerDetected) {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => widget.purpose == ScanPurpose.viewDetails
-                      ? ServiceDetailsPage(rawValue: state.rawValue)
-                      : VerifyPage(rawValue: state.rawValue),
+                  builder: (_) => switch (widget.purpose) {
+                    ScanPurpose.viewDetails => ServiceDetailsPage(rawValue: state.rawValue),
+                    ScanPurpose.cvlLookup => CvlLookupPage(rawValue: state.rawValue),
+                    ScanPurpose.claim => VerifyPage(rawValue: state.rawValue),
+                  },
                 ),
               );
             }
@@ -142,9 +148,11 @@ class _ScannerPageState extends State<ScannerPage>
                           onPressed: () => _goBack(context),
                         ),
                         child: Text(
-                          widget.purpose == ScanPurpose.viewDetails
-                              ? 'Scan QR to View Details'
-                              : 'Scan QR to Fetch ID',
+                          switch (widget.purpose) {
+                            ScanPurpose.viewDetails => 'Scan QR to View Details',
+                            ScanPurpose.cvlLookup => 'Scan QR to View CVL Record',
+                            ScanPurpose.claim => 'Scan QR to Fetch ID',
+                          },
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -172,9 +180,14 @@ class _ScannerPageState extends State<ScannerPage>
                               )
                             : null,
                         child: Text(
-                          widget.purpose == ScanPurpose.viewDetails
-                              ? 'Align the QR within the frame to view application details.'
-                              : 'Align the QR within the frame. After scan, you can capture a verification photo.',
+                          switch (widget.purpose) {
+                            ScanPurpose.viewDetails =>
+                              'Align the QR within the frame to view application details.',
+                            ScanPurpose.cvlLookup =>
+                              'Align the QR within the frame to view the CVL record.',
+                            ScanPurpose.claim =>
+                              'Align the QR within the frame. After scan, you can capture a verification photo.',
+                          },
                         ),
                       ),
                     ),

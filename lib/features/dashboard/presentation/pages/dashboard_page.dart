@@ -125,6 +125,20 @@ class DashboardPage extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.badge_outlined, size: 32),
+                        title: const Text('Check CVL Record'),
+                        subtitle: const Text('Scan a QR to view voter record'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ScannerPage(purpose: ScanPurpose.cvlLookup),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
