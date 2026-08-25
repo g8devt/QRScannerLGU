@@ -45,6 +45,13 @@ class FindCvlByQrBataanTest(unittest.TestCase):
         self.assertEqual(body['data']['cvl_fullname'], 'Juan Dela Cruz')
         self.assertEqual(body['data']['cvl_qr_code'], 'QR-00042')
 
+        args, _ = cur.execute.call_args
+        params = args[1]
+        self.assertEqual(
+            params,
+            ('QR-00042', '00042', '00042', 0, 0, 'QR-00042', '00042', '00042', 0, 0),
+        )
+
     def test_match_by_numeric_id_returns_200(self):
         row = {
             'id': 1, 'cvl_id': 'CVL-0001', 'cvl_fullname': 'Juan Dela Cruz',
@@ -59,6 +66,13 @@ class FindCvlByQrBataanTest(unittest.TestCase):
         cur = self._cur(row)
         result = find_cvl_by_qr_bataan(cur, {'qr_code': '42'}, [], '2026-08-25 00:00:00')
         self.assertEqual(result['statusCode'], 200)
+
+        args, _ = cur.execute.call_args
+        params = args[1]
+        self.assertEqual(
+            params,
+            ('42', '42', '42', 1, 42, '42', '42', '42', 1, 42),
+        )
 
     def test_db_error_returns_500(self):
         cur = MagicMock()

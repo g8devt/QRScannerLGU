@@ -53,9 +53,19 @@ def find_cvl_by_qr_bataan(cur, data, files, ts):
             WHERE q.qr_code = %s
                OR (%s != '' AND REPLACE(q.qr_code, 'QR-', '') = %s)
                OR (%s = 1 AND q.id = %s)
+            ORDER BY
+                CASE
+                    WHEN q.qr_code = %s THEN 1
+                    WHEN %s != '' AND REPLACE(q.qr_code, 'QR-', '') = %s THEN 2
+                    WHEN %s = 1 AND q.id = %s THEN 3
+                    ELSE 4
+                END
             LIMIT 1
             """,
-            (raw_value, numeric_value, numeric_value, 1 if is_numeric else 0, numeric_id),
+            (
+                raw_value, numeric_value, numeric_value, 1 if is_numeric else 0, numeric_id,
+                raw_value, numeric_value, numeric_value, 1 if is_numeric else 0, numeric_id,
+            ),
         )
         row = cur.fetchone()
         if not row:

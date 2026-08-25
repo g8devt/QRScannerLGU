@@ -111,7 +111,7 @@ uses, no changes to `ApiClient` or `AppConfig`.
 3. **CvlLookupPage** — `initState` calls `CvlLookupCubit.fetch(rawValue)`.
    - `loading` → centered spinner.
    - `failed` → same `_ErrorView` shape as `ServiceDetailsPage`: error
-     icon, the backend's message (**"No record found for this QR code."**
+     icon, the backend's message (**"No CVL record was found for this QR code."**
      on a 404, or a generic failure message on any other error), "Scan
      Again" button that pops back to `ScannerPage`.
    - `loaded` → sectioned `_SectionCard` list:

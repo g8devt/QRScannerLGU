@@ -45,7 +45,7 @@ class _CvlLookupPageState extends State<CvlLookupPage> {
               case CvlLookupStatus.loading:
                 return const Center(child: CircularProgressIndicator());
               case CvlLookupStatus.failed:
-                return _ErrorView(message: state.errorMessage ?? 'No record found for this QR code.');
+                return _ErrorView(message: state.errorMessage ?? 'No CVL record was found for this QR code.');
               case CvlLookupStatus.loaded:
                 return _DetailsView(record: state.record!);
             }
