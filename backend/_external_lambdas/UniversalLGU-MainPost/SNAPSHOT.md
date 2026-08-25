@@ -18,6 +18,12 @@
   repo first via a line-ending-insensitive diff — none found). Verified
   post-deploy: `LastUpdateStatus: Successful`, clean invoke with
   `FunctionError: null`.
+- **Deployed from this repo:** 2026-08-26 — added `get_cvl_by_id_bataan`
+  and `search_cvl_by_name_bataan` to the same `cvl_records_bataan.py` +
+  their `ROUTES` entries (search-by-name flow). Same pull-live/merge-diff
+  /deploy method (drift-checked, none found). Verified post-deploy:
+  `LastUpdateStatus: Successful`, two clean invokes with
+  `FunctionError: null`.
 
 ## Configuration
 
@@ -27,8 +33,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-08-25T16:03:30.000+0000",
-    "CodeSha256": "3q1DBs2WT+OxOV5lY/HIpZt+OXrC4KG3yCliJHCpQ5Y="
+    "LastModified": "2026-08-25T16:26:41.000+0000",
+    "CodeSha256": "NlIEjPfcgOmgwenxSmR2Crvh1ADyqBELxsutwmjtPy4="
 }
 ```
 
