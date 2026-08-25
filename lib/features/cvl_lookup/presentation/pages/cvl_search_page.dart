@@ -22,11 +22,21 @@ class CvlSearchPage extends StatefulWidget {
 class _CvlSearchPageState extends State<CvlSearchPage> {
   final _controller = TextEditingController();
   Timer? _debounce;
+  late final CvlSearchCubit _cubit;
+
+  @override
+  void initState() {
+    super.initState();
+    // Cached here, not looked up in dispose() — an ancestor lookup via
+    // context.read() is unsafe once the widget is deactivated, which is
+    // exactly what's happening by the time dispose() runs.
+    _cubit = context.read<CvlSearchCubit>();
+  }
 
   void _onChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () {
-      context.read<CvlSearchCubit>().search(value);
+      _cubit.search(value);
     });
   }
 
@@ -34,7 +44,7 @@ class _CvlSearchPageState extends State<CvlSearchPage> {
   void dispose() {
     _debounce?.cancel();
     _controller.dispose();
-    context.read<CvlSearchCubit>().reset();
+    _cubit.reset();
     super.dispose();
   }
 
