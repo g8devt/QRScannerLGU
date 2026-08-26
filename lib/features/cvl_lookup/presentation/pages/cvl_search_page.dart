@@ -276,6 +276,19 @@ Future<void> _openScannerSheet(
   }
 }
 
+/// Opens [CvlEditPage] for [result], then shows a confirmation snackbar
+/// back on the search page once it reports a successful save.
+Future<void> _openEditPage(BuildContext context, CvlSearchResult result) async {
+  final success = await Navigator.of(context).push<bool>(
+    MaterialPageRoute(builder: (_) => CvlEditPage(recordId: result.id)),
+  );
+  if (success == true && context.mounted) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Record updated.')));
+  }
+}
+
 /// Confirms with the staff member, then unassigns [result]'s QR code via
 /// [CvlSearchCubit.removeQr]. Shows an error dialog on rejection (e.g. the
 /// record has no QR assigned) instead of silently failing.
@@ -433,11 +446,7 @@ class _ResultActions extends StatelessWidget {
         IconButton.filledTonal(
           tooltip: 'Edit',
           icon: const Icon(Icons.edit_outlined),
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => CvlEditPage(recordId: result.id),
-            ),
-          ),
+          onPressed: () => _openEditPage(context, result),
           visualDensity: VisualDensity.compact,
         ),
       ],

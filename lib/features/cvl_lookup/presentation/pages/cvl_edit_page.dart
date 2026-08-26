@@ -205,10 +205,10 @@ class _EditFormState extends State<_EditForm> {
     if (!context.mounted) return;
     if (cubit.state.infoUpdateError != null) return;
 
-    setState(() => _newPhotoPath = null);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Changes saved.')));
+    // Success — back to the search results list, which shows the
+    // confirmation snackbar once it regains focus (see _openEditPage in
+    // cvl_search_page.dart), matching the Set QR flow's pattern.
+    Navigator.of(context).pop(true);
   }
 
   @override
