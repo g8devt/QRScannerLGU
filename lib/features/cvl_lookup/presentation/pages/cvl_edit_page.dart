@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/widgets/info_card.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../qr_scanner/domain/usecases/capture_photo.dart';
 import '../../domain/entities/cvl_record.dart';
@@ -223,7 +224,30 @@ class _EditFormState extends State<_EditForm> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _ReadOnlySection(record: record),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Read-only — only contact details below can be edited.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            InfoCard(
+              title: 'Record Details',
+              rows: {
+                'Full Name': record.fullName,
+                if (record.gender.isNotEmpty) 'Gender': record.gender,
+                if (record.birthdate.isNotEmpty) 'Birthdate': record.birthdate,
+                if (record.address.isNotEmpty) 'Address': record.address,
+                if (record.barangay.isNotEmpty) 'Barangay': record.barangay,
+                if (record.municipality.isNotEmpty)
+                  'Municipality': record.municipality,
+                if (record.precinctNo.isNotEmpty)
+                  'Precinct No.': record.precinctNo,
+                if (record.sector.isNotEmpty) 'Sector': record.sector,
+              },
+            ),
             const SizedBox(height: 12),
             Card(
               child: Padding(
@@ -425,68 +449,6 @@ class _EditablePhotoSection extends StatelessWidget {
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Everything about the record that isn't editable here — shown for
-/// context so the person editing can confirm they have the right
-/// record.
-class _ReadOnlySection extends StatelessWidget {
-  const _ReadOnlySection({required this.record});
-
-  final CvlRecord record;
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = {
-      'Full Name': record.fullName,
-      if (record.gender.isNotEmpty) 'Gender': record.gender,
-      if (record.birthdate.isNotEmpty) 'Birthdate': record.birthdate,
-      if (record.address.isNotEmpty) 'Address': record.address,
-      if (record.barangay.isNotEmpty) 'Barangay': record.barangay,
-      if (record.municipality.isNotEmpty) 'Municipality': record.municipality,
-      if (record.precinctNo.isNotEmpty) 'Precinct No.': record.precinctNo,
-      if (record.sector.isNotEmpty) 'Sector': record.sector,
-    };
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Record Details',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Read-only — only contact details below can be edited.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            for (final entry in rows.entries)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 120,
-                      child: Text(
-                        entry.key,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    Expanded(child: Text(entry.value)),
-                  ],
-                ),
-              ),
           ],
         ),
       ),
