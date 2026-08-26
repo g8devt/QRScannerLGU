@@ -136,26 +136,30 @@ class _DetailsView extends StatelessWidget {
             },
           ),
           const SizedBox(height: 12),
-          InfoCard(
-            title: 'Location',
-            rows: {
-              if (record.address.isNotEmpty) 'Address': record.address,
-              if (record.barangay.isNotEmpty) 'Barangay': record.barangay,
-              if (record.municipality.isNotEmpty)
-                'Municipality': record.municipality,
-              if (record.precinctNo.isNotEmpty)
-                'Precinct No.': record.precinctNo,
-            },
-          ),
-          const SizedBox(height: 12),
-          InfoCard(
-            title: 'Contact',
-            rows: {
-              if (record.contactNo.isNotEmpty) 'Contact No.': record.contactNo,
-              if (record.email.isNotEmpty) 'Email': record.email,
-            },
-          ),
-          const SizedBox(height: 12),
+          if (record.address.isNotEmpty || record.barangay.isNotEmpty || record.municipality.isNotEmpty || record.precinctNo.isNotEmpty) ...[
+            InfoCard(
+              title: 'Location',
+              rows: {
+                if (record.address.isNotEmpty) 'Address': record.address,
+                if (record.barangay.isNotEmpty) 'Barangay': record.barangay,
+                if (record.municipality.isNotEmpty)
+                  'Municipality': record.municipality,
+                if (record.precinctNo.isNotEmpty)
+                  'Precinct No.': record.precinctNo,
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (record.contactNo.isNotEmpty || record.email.isNotEmpty) ...[
+            InfoCard(
+              title: 'Contact',
+              rows: {
+                if (record.contactNo.isNotEmpty) 'Contact No.': record.contactNo,
+                if (record.email.isNotEmpty) 'Email': record.email,
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
           if (record.sector.isNotEmpty) ...[
             InfoCard(title: 'Sector', rows: {'Sector': record.sector}),
             const SizedBox(height: 12),

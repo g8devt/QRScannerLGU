@@ -127,44 +127,52 @@ class _DetailsView extends StatelessWidget {
             },
           ),
           const SizedBox(height: 12),
-          InfoCard(
-            title: 'Address',
-            rows: {
-              if (details.requestedForAddress.isNotEmpty) 'Address': details.requestedForAddress,
-              if (details.requestedForBarangay.isNotEmpty) 'Barangay': details.requestedForBarangay,
-              if (details.requestedForMunicipality.isNotEmpty) 'Municipality': details.requestedForMunicipality,
-              if (details.requestedForProvince.isNotEmpty) 'Province': details.requestedForProvince,
-            },
-          ),
-          const SizedBox(height: 12),
-          InfoCard(
-            title: 'Amount',
-            rows: {
-              if (details.amount.isNotEmpty) 'Requested Amount': _formatAmount(details.amount),
-              if (details.claimedAmount.isNotEmpty) 'Claimed Amount': _formatAmount(details.claimedAmount),
-            },
-          ),
-          const SizedBox(height: 12),
-          InfoCard(
-            title: 'Appointment',
-            rows: {
-              if (details.appointmentDate.isNotEmpty) 'Date': details.appointmentDate,
-              if (details.appointmentTime.isNotEmpty) 'Time': details.appointmentTime,
-              if (details.appointmentLocation.isNotEmpty) 'Location': details.appointmentLocation,
-            },
-          ),
-          const SizedBox(height: 12),
-          InfoCard(
-            title: 'Timeline',
-            rows: {
-              if (details.dateRequested.isNotEmpty) 'Requested': details.dateRequested,
-              if (details.dateApproved.isNotEmpty) 'Approved': details.dateApproved,
-              if (details.dateScheduled.isNotEmpty) 'Scheduled': details.dateScheduled,
-              if (details.dateReleased.isNotEmpty) 'Released': details.dateReleased,
-              if (details.dateClaimed.isNotEmpty) 'Claimed': details.dateClaimed,
-            },
-          ),
-          const SizedBox(height: 12),
+          if (details.requestedForAddress.isNotEmpty || details.requestedForBarangay.isNotEmpty || details.requestedForMunicipality.isNotEmpty || details.requestedForProvince.isNotEmpty) ...[
+            InfoCard(
+              title: 'Address',
+              rows: {
+                if (details.requestedForAddress.isNotEmpty) 'Address': details.requestedForAddress,
+                if (details.requestedForBarangay.isNotEmpty) 'Barangay': details.requestedForBarangay,
+                if (details.requestedForMunicipality.isNotEmpty) 'Municipality': details.requestedForMunicipality,
+                if (details.requestedForProvince.isNotEmpty) 'Province': details.requestedForProvince,
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (details.amount.isNotEmpty || details.claimedAmount.isNotEmpty) ...[
+            InfoCard(
+              title: 'Amount',
+              rows: {
+                if (details.amount.isNotEmpty) 'Requested Amount': _formatAmount(details.amount),
+                if (details.claimedAmount.isNotEmpty) 'Claimed Amount': _formatAmount(details.claimedAmount),
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (details.appointmentDate.isNotEmpty || details.appointmentTime.isNotEmpty || details.appointmentLocation.isNotEmpty) ...[
+            InfoCard(
+              title: 'Appointment',
+              rows: {
+                if (details.appointmentDate.isNotEmpty) 'Date': details.appointmentDate,
+                if (details.appointmentTime.isNotEmpty) 'Time': details.appointmentTime,
+                if (details.appointmentLocation.isNotEmpty) 'Location': details.appointmentLocation,
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (details.dateRequested.isNotEmpty || details.dateApproved.isNotEmpty || details.dateScheduled.isNotEmpty || details.dateReleased.isNotEmpty || details.dateClaimed.isNotEmpty) ...[
+            InfoCard(
+              title: 'Timeline',
+              rows: {
+                if (details.dateRequested.isNotEmpty) 'Requested': details.dateRequested,
+                if (details.dateApproved.isNotEmpty) 'Approved': details.dateApproved,
+                if (details.dateScheduled.isNotEmpty) 'Scheduled': details.dateScheduled,
+                if (details.dateReleased.isNotEmpty) 'Released': details.dateReleased,
+                if (details.dateClaimed.isNotEmpty) 'Claimed': details.dateClaimed,
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
           _DocumentsSection(details: details),
           const SizedBox(height: 16),
           FilledButton.icon(
