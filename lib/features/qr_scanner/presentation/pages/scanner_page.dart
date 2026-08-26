@@ -120,8 +120,12 @@ class _ScannerPageState extends State<ScannerPage>
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => switch (widget.purpose) {
-                    ScanPurpose.viewDetails => ServiceDetailsPage(rawValue: state.rawValue),
-                    ScanPurpose.cvlLookup => CvlLookupPage(rawValue: state.rawValue),
+                    ScanPurpose.viewDetails => ServiceDetailsPage(
+                      rawValue: state.rawValue,
+                    ),
+                    ScanPurpose.cvlLookup => CvlLookupPage(
+                      rawValue: state.rawValue,
+                    ),
                     ScanPurpose.claim => VerifyPage(rawValue: state.rawValue),
                   },
                 ),
@@ -148,7 +152,9 @@ class _ScannerPageState extends State<ScannerPage>
                         onBack: () => _goBack(context),
                         onSearch: widget.purpose == ScanPurpose.cvlLookup
                             ? () => Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const CvlSearchPage()),
+                                MaterialPageRoute(
+                                  builder: (_) => const CvlSearchPage(),
+                                ),
                               )
                             : null,
                       ),
@@ -175,16 +181,14 @@ class _ScannerPageState extends State<ScannerPage>
                                     .add(const ToggleTorch()),
                               )
                             : null,
-                        child: Text(
-                          switch (widget.purpose) {
-                            ScanPurpose.viewDetails =>
-                              'Align the QR within the frame to view application details.',
-                            ScanPurpose.cvlLookup =>
-                              'Align the QR within the frame to view the CVL record.',
-                            ScanPurpose.claim =>
-                              'Align the QR within the frame. After scan, you can capture a verification photo.',
-                          },
-                        ),
+                        child: Text(switch (widget.purpose) {
+                          ScanPurpose.viewDetails =>
+                            'Align the QR within the frame to view application details.',
+                          ScanPurpose.cvlLookup =>
+                            'Align the QR within the frame to view the CVL record.',
+                          ScanPurpose.claim =>
+                            'Align the QR within the frame. After scan, you can capture a verification photo.',
+                        }),
                       ),
                     ),
                   ),

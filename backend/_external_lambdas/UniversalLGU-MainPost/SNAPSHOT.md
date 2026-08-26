@@ -24,6 +24,16 @@
   /deploy method (drift-checked, none found). Verified post-deploy:
   `LastUpdateStatus: Successful`, two clean invokes with
   `FunctionError: null`.
+- **Deployed from this repo:** 2026-08-26 — reworked `search_cvl_by_name_bataan`
+  in the same `cvl_records_bataan.py` for pagination: accepts an
+  `offset` param, fetches one extra row past the 25-row page to compute
+  `has_more` (replacing the old `truncated` field, whose "== 25"
+  inference misreported an exact-multiple-of-25 result count as final),
+  and enables the app's search list to lazy-load further pages on
+  scroll. No `ROUTES`/`lambda_function.py` change — same action name.
+  Same pull-live/merge-diff/deploy method (drift-checked, none found).
+  Verified post-deploy: `LastUpdateStatus: Successful`, two clean
+  invokes with `FunctionError: null`.
 
 ## Configuration
 

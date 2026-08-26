@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/entities/cvl_record.dart';
-import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/entities/cvl_search_result.dart';
+import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/entities/cvl_search_results_page.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/repositories/cvl_repository.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/usecases/search_cvl_by_name.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/presentation/bloc/cvl_search_cubit.dart';
@@ -17,11 +17,17 @@ class _FakeCvlRepository implements CvlRepository {
   Future<CvlRecord> findById(int id) => throw UnimplementedError();
 
   @override
-  Future<List<CvlSearchResult>> searchByName(String name) async => [];
+  Future<CvlSearchResultsPage> searchByName(
+    String name, {
+    int offset = 0,
+  }) async => const CvlSearchResultsPage(results: [], hasMore: false);
 
   @override
-  Future<String> updatePhoto({required int id, required String photoPath, String? updatedBy}) =>
-      throw UnimplementedError();
+  Future<String> updatePhoto({
+    required int id,
+    required String photoPath,
+    String? updatedBy,
+  }) => throw UnimplementedError();
 }
 
 void main() {
@@ -38,9 +44,9 @@ void main() {
         child: MaterialApp(
           home: Builder(
             builder: (context) => ElevatedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const CvlSearchPage()),
-              ),
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const CvlSearchPage())),
               child: const Text('open'),
             ),
           ),

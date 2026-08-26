@@ -11,7 +11,9 @@ import 'cvl_lookup_page.dart';
 /// Search-by-name entry point for CVL records — a separate way in from
 /// scanning a QR. Debounces as the staff member types, then shows a
 /// scrollable list of matches to tap into the same [CvlLookupPage] detail
-/// view the scan flow uses.
+/// view the scan flow uses. The list lazy-loads: scrolling near the
+/// bottom fetches the next page from the backend instead of eagerly
+/// pulling every match up front.
 class CvlSearchPage extends StatefulWidget {
   const CvlSearchPage({super.key});
 
@@ -21,6 +23,7 @@ class CvlSearchPage extends StatefulWidget {
 
 class _CvlSearchPageState extends State<CvlSearchPage> {
   final _controller = TextEditingController();
+  final _scrollController = ScrollController();
   Timer? _debounce;
   late final CvlSearchCubit _cubit;
 
@@ -31,6 +34,7 @@ class _CvlSearchPageState extends State<CvlSearchPage> {
     // context.read() is unsafe once the widget is deactivated, which is
     // exactly what's happening by the time dispose() runs.
     _cubit = context.read<CvlSearchCubit>();
+    _scrollController.addListener(_onScroll);
   }
 
   void _onChanged(String value) {
@@ -40,9 +44,23 @@ class _CvlSearchPageState extends State<CvlSearchPage> {
     });
   }
 
+  void _onScroll() {
+    // Trigger a page ahead of the physical end so the next page is
+    // usually ready before the staff member scrolls into blank space;
+    // loadMore() itself no-ops if one is already in flight or there's
+    // nothing left to fetch.
+    const loadMoreThreshold = 200.0;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - loadMoreThreshold) {
+      _cubit.loadMore();
+    }
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _controller.dispose();
     _cubit.reset();
     super.dispose();
@@ -106,8 +124,9 @@ class _CvlSearchPageState extends State<CvlSearchPage> {
                           );
                         }
                         return _ResultsList(
+                          scrollController: _scrollController,
                           results: state.results,
-                          truncated: state.truncated,
+                          isLoadingMore: state.isLoadingMore,
                           onTap: _openResult,
                         );
                     }
@@ -159,29 +178,34 @@ class _HintMessage extends StatelessWidget {
 
 class _ResultsList extends StatelessWidget {
   const _ResultsList({
+    required this.scrollController,
     required this.results,
-    required this.truncated,
+    required this.isLoadingMore,
     required this.onTap,
   });
 
+  final ScrollController scrollController;
   final List<CvlSearchResult> results;
-  final bool truncated;
+  final bool isLoadingMore;
   final void Function(CvlSearchResult) onTap;
 
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
+      controller: scrollController,
       padding: const EdgeInsets.only(bottom: 16),
-      itemCount: results.length + (truncated ? 1 : 0),
+      itemCount: results.length + (isLoadingMore ? 1 : 0),
       separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
-        if (truncated && index == results.length) {
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'Showing the first ${results.length} matches — refine your search to narrow it down.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
+        if (index == results.length) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             ),
           );
         }

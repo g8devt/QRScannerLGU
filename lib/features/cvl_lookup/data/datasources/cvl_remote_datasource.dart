@@ -17,8 +17,11 @@ class CvlRemoteDatasource {
     return _apiClient.post('get_cvl_by_id_bataan', {'id': id.toString()});
   }
 
-  Future<Map<String, dynamic>> searchByName(String name) {
-    return _apiClient.post('search_cvl_by_name_bataan', {'name': name});
+  Future<Map<String, dynamic>> searchByName(String name, {int offset = 0}) {
+    return _apiClient.post('search_cvl_by_name_bataan', {
+      'name': name,
+      'offset': offset.toString(),
+    });
   }
 
   Future<Map<String, dynamic>> updatePhoto({

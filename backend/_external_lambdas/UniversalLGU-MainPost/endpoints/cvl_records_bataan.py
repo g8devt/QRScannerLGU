@@ -171,6 +171,9 @@ def get_cvl_by_id_bataan(cur, data, files, ts):
         return fail(f'Server error: {e}', 500)
 
 
+_SEARCH_PAGE_SIZE = 25
+
+
 def search_cvl_by_name_bataan(cur, data, files, ts):
     """Searches `app_cvl_list` by full name for the scanner app's staff-
     facing "Search CVL Record" flow (a separate entry point from
@@ -184,16 +187,28 @@ def search_cvl_by_name_bataan(cur, data, files, ts):
     back to `LIKE '%word%'` per keyword instead (fulltext's default
     minimum indexed word length would silently drop short words).
     `LEFT JOIN`s `app_qr_code` so records with no QR assigned yet still
-    show up. Capped at 25 results, ordered by name. Responds with
-    `{status, data: {results, truncated}}` — `results` is a list of
-    lightweight rows (id, name, location, QR code if any), not the full
-    record; `truncated` is true when more than 25 matches exist.
+    show up. Paginated: optional `offset` (default 0) skips that many
+    matches, ordered by name; each page holds up to 25 rows. Fetches one
+    extra row past the page size to detect whether another page exists,
+    rather than inferring it from a full page (which would misreport a
+    result count that's an exact multiple of the page size as final).
+    Responds with `{status, data: {results, has_more}}` — `results` is a
+    list of lightweight rows (id, name, location, QR code if any), not
+    the full record; `has_more` is true when another page of matches
+    exists beyond this one.
     """
     try:
         require(data, 'name')
         raw_term = (data.get('name') or '').strip()
         if len(raw_term) < 2:
             return fail('Enter at least 2 characters to search')
+
+        try:
+            offset = int(data.get('offset') or 0)
+        except (TypeError, ValueError):
+            return fail('Invalid offset')
+        if offset < 0:
+            return fail('Invalid offset')
 
         keywords = [k for k in re.split(r'\s+', raw_term) if k]
 
@@ -225,17 +240,19 @@ def search_cvl_by_name_bataan(cur, data, files, ts):
             LEFT JOIN app_qr_code q ON q.id = c.cvl_qr
             WHERE {where_clause}
             ORDER BY c.cvl_fullname
-            LIMIT 25
+            LIMIT {_SEARCH_PAGE_SIZE + 1} OFFSET %s
             """,
-            tuple(params),
+            tuple(params) + (offset,),
         )
         rows = cur.fetchall()
+        has_more = len(rows) > _SEARCH_PAGE_SIZE
+        rows = rows[:_SEARCH_PAGE_SIZE]
 
         return ok({
             'status': True,
             'data': {
                 'results': [serialize_row(r) for r in rows],
-                'truncated': len(rows) == 25,
+                'has_more': has_more,
             },
         })
     except ValueError as e:

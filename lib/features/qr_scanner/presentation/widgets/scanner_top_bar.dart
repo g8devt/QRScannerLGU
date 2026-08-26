@@ -20,7 +20,11 @@ class ScannerTopBar extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _CircleButton(icon: Icons.arrow_back, tooltip: 'Back', onPressed: onBack),
+        _CircleButton(
+          icon: Icons.arrow_back,
+          tooltip: 'Back',
+          onPressed: onBack,
+        ),
         const SizedBox(width: 12),
         Expanded(
           child: Container(
@@ -39,7 +43,11 @@ class ScannerTopBar extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.qr_code_scanner, color: Colors.white, size: 20),
+                const Icon(
+                  Icons.qr_code_scanner,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -65,7 +73,11 @@ class ScannerTopBar extends StatelessWidget {
 }
 
 class _CircleButton extends StatelessWidget {
-  const _CircleButton({required this.icon, required this.tooltip, required this.onPressed});
+  const _CircleButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
 
   final IconData icon;
   final String tooltip;

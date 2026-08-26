@@ -1,4 +1,4 @@
-import '../entities/cvl_search_result.dart';
+import '../entities/cvl_search_results_page.dart';
 import '../repositories/cvl_repository.dart';
 
 class SearchCvlByName {
@@ -6,5 +6,6 @@ class SearchCvlByName {
 
   final CvlRepository _repository;
 
-  Future<List<CvlSearchResult>> call(String name) => _repository.searchByName(name);
+  Future<CvlSearchResultsPage> call(String name, {int offset = 0}) =>
+      _repository.searchByName(name, offset: offset);
 }

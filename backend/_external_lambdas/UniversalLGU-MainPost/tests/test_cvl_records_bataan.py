@@ -207,7 +207,7 @@ class SearchCvlByNameBataanTest(unittest.TestCase):
         sql, params = args
         self.assertIn('MATCH(c.cvl_fullname) AGAINST', sql)
         self.assertIn('IN BOOLEAN MODE', sql)
-        self.assertEqual(params, ('+Juan* +Cruz*',))
+        self.assertEqual(params, ('+Juan* +Cruz*', 0))
 
     def test_short_keyword_falls_back_to_like(self):
         cur = MagicMock()
@@ -218,9 +218,9 @@ class SearchCvlByNameBataanTest(unittest.TestCase):
         sql, params = args
         self.assertNotIn('MATCH(', sql)
         self.assertIn('LIKE %s', sql)
-        self.assertEqual(params, ('%Jo%',))
+        self.assertEqual(params, ('%Jo%', 0))
 
-    def test_success_returns_results_and_truncated_flag(self):
+    def test_success_returns_results_and_has_more_flag(self):
         rows = [
             {'id': 1, 'cvl_fullname': 'Juan Cruz', 'cvl_mun': 'Balanga', 'cvl_brgy': 'Poblacion', 'cvl_qr_code': 'QR-00001'},
             {'id': 2, 'cvl_fullname': 'Juana Cruz', 'cvl_mun': 'Balanga', 'cvl_brgy': 'Doña Francisca', 'cvl_qr_code': None},
@@ -233,9 +233,26 @@ class SearchCvlByNameBataanTest(unittest.TestCase):
         self.assertEqual(len(body['data']['results']), 2)
         self.assertEqual(body['data']['results'][0]['cvl_fullname'], 'Juan Cruz')
         self.assertEqual(body['data']['results'][1]['cvl_qr_code'], '')
-        self.assertFalse(body['data']['truncated'])
+        self.assertFalse(body['data']['has_more'])
 
-    def test_25_results_sets_truncated_true(self):
+        args, _ = cur.execute.call_args
+        sql, params = args
+        self.assertIn('LIMIT 26 OFFSET %s', sql)
+        self.assertEqual(params[-1], 0)
+
+    def test_26th_row_sets_has_more_true_and_is_trimmed(self):
+        rows = [
+            {'id': i, 'cvl_fullname': f'Person {i}', 'cvl_mun': 'Balanga', 'cvl_brgy': 'Poblacion', 'cvl_qr_code': None}
+            for i in range(26)
+        ]
+        cur = MagicMock()
+        cur.fetchall.return_value = rows
+        result = search_cvl_by_name_bataan(cur, {'name': 'Person'}, [], '2026-08-26 00:00:00')
+        body = json.loads(result['body'])
+        self.assertTrue(body['data']['has_more'])
+        self.assertEqual(len(body['data']['results']), 25)
+
+    def test_exactly_25_results_sets_has_more_false(self):
         rows = [
             {'id': i, 'cvl_fullname': f'Person {i}', 'cvl_mun': 'Balanga', 'cvl_brgy': 'Poblacion', 'cvl_qr_code': None}
             for i in range(25)
@@ -244,7 +261,26 @@ class SearchCvlByNameBataanTest(unittest.TestCase):
         cur.fetchall.return_value = rows
         result = search_cvl_by_name_bataan(cur, {'name': 'Person'}, [], '2026-08-26 00:00:00')
         body = json.loads(result['body'])
-        self.assertTrue(body['data']['truncated'])
+        self.assertFalse(body['data']['has_more'])
+
+    def test_offset_is_passed_through_to_query(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(cur, {'name': 'Juan', 'offset': 25}, [], '2026-08-26 00:00:00')
+
+        args, _ = cur.execute.call_args
+        _, params = args
+        self.assertEqual(params[-1], 25)
+
+    def test_negative_offset_returns_400(self):
+        cur = MagicMock()
+        result = search_cvl_by_name_bataan(cur, {'name': 'Juan', 'offset': -1}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 400)
+
+    def test_non_numeric_offset_returns_400(self):
+        cur = MagicMock()
+        result = search_cvl_by_name_bataan(cur, {'name': 'Juan', 'offset': 'abc'}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 400)
 
     def test_db_error_returns_500(self):
         cur = MagicMock()

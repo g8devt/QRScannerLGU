@@ -26,7 +26,9 @@ class CvlSearchResult extends Equatable {
 
   factory CvlSearchResult.fromJson(Map<String, dynamic> json) {
     return CvlSearchResult(
-      id: json['id'] is int ? json['id'] as int : int.parse(json['id'].toString()),
+      id: json['id'] is int
+          ? json['id'] as int
+          : int.parse(json['id'].toString()),
       fullName: _str(json['cvl_fullname']),
       municipality: _str(json['cvl_mun']),
       barangay: _str(json['cvl_brgy']),
