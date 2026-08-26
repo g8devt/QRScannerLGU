@@ -337,6 +337,10 @@ class _EditablePhotoSection extends StatelessWidget {
   }
 
   void _openFullScreenPreview(BuildContext context) {
+    // Guards again here, not just via the thumbnail's onTap being null
+    // below — belt and suspenders against ever opening a preview with
+    // nothing to show.
+    if (!_hasPreviewableImage) return;
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
@@ -426,8 +430,13 @@ class _EditablePhotoSection extends StatelessWidget {
 }
 
 /// Full-screen photo viewer opened by tapping the thumbnail in
-/// [_EditablePhotoSection] — pinch-to-zoom via [InteractiveViewer], tap
-/// anywhere or the back button to dismiss.
+/// [_EditablePhotoSection] — pinch-to-zoom via [InteractiveViewer].
+///
+/// Dismisses only via the explicit close button, not by tapping the
+/// image: [InteractiveViewer] runs its own pan/scale gesture
+/// recognizers, which compete with an overlaid GestureDetector's tap
+/// recognizer in the same gesture arena — a tap-to-dismiss wrapped
+/// around it essentially never wins that arena and stays stuck open.
 class _PhotoPreviewPage extends StatelessWidget {
   const _PhotoPreviewPage({required this.image});
 
@@ -440,13 +449,12 @@ class _PhotoPreviewPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: GestureDetector(
-        onTap: () => Navigator.of(context).pop(),
-        child: Center(
-          child: InteractiveViewer(child: Image(image: image)),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
+      body: Center(child: InteractiveViewer(child: Image(image: image))),
     );
   }
 }
