@@ -130,6 +130,39 @@ class UpdateCvlPhotoBataanTest(unittest.TestCase):
         )
 
     @patch('endpoints.cvl_records_bataan.upload_files_from_list')
+    def test_upload_key_does_not_duplicate_record_id(self, mock_upload):
+        # Regression: this used to pass f'cvl/{record_id}' as the prefix
+        # *and* record_id again as user_id, embedding it twice in the S3
+        # key (cvl/162876/162876/...) and padding the resulting URL past
+        # cvl_img_path's column width, which MySQL then silently
+        # truncated instead of erroring.
+        mock_upload.return_value = {'cvl_photo': 'https://bucket.s3.amazonaws.com/cvl/1/photo_abcd1234.jpg'}
+        cur = MagicMock()
+        cur.fetchone.return_value = {'id': 1}
+        files = _photo_files()
+        update_cvl_photo_bataan(cur, {'id': 1}, files, '2026-08-25 00:00:00')
+
+        mock_upload.assert_called_once_with(files, 'cvl', 1)
+
+    @patch('endpoints.cvl_records_bataan.upload_files_from_list')
+    def test_url_exceeding_column_width_fails_loudly_without_saving(self, mock_upload):
+        # This is the actual bug this endpoint used to have: a URL past
+        # cvl_img_path's column width got silently truncated by MySQL
+        # instead of erroring. Now it must fail the request outright and
+        # never reach the UPDATE at all.
+        too_long_url = 'https://bucket.s3.amazonaws.com/' + ('a' * 500) + '.jpg'
+        mock_upload.return_value = {'cvl_photo': too_long_url}
+        cur = MagicMock()
+        cur.fetchone.return_value = {'id': 1}
+        result = update_cvl_photo_bataan(cur, {'id': 1}, _photo_files(), '2026-08-25 00:00:00')
+
+        self.assertEqual(result['statusCode'], 500)
+        update_calls = [
+            c for c in cur.execute.call_args_list if 'UPDATE' in c.args[0]
+        ]
+        self.assertEqual(update_calls, [])
+
+    @patch('endpoints.cvl_records_bataan.upload_files_from_list')
     def test_missing_updated_by_falls_back_to_mobile_scanner(self, mock_upload):
         mock_upload.return_value = {'cvl_photo': 'https://bucket.s3.amazonaws.com/cvl/1/photo_abcd1234.jpg'}
         cur = MagicMock()

@@ -28,6 +28,16 @@ _CVL_DETAIL_COLUMNS = """
     c.cvl_img_path, c.cvl_qr, q.qr_code AS cvl_qr_code
 """
 
+# Must match app_cvl_list.cvl_img_path's column width (see
+# migrations/034_widen_cvl_img_path.sql). Checked explicitly in
+# update_cvl_photo_bataan before writing — without STRICT_TRANS_TABLES,
+# MySQL silently truncates an over-length value instead of erroring,
+# which is exactly how this column ended up holding broken, extension-
+# less URLs before. Bump this the moment the migration bumps the
+# column, or this guard just moves the same silent-corruption failure
+# to a different length.
+_MAX_IMG_PATH_LENGTH = 512
+
 
 def _numeric_suffix(value):
     """Strips everything but digits, e.g. 'QR-00042' -> '00042'."""
@@ -166,10 +176,30 @@ def update_cvl_photo_bataan(cur, data, files, ts):
 
         updated_by = (data.get('updated_by') or '').strip() or 'MOBILE_SCANNER'
 
-        file_urls = upload_files_from_list(files, f'cvl/{record_id}', record_id)
+        # Not f'cvl/{record_id}' — that duplicated record_id into the key
+        # twice (upload_files_from_list already appends user_id as its
+        # own path segment), padding the resulting URL well past
+        # cvl_img_path's column width and getting silently truncated by
+        # MySQL on save (no STRICT_TRANS_TABLES) instead of erroring.
+        file_urls = upload_files_from_list(files, 'cvl', record_id)
         new_url = file_urls.get('cvl_photo')
         if not new_url:
             return fail('Photo upload failed', 500)
+        if len(new_url) > _MAX_IMG_PATH_LENGTH:
+            # Fail loudly instead of letting MySQL silently truncate —
+            # the exact failure mode that produced broken, extension-
+            # less cvl_img_path values before. The file is already
+            # sitting in S3 at this point (orphaned, not cleaned up
+            # here); the record's cvl_img_path is left untouched.
+            logger.error(
+                f'update_cvl_photo_bataan: uploaded URL exceeds cvl_img_path '
+                f'column width ({len(new_url)} > {_MAX_IMG_PATH_LENGTH} chars): {new_url}'
+            )
+            return fail(
+                'Photo was uploaded, but its URL is too long to save. '
+                'Contact support.',
+                500,
+            )
 
         cur.execute(
             """
