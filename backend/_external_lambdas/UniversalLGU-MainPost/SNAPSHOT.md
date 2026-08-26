@@ -2,7 +2,12 @@
 
 - **Account:** 425605448087
 - **Region:** ap-southeast-1
-- **Pulled:** 2026-08-25 (previously 2026-08-19, 2026-08-10)
+- **Pulled:** 2026-08-26 (previously 2026-08-25, 2026-08-19, 2026-08-10)
+- **Pulled from live:** 2026-08-26 — synced `set_cvl_qr_bataan`
+  (`endpoints/cvl_records_bataan.py` + its `ROUTES` entry in
+  `lambda_function.py`), which had been deployed live in an earlier
+  session without updating this mirror. Straight pull, no other drift
+  found.
 - **Deployed from this repo:** 2026-08-25 — added `find_cvl_by_qr_bataan`
   (`endpoints/cvl_records_bataan.py` + its `ROUTES`/import entry in
   `lambda_function.py`). Built by downloading the live package fresh
@@ -43,8 +48,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-08-25T16:26:41.000+0000",
-    "CodeSha256": "NlIEjPfcgOmgwenxSmR2Crvh1ADyqBELxsutwmjtPy4="
+    "LastModified": "2026-08-26T08:44:39.000+0000",
+    "CodeSha256": "IvyGgtWfi7WV8kqULlprf0jbQhbkpanGM4sa4ByDjxU="
 }
 ```
 

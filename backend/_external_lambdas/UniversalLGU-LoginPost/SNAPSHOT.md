@@ -3,6 +3,8 @@
 - **Account:** 425605448087
 - **Region:** ap-southeast-1
 - **Pulled:** 2026-08-25 (previously 2026-08-10)
+- **Checked:** 2026-08-26 — live `CodeSha256`/`LastModified` unchanged
+  since the 2026-08-25 pull; no drift, nothing to sync.
 
 ## Configuration
 

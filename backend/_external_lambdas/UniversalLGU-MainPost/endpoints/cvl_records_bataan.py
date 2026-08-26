@@ -171,6 +171,80 @@ def get_cvl_by_id_bataan(cur, data, files, ts):
         return fail(f'Server error: {e}', 500)
 
 
+def set_cvl_qr_bataan(cur, data, files, ts):
+    """Assigns a freshly-scanned QR code to a CVL record — the "Search CVL
+    Record" list's Set QR action.
+
+    Requires `id` (the `app_cvl_list` primary key) and `qr_code` (the raw
+    scanned value, e.g. `QR-00042`). Rejects with a 404/409 `fail(...)`
+    (never a 500) for every expected case: the record doesn't exist, it
+    already has a QR assigned, the code isn't registered in
+    `app_qr_code`, or that code is already in use — so the app can show
+    each as a specific, actionable message instead of a generic error.
+
+    The claim itself is done as a single conditional `UPDATE ... WHERE
+    status='AVAILABLE'`, not a SELECT-then-UPDATE — with `autocommit`
+    (see `helpers.db.get_conn`) and no explicit transaction, a
+    SELECT-then-UPDATE would leave a window for two staff members
+    scanning the same code at once to both pass the check. Checking
+    `cur.rowcount` after the conditional UPDATE is what actually
+    prevents that: only one of two racing requests can move the row from
+    AVAILABLE to USED.
+
+    Responds with `{status, data: {cvl_qr_code}}` on success — the same
+    `cvl_qr_code` field name `find_cvl_by_qr_bataan` /
+    `search_cvl_by_name_bataan` use for the joined `app_qr_code.qr_code`.
+    """
+    try:
+        require(data, 'id', 'qr_code')
+        record_id = data['id']
+        qr_code = (data.get('qr_code') or '').strip()
+        if not qr_code:
+            return fail('Missing qr_code')
+
+        cur.execute(
+            'SELECT id, cvl_qr FROM app_cvl_list WHERE id=%s LIMIT 1',
+            (record_id,),
+        )
+        record = cur.fetchone()
+        if not record:
+            return fail('CVL record not found', 404)
+        if record['cvl_qr']:
+            return fail('This record already has a QR code assigned.', 409)
+
+        cur.execute(
+            'SELECT id, status FROM app_qr_code WHERE qr_code=%s LIMIT 1',
+            (qr_code,),
+        )
+        qr_row = cur.fetchone()
+        if not qr_row:
+            return fail('This QR code is not registered.', 404)
+        if qr_row['status'] != 'AVAILABLE':
+            return fail('This QR code is already in use.', 409)
+
+        cur.execute(
+            "UPDATE app_qr_code SET status='USED', date_updated=%s "
+            "WHERE id=%s AND status='AVAILABLE'",
+            (ts, qr_row['id']),
+        )
+        if cur.rowcount != 1:
+            # Lost the race to another request between the SELECT above
+            # and this UPDATE — the code is spoken for either way.
+            return fail('This QR code is already in use.', 409)
+
+        cur.execute(
+            'UPDATE app_cvl_list SET cvl_qr=%s, cvl_last_date_updated=%s WHERE id=%s',
+            (qr_row['id'], ts, record_id),
+        )
+
+        return ok({'status': True, 'data': {'cvl_qr_code': qr_code}})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'set_cvl_qr_bataan error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
 _SEARCH_PAGE_SIZE = 25
 
 
