@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../qr_scanner/presentation/pages/scanner_page.dart';
 
 /// Landing page shown right after login. Lets the scanner-staff user jump
@@ -14,49 +15,28 @@ class DashboardPage extends StatelessWidget {
 
   Future<void> _confirmLogout(BuildContext context) async {
     final authBloc = context.read<AuthBloc>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text('You will need to sign in again to continue.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Log out'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Log out?',
+      message: 'You will need to sign in again to continue.',
+      confirmLabel: 'Log out',
+      isDestructive: true,
     );
 
-    if (confirmed == true) {
+    if (confirmed) {
       authBloc.add(const LogoutRequested());
     }
   }
 
   Future<void> _confirmExit(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Exit app?'),
-        content: const Text('Are you sure you want to close the app?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Exit app?',
+      message: 'Are you sure you want to close the app?',
+      confirmLabel: 'Exit',
     );
 
-    if (confirmed == true) SystemNavigator.pop();
+    if (confirmed) SystemNavigator.pop();
   }
 
   @override
@@ -100,7 +80,18 @@ class DashboardPage extends StatelessWidget {
                     const SizedBox(height: 32),
                     Card(
                       child: ListTile(
-                        leading: const Icon(Icons.qr_code_scanner, size: 32),
+                        leading: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.qr_code_scanner,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
                         title: const Text('Scan QR for Claim'),
                         subtitle: const Text('Fetch and verify an ID'),
                         trailing: const Icon(Icons.chevron_right),
@@ -114,7 +105,18 @@ class DashboardPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     Card(
                       child: ListTile(
-                        leading: const Icon(Icons.description_outlined, size: 32),
+                        leading: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.description_outlined,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
                         title: const Text('View Social Service Details'),
                         subtitle: const Text('Scan a QR to view application details'),
                         trailing: const Icon(Icons.chevron_right),
@@ -128,7 +130,18 @@ class DashboardPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     Card(
                       child: ListTile(
-                        leading: const Icon(Icons.badge_outlined, size: 32),
+                        leading: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.badge_outlined,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
                         title: const Text('Check CVL Record'),
                         subtitle: const Text('Scan a QR to view voter record'),
                         trailing: const Icon(Icons.chevron_right),
