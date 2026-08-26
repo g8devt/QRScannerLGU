@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/cvl_record.dart';
 import '../bloc/cvl_lookup_cubit.dart';
 import '../bloc/cvl_lookup_state.dart';
+import '../widgets/cvl_photo_section.dart';
 
 /// Editable fields for a CVL record — everything else (name, address,
 /// birthdate, precinct, etc.) is shown read-only for context, matching
@@ -42,7 +43,7 @@ class _CvlEditPageState extends State<CvlEditPage> {
       appBar: AppBar(title: const Text('Edit CVL Record')),
       body: BlocConsumer<CvlLookupCubit, CvlLookupState>(
         listener: (context, state) {
-          final error = state.infoUpdateError;
+          final error = state.infoUpdateError ?? state.photoUpdateError;
           if (error != null) {
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
@@ -68,6 +69,7 @@ class _CvlEditPageState extends State<CvlEditPage> {
               return _EditForm(
                 record: state.record!,
                 isSaving: state.isUpdatingInfo,
+                isUpdatingPhoto: state.isUpdatingPhoto,
               );
           }
         },
@@ -77,10 +79,15 @@ class _CvlEditPageState extends State<CvlEditPage> {
 }
 
 class _EditForm extends StatefulWidget {
-  const _EditForm({required this.record, required this.isSaving});
+  const _EditForm({
+    required this.record,
+    required this.isSaving,
+    required this.isUpdatingPhoto,
+  });
 
   final CvlRecord record;
   final bool isSaving;
+  final bool isUpdatingPhoto;
 
   @override
   State<_EditForm> createState() => _EditFormState();
@@ -143,6 +150,10 @@ class _EditFormState extends State<_EditForm> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            CvlPhotoSection(
+              record: record,
+              isUpdatingPhoto: widget.isUpdatingPhoto,
+            ),
             _ReadOnlySection(record: record),
             const SizedBox(height: 12),
             Card(
