@@ -104,6 +104,8 @@ class MyApp extends StatelessWidget {
                         updateCvlPhoto,
                         findCvlById,
                         updateCvlInfo,
+                        setCvlQr,
+                        removeCvlQr,
                       ),
                 ),
                 BlocProvider(

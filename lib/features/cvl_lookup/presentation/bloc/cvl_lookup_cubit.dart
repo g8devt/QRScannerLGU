@@ -2,6 +2,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/usecases/find_cvl_by_id.dart';
 import '../../domain/usecases/find_cvl_by_qr.dart';
+import '../../domain/usecases/remove_cvl_qr.dart';
+import '../../domain/usecases/set_cvl_qr.dart';
 import '../../domain/usecases/update_cvl_info.dart';
 import '../../domain/usecases/update_cvl_photo.dart';
 import 'cvl_lookup_state.dart';
@@ -12,12 +14,16 @@ class CvlLookupCubit extends Cubit<CvlLookupState> {
     this._updateCvlPhoto,
     this._findCvlById,
     this._updateCvlInfo,
+    this._setCvlQr,
+    this._removeCvlQr,
   ) : super(const CvlLookupState());
 
   final FindCvlByQr _findCvlByQr;
   final UpdateCvlPhoto _updateCvlPhoto;
   final FindCvlById _findCvlById;
   final UpdateCvlInfo _updateCvlInfo;
+  final SetCvlQr _setCvlQr;
+  final RemoveCvlQr _removeCvlQr;
 
   Future<void> fetch(String qrCode) async {
     emit(state.copyWith(status: CvlLookupStatus.loading));
@@ -120,6 +126,30 @@ class CvlLookupCubit extends Cubit<CvlLookupState> {
         state.copyWith(isUpdatingInfo: false, infoUpdateError: e.toString()),
       );
     }
+  }
+
+  /// Assigns [qrCode] (freshly scanned) to the loaded record. No-ops if
+  /// no record is currently loaded. On success, updates the displayed
+  /// record in place. Rethrows [CvlLookupException] on rejection
+  /// (unregistered/already-used code) or network failure — the caller
+  /// (the scanning sheet) is responsible for showing that error.
+  Future<void> setQr(String qrCode) async {
+    final current = state.record;
+    if (current == null) return;
+    final assigned = await _setCvlQr(id: current.id, qrCode: qrCode);
+    emit(state.copyWith(record: current.copyWith(qrCode: assigned)));
+  }
+
+  /// Unassigns the loaded record's QR code. No-ops if no record is
+  /// currently loaded. On success, updates the displayed record in
+  /// place. Rethrows [CvlLookupException] on rejection (no QR assigned)
+  /// or network failure — the caller is responsible for showing that
+  /// error.
+  Future<void> removeQr() async {
+    final current = state.record;
+    if (current == null) return;
+    await _removeCvlQr(id: current.id);
+    emit(state.copyWith(record: current.copyWith(qrCode: '')));
   }
 
   void reset() => emit(const CvlLookupState());

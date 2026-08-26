@@ -59,11 +59,13 @@ class _CvlEditPageState extends State<CvlEditPage> {
     _cubit.fetchById(widget.recordId);
   }
 
-  @override
-  void dispose() {
-    _cubit.reset();
-    super.dispose();
-  }
+  // No reset() in dispose(): this page can now be pushed on top of
+  // CvlLookupPage (its "Edit" button), which shares this same
+  // CvlLookupCubit instance — resetting it here would wipe the record
+  // CvlLookupPage is still displaying underneath. Every fresh open
+  // (fetchById) emits a loading state synchronously before its result
+  // arrives anyway, so there's no stale data left behind for a
+  // subsequent, unrelated use of this cubit to accidentally show.
 
   @override
   Widget build(BuildContext context) {

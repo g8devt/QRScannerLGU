@@ -54,6 +54,9 @@ class CvlRecord extends Equatable {
   bool get hasDisplayableImage =>
       imgPath.startsWith('http://') || imgPath.startsWith('https://');
 
+  /// Empty when the record has no QR assigned yet.
+  bool get hasQr => qrCode.isNotEmpty;
+
   static String _str(dynamic v) => v == null ? '' : v.toString();
 
   factory CvlRecord.fromJson(Map<String, dynamic> json) {
@@ -86,6 +89,7 @@ class CvlRecord extends Equatable {
     String? contactNo,
     String? email,
     String? gender,
+    String? qrCode,
   }) {
     return CvlRecord(
       id: id,
@@ -104,7 +108,7 @@ class CvlRecord extends Equatable {
       email: email ?? this.email,
       gender: gender ?? this.gender,
       sector: sector,
-      qrCode: qrCode,
+      qrCode: qrCode ?? this.qrCode,
       imgPath: imgPath ?? this.imgPath,
     );
   }

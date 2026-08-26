@@ -19,36 +19,36 @@ import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/usecases/update_cv
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/usecases/update_cvl_photo.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/presentation/bloc/cvl_lookup_cubit.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/presentation/pages/cvl_edit_page.dart';
-import 'package:bataan_lgu_scanner/features/qr_scanner/data/repositories/camera_repository_impl.dart';
 import 'package:bataan_lgu_scanner/features/qr_scanner/data/datasources/image_picker_datasource.dart';
+import 'package:bataan_lgu_scanner/features/qr_scanner/data/repositories/camera_repository_impl.dart';
 import 'package:bataan_lgu_scanner/features/qr_scanner/domain/usecases/capture_photo.dart';
+
+const _record = CvlRecord(
+  id: 1,
+  cvlId: 'CVL-0001',
+  fullName: 'Juan Dela Cruz',
+  firstName: 'Juan',
+  middleName: '',
+  lastName: 'Dela Cruz',
+  suffix: '',
+  address: '',
+  municipality: '',
+  barangay: '',
+  precinctNo: '',
+  birthdate: '',
+  contactNo: '09171234567',
+  email: '',
+  gender: 'Male',
+  sector: '',
+  qrCode: '',
+  imgPath: '',
+);
 
 class _FakeCvlRepository implements CvlRepository {
   const _FakeCvlRepository();
 
   @override
-  Future<CvlRecord> findById(int id) async => const CvlRecord(
-    id: 1,
-    cvlId: 'CVL-0001',
-    fullName: 'Juan Dela Cruz',
-    firstName: 'Juan',
-    middleName: '',
-    lastName: 'Dela Cruz',
-    suffix: '',
-    address: '',
-    municipality: '',
-    barangay: '',
-    precinctNo: '',
-    birthdate: '',
-    contactNo: '09171234567',
-    email: '',
-    // Legacy free-text value — not "Male"/"Female" — this is exactly
-    // what crashed DropdownButtonFormField before the fix.
-    gender: 'MALE',
-    sector: '',
-    qrCode: '',
-    imgPath: '',
-  );
+  Future<CvlRecord> findById(int id) async => _record;
 
   @override
   Future<CvlRecord> findByQr(String qrCode) => throw UnimplementedError();
@@ -100,8 +100,9 @@ class _FakeAuthRepository implements AuthRepository {
 
 void main() {
   testWidgets(
-    'CvlEditPage renders without crashing when cvl_gender is a legacy '
-    'value like "MALE" that does not exactly match the dropdown options',
+    'popping CvlEditPage does not wipe the shared CvlLookupCubit state '
+    '(regression: dispose() used to call reset() on this shared cubit, '
+    'which would blank out CvlLookupPage after returning from Edit)',
     (tester) async {
       const repository = _FakeCvlRepository();
       const authRepository = _FakeAuthRepository();
@@ -124,6 +125,11 @@ void main() {
         CameraRepositoryImpl(ImagePickerDatasource()),
       );
 
+      // Simulates CvlLookupPage's own initState fetch, so the shared
+      // cubit already holds a loaded record before Edit is opened.
+      await cubit.fetchById(_record.id);
+      expect(cubit.state.record, isNotNull);
+
       await tester.pumpWidget(
         MultiBlocProvider(
           providers: [
@@ -132,14 +138,34 @@ void main() {
           ],
           child: RepositoryProvider.value(
             value: capturePhoto,
-            child: const MaterialApp(home: CvlEditPage(recordId: 1)),
+            child: MaterialApp(
+              home: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const CvlEditPage(recordId: 1),
+                    ),
+                  ),
+                  child: const Text('open edit'),
+                ),
+              ),
+            ),
           ),
         ),
       );
+
+      await tester.tap(find.text('open edit'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CvlEditPage), findsOneWidget);
+
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+      navigator.pop();
       await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
-      expect(find.text('MALE'), findsOneWidget);
+      // The regression: this used to be null because CvlEditPage's
+      // dispose() reset the shared cubit back to its initial state.
+      expect(cubit.state.record, isNotNull);
+      expect(cubit.state.record!.id, _record.id);
     },
   );
 }

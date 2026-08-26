@@ -6,6 +6,8 @@ import '../../domain/entities/cvl_record.dart';
 import '../bloc/cvl_lookup_cubit.dart';
 import '../bloc/cvl_lookup_state.dart';
 import '../widgets/cvl_photo_section.dart';
+import '../widgets/qr_actions.dart';
+import 'cvl_edit_page.dart';
 
 /// Read-only view of a CVL record — reached either by scanning a QR
 /// ([rawValue]) or by tapping a search result ([recordId]) — or a "no
@@ -40,11 +42,13 @@ class _CvlLookupPageState extends State<CvlLookupPage> {
     }
   }
 
-  @override
-  void dispose() {
-    _cubit.reset();
-    super.dispose();
-  }
+  // No reset() in dispose(): CvlEditPage (pushed on top of this page by
+  // the Edit button below) shares this same CvlLookupCubit instance —
+  // resetting it here would wipe the record CvlEditPage just loaded.
+  // Every fresh open (fetch/fetchById) emits a loading state
+  // synchronously before its result arrives anyway, so there's no stale
+  // data left behind for a subsequent, unrelated use of this cubit to
+  // accidentally show.
 
   @override
   Widget build(BuildContext context) {
@@ -153,13 +157,67 @@ class _DetailsView extends StatelessWidget {
           _QrCodeSection(qrCode: record.qrCode),
           CvlPhotoSection(record: record),
           const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Scan Another'),
-          ),
+          _ActionButtons(record: record),
         ],
       ),
+    );
+  }
+}
+
+/// Opens [CvlEditPage] for [record], then shows a confirmation snackbar
+/// back on this page once it reports a successful save.
+Future<void> _openEditPage(BuildContext context, CvlRecord record) async {
+  final success = await Navigator.of(context).push<bool>(
+    MaterialPageRoute(builder: (_) => CvlEditPage(recordId: record.id)),
+  );
+  if (success == true && context.mounted) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Record updated.')));
+  }
+}
+
+/// Replaces the old "Scan Another" button: Edit always available; Set QR
+/// Code / Remove QR Code shown depending on whether [record] already has
+/// one assigned. Both QR actions operate on this same [CvlLookupCubit]
+/// instance, updating the displayed record in place on success.
+class _ActionButtons extends StatelessWidget {
+  const _ActionButtons({required this.record});
+
+  final CvlRecord record;
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<CvlLookupCubit>();
+    return Column(
+      children: [
+        FilledButton.icon(
+          onPressed: () => _openEditPage(context, record),
+          icon: const Icon(Icons.edit_outlined),
+          label: const Text('Edit'),
+        ),
+        const SizedBox(height: 8),
+        if (record.hasQr)
+          OutlinedButton.icon(
+            onPressed: () => confirmAndRemoveQr(
+              context,
+              fullName: record.fullName,
+              onRemoveQr: cubit.removeQr,
+            ),
+            icon: const Icon(Icons.qr_code_scanner_outlined),
+            label: const Text('Remove QR Code'),
+          )
+        else
+          OutlinedButton.icon(
+            onPressed: () => openSetQrSheet(
+              context,
+              fullName: record.fullName,
+              onSetQr: cubit.setQr,
+            ),
+            icon: const Icon(Icons.qr_code_2_outlined),
+            label: const Text('Set QR Code'),
+          ),
+      ],
     );
   }
 }
