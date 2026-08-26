@@ -324,62 +324,127 @@ class _EditablePhotoSection extends StatelessWidget {
   final String? newPhotoPath;
   final VoidCallback onCapture;
 
+  /// Whether there's an actual photo to show full-screen — not the
+  /// placeholder person icon.
+  bool get _hasPreviewableImage =>
+      newPhotoPath != null || record.hasDisplayableImage;
+
+  ImageProvider get _imageProvider {
+    final stagedPath = newPhotoPath;
+    return stagedPath != null
+        ? FileImage(File(stagedPath))
+        : NetworkImage(record.imgPath);
+  }
+
+  void _openFullScreenPreview(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _PhotoPreviewPage(image: _imageProvider),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final stagedPath = newPhotoPath;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: 80,
-                height: 80,
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: stagedPath != null
-                    ? Image.file(File(stagedPath), fit: BoxFit.cover)
-                    : (record.hasDisplayableImage
-                          ? Image.network(
-                              record.imgPath,
-                              fit: BoxFit.cover,
-                              loadingBuilder: (context, child, progress) {
-                                if (progress == null) return child;
-                                return const Center(
-                                  child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                );
-                              },
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Icon(
-                                    Icons.broken_image_outlined,
-                                    color: Theme.of(context).colorScheme.outline,
-                                  ),
-                            )
-                          : Icon(
-                              Icons.person_outline,
-                              size: 40,
-                              color: Theme.of(context).colorScheme.outline,
-                            )),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: onCapture,
-                icon: const Icon(Icons.camera_alt_outlined),
-                label: Text(
-                  stagedPath != null ? 'Retake Photo' : 'Change Photo',
+            Text('Photo', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: _hasPreviewableImage
+                      ? () => _openFullScreenPreview(context)
+                      : null,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
+                      child: stagedPath != null
+                          ? Image.file(File(stagedPath), fit: BoxFit.cover)
+                          : (record.hasDisplayableImage
+                                ? Image.network(
+                                    record.imgPath,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, progress) {
+                                      if (progress == null) return child;
+                                      return const Center(
+                                        child: SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder:
+                                        (context, error, stackTrace) => Icon(
+                                          Icons.broken_image_outlined,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.outline,
+                                        ),
+                                  )
+                                : Icon(
+                                    Icons.person_outline,
+                                    size: 40,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.outline,
+                                  )),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onCapture,
+                    icon: const Icon(Icons.camera_alt_outlined),
+                    label: Text(
+                      stagedPath != null ? 'Retake Photo' : 'Change Photo',
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-screen photo viewer opened by tapping the thumbnail in
+/// [_EditablePhotoSection] — pinch-to-zoom via [InteractiveViewer], tap
+/// anywhere or the back button to dismiss.
+class _PhotoPreviewPage extends StatelessWidget {
+  const _PhotoPreviewPage({required this.image});
+
+  final ImageProvider image;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: GestureDetector(
+        onTap: () => Navigator.of(context).pop(),
+        child: Center(
+          child: InteractiveViewer(child: Image(image: image)),
         ),
       ),
     );
