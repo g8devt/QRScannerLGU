@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../../../core/widgets/info_card.dart';
 import '../../domain/entities/cvl_record.dart';
 import '../bloc/cvl_lookup_cubit.dart';
 import '../bloc/cvl_lookup_state.dart';
@@ -100,10 +101,10 @@ class _ErrorView extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
+            FilledButton.icon(
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.qr_code_scanner),
               label: const Text('Scan Again'),
@@ -126,7 +127,7 @@ class _DetailsView extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _SectionCard(
+          InfoCard(
             title: 'Identity',
             rows: {
               'Full Name': record.fullName,
@@ -134,7 +135,8 @@ class _DetailsView extends StatelessWidget {
               if (record.birthdate.isNotEmpty) 'Birthdate': record.birthdate,
             },
           ),
-          _SectionCard(
+          const SizedBox(height: 12),
+          InfoCard(
             title: 'Location',
             rows: {
               if (record.address.isNotEmpty) 'Address': record.address,
@@ -145,15 +147,19 @@ class _DetailsView extends StatelessWidget {
                 'Precinct No.': record.precinctNo,
             },
           ),
-          _SectionCard(
+          const SizedBox(height: 12),
+          InfoCard(
             title: 'Contact',
             rows: {
               if (record.contactNo.isNotEmpty) 'Contact No.': record.contactNo,
               if (record.email.isNotEmpty) 'Email': record.email,
             },
           ),
-          if (record.sector.isNotEmpty)
-            _SectionCard(title: 'Sector', rows: {'Sector': record.sector}),
+          const SizedBox(height: 12),
+          if (record.sector.isNotEmpty) ...[
+            InfoCard(title: 'Sector', rows: {'Sector': record.sector}),
+            const SizedBox(height: 12),
+          ],
           _QrCodeSection(qrCode: record.qrCode),
           CvlPhotoSection(record: record),
           const SizedBox(height: 16),
@@ -264,7 +270,7 @@ class _QrCodeSection extends StatelessWidget {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: QrImageView(
                     data: qrCode,
@@ -282,44 +288,3 @@ class _QrCodeSection extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.rows});
-
-  final String title;
-  final Map<String, String> rows;
-
-  @override
-  Widget build(BuildContext context) {
-    if (rows.isEmpty) return const SizedBox.shrink();
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            for (final entry in rows.entries)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 120,
-                      child: Text(
-                        entry.key,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    Expanded(child: Text(entry.value)),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
