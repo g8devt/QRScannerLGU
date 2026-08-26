@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -50,25 +51,14 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _confirmExit(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Exit app?'),
-        content: const Text('Are you sure you want to close the app?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Exit app?',
+      message: 'Are you sure you want to close the app?',
+      confirmLabel: 'Exit',
     );
 
-    if (confirmed == true) SystemNavigator.pop();
+    if (confirmed) SystemNavigator.pop();
   }
 
   @override
@@ -96,16 +86,24 @@ class _LoginPageState extends State<LoginPage> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const Text(
-                                'Bataan LGU Scanner',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
+                              Center(
+                                child: Image.asset(
+                                  'assets/logo/app_launcher.png',
+                                  width: 96,
+                                  height: 96,
                                 ),
                               ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Bataan LGU Scanner',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.headlineSmall,
+                              ),
                               const SizedBox(height: 8),
-                              const Text(
+                              Text(
                                 'Sign in with your scanner-staff account.',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodyMedium,
                               ),
                               const SizedBox(height: 24),
                               TextFormField(
@@ -161,11 +159,13 @@ class _LoginPageState extends State<LoginPage> {
                                 const SizedBox(height: 16),
                                 Text(
                                   state.errorMessage ?? 'Login failed',
-                                  style: const TextStyle(color: Colors.red),
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
                                 ),
                               ],
                               const SizedBox(height: 24),
-                              ElevatedButton(
+                              FilledButton(
                                 onPressed: loading ? null : _submit,
                                 child: loading
                                     ? const SizedBox(
@@ -192,9 +192,9 @@ class _LoginPageState extends State<LoginPage> {
                   AppConfig.appVersion.isEmpty
                       ? ''
                       : 'v${AppConfig.appVersion}',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
