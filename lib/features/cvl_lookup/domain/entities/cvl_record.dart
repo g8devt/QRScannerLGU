@@ -51,13 +51,16 @@ class CvlRecord extends Equatable {
 
   /// Whether [imgPath] is something this app can actually render —
   /// i.e. an absolute URL, not a PHP-admin-relative path.
-  bool get hasDisplayableImage => imgPath.startsWith('http://') || imgPath.startsWith('https://');
+  bool get hasDisplayableImage =>
+      imgPath.startsWith('http://') || imgPath.startsWith('https://');
 
   static String _str(dynamic v) => v == null ? '' : v.toString();
 
   factory CvlRecord.fromJson(Map<String, dynamic> json) {
     return CvlRecord(
-      id: json['id'] is int ? json['id'] as int : int.parse(json['id'].toString()),
+      id: json['id'] is int
+          ? json['id'] as int
+          : int.parse(json['id'].toString()),
       cvlId: _str(json['cvl_id']),
       fullName: _str(json['cvl_fullname']),
       firstName: _str(json['cvl_fname']),
@@ -103,23 +106,23 @@ class CvlRecord extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        cvlId,
-        fullName,
-        firstName,
-        middleName,
-        lastName,
-        suffix,
-        address,
-        municipality,
-        barangay,
-        precinctNo,
-        birthdate,
-        contactNo,
-        email,
-        gender,
-        sector,
-        qrCode,
-        imgPath,
-      ];
+    id,
+    cvlId,
+    fullName,
+    firstName,
+    middleName,
+    lastName,
+    suffix,
+    address,
+    municipality,
+    barangay,
+    precinctNo,
+    birthdate,
+    contactNo,
+    email,
+    gender,
+    sector,
+    qrCode,
+    imgPath,
+  ];
 }

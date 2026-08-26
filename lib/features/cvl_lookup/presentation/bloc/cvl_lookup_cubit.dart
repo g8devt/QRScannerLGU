@@ -7,7 +7,7 @@ import 'cvl_lookup_state.dart';
 
 class CvlLookupCubit extends Cubit<CvlLookupState> {
   CvlLookupCubit(this._findCvlByQr, this._updateCvlPhoto, this._findCvlById)
-      : super(const CvlLookupState());
+    : super(const CvlLookupState());
 
   final FindCvlByQr _findCvlByQr;
   final UpdateCvlPhoto _updateCvlPhoto;
@@ -19,7 +19,12 @@ class CvlLookupCubit extends Cubit<CvlLookupState> {
       final record = await _findCvlByQr(qrCode);
       emit(state.copyWith(status: CvlLookupStatus.loaded, record: record));
     } catch (e) {
-      emit(state.copyWith(status: CvlLookupStatus.failed, errorMessage: e.toString()));
+      emit(
+        state.copyWith(
+          status: CvlLookupStatus.failed,
+          errorMessage: e.toString(),
+        ),
+      );
     }
   }
 
@@ -31,7 +36,12 @@ class CvlLookupCubit extends Cubit<CvlLookupState> {
       final record = await _findCvlById(id);
       emit(state.copyWith(status: CvlLookupStatus.loaded, record: record));
     } catch (e) {
-      emit(state.copyWith(status: CvlLookupStatus.failed, errorMessage: e.toString()));
+      emit(
+        state.copyWith(
+          status: CvlLookupStatus.failed,
+          errorMessage: e.toString(),
+        ),
+      );
     }
   }
 
@@ -44,10 +54,21 @@ class CvlLookupCubit extends Cubit<CvlLookupState> {
 
     emit(state.copyWith(isUpdatingPhoto: true, photoUpdateError: null));
     try {
-      final newUrl = await _updateCvlPhoto(id: current.id, photoPath: photoPath, updatedBy: updatedBy);
-      emit(state.copyWith(record: current.copyWith(imgPath: newUrl), isUpdatingPhoto: false));
+      final newUrl = await _updateCvlPhoto(
+        id: current.id,
+        photoPath: photoPath,
+        updatedBy: updatedBy,
+      );
+      emit(
+        state.copyWith(
+          record: current.copyWith(imgPath: newUrl),
+          isUpdatingPhoto: false,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(isUpdatingPhoto: false, photoUpdateError: e.toString()));
+      emit(
+        state.copyWith(isUpdatingPhoto: false, photoUpdateError: e.toString()),
+      );
     }
   }
 

@@ -3,7 +3,8 @@ import 'package:image_picker/image_picker.dart';
 /// Thin wrapper around [ImagePicker] — the only place in this feature that
 /// talks to the `image_picker` plugin directly.
 class ImagePickerDatasource {
-  ImagePickerDatasource([ImagePicker? picker]) : _picker = picker ?? ImagePicker();
+  ImagePickerDatasource([ImagePicker? picker])
+    : _picker = picker ?? ImagePicker();
 
   final ImagePicker _picker;
 

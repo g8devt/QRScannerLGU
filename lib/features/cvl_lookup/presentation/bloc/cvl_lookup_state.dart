@@ -42,5 +42,11 @@ class CvlLookupState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [status, record, errorMessage, isUpdatingPhoto, photoUpdateError];
+  List<Object?> get props => [
+    status,
+    record,
+    errorMessage,
+    isUpdatingPhoto,
+    photoUpdateError,
+  ];
 }

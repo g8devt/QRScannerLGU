@@ -3,7 +3,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 /// Thin wrapper around [MobileScannerController] — the only place in this
 /// feature that talks to the `mobile_scanner` plugin directly.
 class MobileScannerDatasource {
-  MobileScannerDatasource() : controller = MobileScannerController(autoStart: false);
+  MobileScannerDatasource()
+    : controller = MobileScannerController(autoStart: false);
 
   final MobileScannerController controller;
 

@@ -11,9 +11,11 @@ import '../bloc/cvl_lookup_state.dart';
 /// ([rawValue]) or by tapping a search result ([recordId]) — or a "no
 /// record found" message when the lookup doesn't match anything.
 class CvlLookupPage extends StatefulWidget {
-  const CvlLookupPage({super.key, required String this.rawValue}) : recordId = null;
+  const CvlLookupPage({super.key, required String this.rawValue})
+    : recordId = null;
 
-  const CvlLookupPage.byId({super.key, required int this.recordId}) : rawValue = null;
+  const CvlLookupPage.byId({super.key, required int this.recordId})
+    : rawValue = null;
 
   final String? rawValue;
   final int? recordId;
@@ -65,9 +67,16 @@ class _CvlLookupPageState extends State<CvlLookupPage> {
               case CvlLookupStatus.loading:
                 return const Center(child: CircularProgressIndicator());
               case CvlLookupStatus.failed:
-                return _ErrorView(message: state.errorMessage ?? 'No CVL record was found for this QR code.');
+                return _ErrorView(
+                  message:
+                      state.errorMessage ??
+                      'No CVL record was found for this QR code.',
+                );
               case CvlLookupStatus.loaded:
-                return _DetailsView(record: state.record!, isUpdatingPhoto: state.isUpdatingPhoto);
+                return _DetailsView(
+                  record: state.record!,
+                  isUpdatingPhoto: state.isUpdatingPhoto,
+                );
             }
           },
         ),
@@ -89,9 +98,17 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error, size: 64),
+            Icon(
+              Icons.error_outline,
+              color: Theme.of(context).colorScheme.error,
+              size: 64,
+            ),
             const SizedBox(height: 16),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
+            ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () => Navigator.of(context).pop(),
@@ -131,8 +148,10 @@ class _DetailsView extends StatelessWidget {
             rows: {
               if (record.address.isNotEmpty) 'Address': record.address,
               if (record.barangay.isNotEmpty) 'Barangay': record.barangay,
-              if (record.municipality.isNotEmpty) 'Municipality': record.municipality,
-              if (record.precinctNo.isNotEmpty) 'Precinct No.': record.precinctNo,
+              if (record.municipality.isNotEmpty)
+                'Municipality': record.municipality,
+              if (record.precinctNo.isNotEmpty)
+                'Precinct No.': record.precinctNo,
             },
           ),
           _SectionCard(
@@ -146,7 +165,9 @@ class _DetailsView extends StatelessWidget {
             _SectionCard(title: 'Sector', rows: {'Sector': record.sector}),
           _SectionCard(
             title: 'QR Code',
-            rows: {'Code': record.qrCode.isNotEmpty ? record.qrCode : 'Not assigned'},
+            rows: {
+              'Code': record.qrCode.isNotEmpty ? record.qrCode : 'Not assigned',
+            },
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
@@ -267,7 +288,10 @@ class _SectionCard extends StatelessWidget {
                   children: [
                     SizedBox(
                       width: 120,
-                      child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      child: Text(
+                        entry.key,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
                     Expanded(child: Text(entry.value)),
                   ],
