@@ -50,7 +50,9 @@ class _CvlSearchPageState extends State<CvlSearchPage> {
 
   void _openResult(CvlSearchResult result) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => CvlLookupPage.byId(recordId: result.id)),
+      MaterialPageRoute(
+        builder: (_) => CvlLookupPage.byId(recordId: result.id),
+      ),
     );
   }
 
@@ -58,58 +60,62 @@ class _CvlSearchPageState extends State<CvlSearchPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Search CVL Record')),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                controller: _controller,
-                autofocus: true,
-                textInputAction: TextInputAction.search,
-                decoration: const InputDecoration(
-                  labelText: 'Full name',
-                  hintText: 'Type at least 2 characters',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: TextField(
+                  controller: _controller,
+                  autofocus: true,
+                  textInputAction: TextInputAction.search,
+                  decoration: const InputDecoration(
+                    labelText: 'Full name',
+                    hintText: 'Type at least 2 characters',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: _onChanged,
                 ),
-                onChanged: _onChanged,
               ),
-            ),
-            Expanded(
-              child: BlocBuilder<CvlSearchCubit, CvlSearchState>(
-                builder: (context, state) {
-                  switch (state.status) {
-                    case CvlSearchStatus.initial:
-                      return const _HintMessage(
-                        icon: Icons.person_search_outlined,
-                        message: 'Search for a CVL record by name.',
-                      );
-                    case CvlSearchStatus.loading:
-                      return const Center(child: CircularProgressIndicator());
-                    case CvlSearchStatus.failed:
-                      return _HintMessage(
-                        icon: Icons.error_outline,
-                        message: state.errorMessage ?? 'Search failed.',
-                        isError: true,
-                      );
-                    case CvlSearchStatus.loaded:
-                      if (state.results.isEmpty) {
+              Expanded(
+                child: BlocBuilder<CvlSearchCubit, CvlSearchState>(
+                  builder: (context, state) {
+                    switch (state.status) {
+                      case CvlSearchStatus.initial:
                         return const _HintMessage(
-                          icon: Icons.search_off,
-                          message: 'No matching records found.',
+                          icon: Icons.person_search_outlined,
+                          message: 'Search for a CVL record by name.',
                         );
-                      }
-                      return _ResultsList(
-                        results: state.results,
-                        truncated: state.truncated,
-                        onTap: _openResult,
-                      );
-                  }
-                },
+                      case CvlSearchStatus.loading:
+                        return const Center(child: CircularProgressIndicator());
+                      case CvlSearchStatus.failed:
+                        return _HintMessage(
+                          icon: Icons.error_outline,
+                          message: state.errorMessage ?? 'Search failed.',
+                          isError: true,
+                        );
+                      case CvlSearchStatus.loaded:
+                        if (state.results.isEmpty) {
+                          return const _HintMessage(
+                            icon: Icons.search_off,
+                            message: 'No matching records found.',
+                          );
+                        }
+                        return _ResultsList(
+                          results: state.results,
+                          truncated: state.truncated,
+                          onTap: _openResult,
+                        );
+                    }
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -117,7 +123,11 @@ class _CvlSearchPageState extends State<CvlSearchPage> {
 }
 
 class _HintMessage extends StatelessWidget {
-  const _HintMessage({required this.icon, required this.message, this.isError = false});
+  const _HintMessage({
+    required this.icon,
+    required this.message,
+    this.isError = false,
+  });
 
   final IconData icon;
   final String message;
@@ -148,7 +158,11 @@ class _HintMessage extends StatelessWidget {
 }
 
 class _ResultsList extends StatelessWidget {
-  const _ResultsList({required this.results, required this.truncated, required this.onTap});
+  const _ResultsList({
+    required this.results,
+    required this.truncated,
+    required this.onTap,
+  });
 
   final List<CvlSearchResult> results;
   final bool truncated;
@@ -179,7 +193,10 @@ class _ResultsList extends StatelessWidget {
           ),
           title: Text(result.fullName),
           subtitle: Text(
-            [result.barangay, result.municipality].where((s) => s.isNotEmpty).join(', '),
+            [
+              result.barangay,
+              result.municipality,
+            ].where((s) => s.isNotEmpty).join(', '),
           ),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => onTap(result),
