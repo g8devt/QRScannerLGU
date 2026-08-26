@@ -115,4 +115,17 @@ class CvlRepositoryImpl implements CvlRepository {
       );
     }
   }
+
+  @override
+  Future<void> removeQr({required int id}) async {
+    try {
+      await _datasource.removeQr(id: id);
+    } on ApiException catch (e) {
+      throw CvlLookupException(e.message);
+    } catch (e) {
+      throw CvlLookupException(
+        'Network error — could not reach the server: $e',
+      );
+    }
+  }
 }

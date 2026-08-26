@@ -2,8 +2,8 @@ import '../../../../core/network/api_client.dart';
 
 /// Talks to `find_cvl_by_qr_bataan` / `get_cvl_by_id_bataan` /
 /// `search_cvl_by_name_bataan` / `update_cvl_photo_bataan` /
-/// `set_cvl_qr_bataan`. Returns raw decoded JSON — mapping to domain
-/// entities happens in [CvlRepositoryImpl].
+/// `set_cvl_qr_bataan` / `remove_cvl_qr_bataan`. Returns raw decoded
+/// JSON — mapping to domain entities happens in [CvlRepositoryImpl].
 class CvlRemoteDatasource {
   CvlRemoteDatasource(this._apiClient);
 
@@ -36,6 +36,13 @@ class CvlRemoteDatasource {
       'id': id.toString(),
       'qr_code': qrCode,
     });
+  }
+
+  /// Unassigns whatever QR code is currently set on CVL record [id],
+  /// freeing it in `app_qr_code` for reuse. The backend rejects a record
+  /// that has no QR assigned as a [ApiException] via [ApiClient._decode].
+  Future<Map<String, dynamic>> removeQr({required int id}) {
+    return _apiClient.post('remove_cvl_qr_bataan', {'id': id.toString()});
   }
 
   Future<Map<String, dynamic>> updatePhoto({

@@ -37,6 +37,12 @@ abstract class CvlRepository {
   /// registered in `app_qr_code` or one that's already in use. Returns
   /// the assigned code on success.
   Future<String> setQr({required int id, required String qrCode});
+
+  /// Unassigns whatever QR code is currently set on CVL record [id],
+  /// freeing it in `app_qr_code` for reuse. Throws [CvlLookupException]
+  /// — via a human-readable reason — if the record has no QR assigned,
+  /// doesn't exist, or on network failure.
+  Future<void> removeQr({required int id});
 }
 
 class CvlLookupException implements Exception {

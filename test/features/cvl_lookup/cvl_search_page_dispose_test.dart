@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/entities/cvl_record.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/entities/cvl_search_results_page.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/repositories/cvl_repository.dart';
+import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/usecases/remove_cvl_qr.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/usecases/search_cvl_by_name.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/usecases/set_cvl_qr.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/presentation/bloc/cvl_search_cubit.dart';
@@ -33,6 +34,9 @@ class _FakeCvlRepository implements CvlRepository {
   @override
   Future<String> setQr({required int id, required String qrCode}) =>
       throw UnimplementedError();
+
+  @override
+  Future<void> removeQr({required int id}) => throw UnimplementedError();
 }
 
 void main() {
@@ -41,6 +45,7 @@ void main() {
     final cubit = CvlSearchCubit(
       SearchCvlByName(repository),
       SetCvlQr(repository),
+      RemoveCvlQr(repository),
     );
 
     // The provider must wrap MaterialApp itself (matching main.dart's real

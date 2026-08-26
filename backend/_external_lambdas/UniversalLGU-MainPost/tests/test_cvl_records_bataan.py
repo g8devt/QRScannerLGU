@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from endpoints.cvl_records_bataan import (
     find_cvl_by_qr_bataan,
     get_cvl_by_id_bataan,
+    remove_cvl_qr_bataan,
     search_cvl_by_name_bataan,
     update_cvl_photo_bataan,
 )
@@ -184,6 +185,47 @@ class GetCvlByIdBataanTest(unittest.TestCase):
         cur = MagicMock()
         cur.execute.side_effect = RuntimeError('connection lost')
         result = get_cvl_by_id_bataan(cur, {'id': 1}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 500)
+
+
+class RemoveCvlQrBataanTest(unittest.TestCase):
+    def test_missing_id_returns_400(self):
+        cur = MagicMock()
+        result = remove_cvl_qr_bataan(cur, {}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 400)
+
+    def test_record_not_found_returns_404(self):
+        cur = MagicMock()
+        cur.fetchone.return_value = None
+        result = remove_cvl_qr_bataan(cur, {'id': 999}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 404)
+
+    def test_no_qr_assigned_returns_409(self):
+        cur = MagicMock()
+        cur.fetchone.return_value = {'id': 1, 'cvl_qr': None}
+        result = remove_cvl_qr_bataan(cur, {'id': 1}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 409)
+        body = json.loads(result['body'])
+        self.assertEqual(body['message'], 'This record has no QR code assigned.')
+
+    def test_success_frees_qr_and_clears_record(self):
+        cur = MagicMock()
+        cur.fetchone.return_value = {'id': 1, 'cvl_qr': 42}
+        result = remove_cvl_qr_bataan(cur, {'id': 1}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 200)
+        body = json.loads(result['body'])
+        self.assertEqual(body['data']['id'], 1)
+
+        update_calls = cur.execute.call_args_list[1:]
+        self.assertIn("SET status='AVAILABLE'", update_calls[0].args[0])
+        self.assertEqual(update_calls[0].args[1], ('2026-08-26 00:00:00', 42))
+        self.assertIn('SET cvl_qr=NULL', update_calls[1].args[0])
+        self.assertEqual(update_calls[1].args[1], ('2026-08-26 00:00:00', 1))
+
+    def test_db_error_returns_500(self):
+        cur = MagicMock()
+        cur.execute.side_effect = RuntimeError('connection lost')
+        result = remove_cvl_qr_bataan(cur, {'id': 1}, [], '2026-08-26 00:00:00')
         self.assertEqual(result['statusCode'], 500)
 
 

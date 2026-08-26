@@ -227,9 +227,36 @@ class _ResultsHeader extends StatelessWidget {
   }
 }
 
+enum _QrAction { setQr, removeQr }
+
+/// Opens the small action sheet for [result]'s QR icon — "Set QR Code"
+/// (only enabled while it has none) or "Remove QR Code" (only enabled
+/// once it does) — then routes to the scanner sheet or the remove
+/// confirmation depending on which was picked.
+Future<void> _openQrActionSheet(
+  BuildContext context,
+  CvlSearchResult result,
+) async {
+  final action = await showModalBottomSheet<_QrAction>(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (_) => _QrActionSheet(result: result),
+  );
+  if (!context.mounted || action == null) return;
+
+  switch (action) {
+    case _QrAction.setQr:
+      await _openScannerSheet(context, result);
+    case _QrAction.removeQr:
+      await _confirmAndRemoveQr(context, result);
+  }
+}
+
 /// Opens the scan-to-assign sheet for [result], then shows a confirmation
 /// snackbar back on the search page once it reports success.
-Future<void> _openSetQrSheet(
+Future<void> _openScannerSheet(
   BuildContext context,
   CvlSearchResult result,
 ) async {
@@ -248,9 +275,143 @@ Future<void> _openSetQrSheet(
   }
 }
 
+/// Confirms with the staff member, then unassigns [result]'s QR code via
+/// [CvlSearchCubit.removeQr]. Shows an error dialog on rejection (e.g. the
+/// record has no QR assigned) instead of silently failing.
+Future<void> _confirmAndRemoveQr(
+  BuildContext context,
+  CvlSearchResult result,
+) async {
+  final cubit = context.read<CvlSearchCubit>();
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Remove QR code?'),
+      content: Text(
+        'This will unassign the QR code from ${result.fullName} and free '
+        'it for reuse on another record.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Remove'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+
+  try {
+    await cubit.removeQr(result.id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('QR code removed.')));
+  } on CvlLookupException catch (e) {
+    if (!context.mounted) return;
+    await _showMessageDialog(context, title: 'Could not remove QR code', message: e.message);
+  } catch (e) {
+    if (!context.mounted) return;
+    await _showMessageDialog(
+      context,
+      title: 'Could not remove QR code',
+      message: 'Network error — could not reach the server: $e',
+    );
+  }
+}
+
+/// Generic single-button ("OK") message dialog, used for both the set-QR
+/// and remove-QR flows' rejection messages.
+Future<void> _showMessageDialog(
+  BuildContext context, {
+  required String title,
+  required String message,
+}) {
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Bottom sheet offering "Set QR Code" / "Remove QR Code" for one search
+/// result — replaces jumping straight into the scanner from the row.
+class _QrActionSheet extends StatelessWidget {
+  const _QrActionSheet({required this.result});
+
+  final CvlSearchResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: scheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text(
+              result.fullName,
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              icon: const Icon(Icons.qr_code_2_outlined),
+              label: const Text('Set QR Code'),
+              onPressed: result.hasQr
+                  ? null
+                  : () => Navigator.of(context).pop(_QrAction.setQr),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.qr_code_scanner_outlined),
+              label: const Text('Remove QR Code'),
+              onPressed: result.hasQr
+                  ? () => Navigator.of(context).pop(_QrAction.removeQr)
+                  : null,
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Per-row action buttons shown inline, beyond opening the detail view.
-/// Set QR scans a code and assigns it via [_SetQrSheet]; Edit is still a
-/// placeholder — not wired to the backend yet.
+/// The QR icon opens [_QrActionSheet]; Edit is still a placeholder — not
+/// wired to the backend yet.
 class _ResultActions extends StatelessWidget {
   const _ResultActions({required this.result});
 
@@ -268,11 +429,9 @@ class _ResultActions extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton.filledTonal(
-          tooltip: 'Set QR',
+          tooltip: 'QR Code',
           icon: const Icon(Icons.qr_code_2_outlined),
-          onPressed: result.hasQr
-              ? null
-              : () => _openSetQrSheet(context, result),
+          onPressed: () => _openQrActionSheet(context, result),
           visualDensity: VisualDensity.compact,
         ),
         const SizedBox(width: 4),
@@ -287,14 +446,16 @@ class _ResultActions extends StatelessWidget {
   }
 }
 
-enum _SetQrPhase { scanning, validating, success, error }
+enum _SetQrPhase { scanning, confirming, validating, success, error }
 
 /// Bottom sheet that scans a QR code with the app's shared camera
 /// (via the existing [ScannerBloc]/[MobileScannerDatasource], the same
 /// pieces [ScannerPage] uses) and assigns it to [result] through
-/// [CvlSearchCubit.setQr]. A code the backend rejects — unregistered or
-/// already assigned to another record — surfaces inline with a "Scan
-/// Again" retry instead of dismissing the sheet.
+/// [CvlSearchCubit.setQr]. A freshly-scanned code is confirmed with the
+/// staff member before it's sent; a code the backend rejects —
+/// unregistered, already assigned to another record, or already in use —
+/// surfaces as a dialog, then resumes scanning instead of dismissing the
+/// sheet.
 class _SetQrSheet extends StatefulWidget {
   const _SetQrSheet({required this.result});
 
@@ -334,9 +495,33 @@ class _SetQrSheetState extends State<_SetQrSheet> {
 
   Future<void> _handleDetected(String rawValue) async {
     setState(() {
-      _phase = _SetQrPhase.validating;
+      _phase = _SetQrPhase.confirming;
       _errorMessage = null;
     });
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Set QR code?'),
+        content: Text('Assign this QR code to ${widget.result.fullName}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Set'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (confirmed != true) {
+      _retry();
+      return;
+    }
+
+    setState(() => _phase = _SetQrPhase.validating);
     try {
       await context.read<CvlSearchCubit>().setQr(
         id: widget.result.id,
@@ -348,17 +533,32 @@ class _SetQrSheetState extends State<_SetQrSheet> {
       if (mounted) Navigator.of(context).pop(true);
     } on CvlLookupException catch (e) {
       if (!mounted) return;
-      setState(() {
-        _phase = _SetQrPhase.error;
-        _errorMessage = e.message;
-      });
+      await _showRejectionDialog(e.message);
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _phase = _SetQrPhase.error;
-        _errorMessage = 'Could not set the QR code: $e';
-      });
+      await _showRejectionDialog('Could not set the QR code: $e');
     }
+  }
+
+  /// Shows the backend's rejection reason (unregistered code, already
+  /// assigned, already in use) in a dialog, then resumes scanning once
+  /// it's dismissed — mirrors the confirm dialog's "stay in the sheet"
+  /// behavior rather than closing it outright.
+  Future<void> _showRejectionDialog(String message) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Could not set QR code'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) _retry();
   }
 
   void _retry() {
@@ -371,6 +571,7 @@ class _SetQrSheetState extends State<_SetQrSheet> {
 
   String get _subtitle => switch (_phase) {
     _SetQrPhase.scanning => 'Align the QR code within the frame.',
+    _SetQrPhase.confirming => 'Confirm to continue…',
     _SetQrPhase.validating => 'Checking the QR code…',
     _SetQrPhase.success => 'QR code set.',
     _SetQrPhase.error => _errorMessage ?? 'Could not set the QR code.',

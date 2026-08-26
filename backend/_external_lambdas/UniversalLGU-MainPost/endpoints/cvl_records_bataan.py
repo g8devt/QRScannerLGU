@@ -245,6 +245,49 @@ def set_cvl_qr_bataan(cur, data, files, ts):
         return fail(f'Server error: {e}', 500)
 
 
+def remove_cvl_qr_bataan(cur, data, files, ts):
+    """Unassigns a CVL record's QR code — the "Search CVL Record" list's
+    Remove QR action, the counterpart to [set_cvl_qr_bataan].
+
+    Requires `id` (the `app_cvl_list` primary key). Rejects with a
+    404/409 `fail(...)` (never a 500) if the record doesn't exist or has
+    no QR assigned. Frees the code back up in `app_qr_code` (status ->
+    'AVAILABLE') so it can be scanned onto a different record, then
+    clears `app_cvl_list.cvl_qr`. Responds with `{status, data: {id}}`
+    on success.
+    """
+    try:
+        require(data, 'id')
+        record_id = data['id']
+
+        cur.execute(
+            'SELECT id, cvl_qr FROM app_cvl_list WHERE id=%s LIMIT 1',
+            (record_id,),
+        )
+        record = cur.fetchone()
+        if not record:
+            return fail('CVL record not found', 404)
+        qr_id = record['cvl_qr']
+        if not qr_id:
+            return fail('This record has no QR code assigned.', 409)
+
+        cur.execute(
+            "UPDATE app_qr_code SET status='AVAILABLE', date_updated=%s WHERE id=%s",
+            (ts, qr_id),
+        )
+        cur.execute(
+            'UPDATE app_cvl_list SET cvl_qr=NULL, cvl_last_date_updated=%s WHERE id=%s',
+            (ts, record_id),
+        )
+
+        return ok({'status': True, 'data': {'id': record_id}})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'remove_cvl_qr_bataan error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
 _SEARCH_PAGE_SIZE = 25
 
 
