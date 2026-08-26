@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -14,6 +15,29 @@ import '../bloc/cvl_lookup_state.dart';
 /// [CvlLookupPage]'s layout, but only Contact No., Email, and Gender
 /// can actually be changed and saved here.
 const List<String> _genderOptions = ['Male', 'Female'];
+
+/// A PH mobile number in local format — 11 digits, starting with "09"
+/// (e.g. `09171234567`) — matching how numbers are already stored
+/// elsewhere in this app/DB.
+final RegExp _mobileNumberPattern = RegExp(r'^09\d{9}$');
+
+final RegExp _emailPattern = RegExp(r'^[\w.+-]+@[\w-]+(\.[\w-]+)+$');
+
+/// Both fields are optional (an empty value clears it) but must be
+/// well-formed when non-empty.
+String? _validateContactNo(String? value) {
+  final trimmed = value?.trim() ?? '';
+  if (trimmed.isEmpty) return null;
+  return _mobileNumberPattern.hasMatch(trimmed)
+      ? null
+      : 'Enter an 11-digit mobile number starting with 09';
+}
+
+String? _validateEmail(String? value) {
+  final trimmed = value?.trim() ?? '';
+  if (trimmed.isEmpty) return null;
+  return _emailPattern.hasMatch(trimmed) ? null : 'Enter a valid email';
+}
 
 class CvlEditPage extends StatefulWidget {
   const CvlEditPage({super.key, required this.recordId});
@@ -212,22 +236,22 @@ class _EditFormState extends State<_EditForm> {
                     TextFormField(
                       controller: _contactController,
                       keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(11),
+                      ],
                       decoration: const InputDecoration(
                         labelText: 'Contact No.',
+                        hintText: '09XXXXXXXXX',
                       ),
+                      validator: _validateContactNo,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(labelText: 'Email'),
-                      validator: (value) {
-                        final trimmed = value?.trim() ?? '';
-                        if (trimmed.isEmpty) return null;
-                        return trimmed.contains('@')
-                            ? null
-                            : 'Enter a valid email';
-                      },
+                      validator: _validateEmail,
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
