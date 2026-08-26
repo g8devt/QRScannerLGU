@@ -1,10 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../qr_scanner/domain/usecases/capture_photo.dart';
 import '../../domain/entities/cvl_record.dart';
 import '../bloc/cvl_lookup_cubit.dart';
 import '../bloc/cvl_lookup_state.dart';
-import '../widgets/cvl_photo_section.dart';
 
 /// Editable fields for a CVL record — everything else (name, address,
 /// birthdate, precinct, etc.) is shown read-only for context, matching
@@ -99,6 +102,11 @@ class _EditFormState extends State<_EditForm> {
   late final TextEditingController _emailController;
   late String? _gender;
 
+  /// A freshly captured photo staged locally — not uploaded yet. It's
+  /// only sent to the backend when Save Changes is pressed, alongside
+  /// the contact fields, instead of uploading the moment it's captured.
+  String? _newPhotoPath;
+
   /// `cvl_gender` is a free-text column (no DB enum constraint) — legacy
   /// data holds casings like "MALE" that don't exactly match
   /// [_genderOptions]' "Male"/"Female", and DropdownButtonFormField
@@ -143,18 +151,40 @@ class _EditFormState extends State<_EditForm> {
     super.dispose();
   }
 
+  Future<void> _capturePhoto(BuildContext context) async {
+    final path = await context.read<CapturePhoto>()();
+    if (path == null) return; // user cancelled
+    if (mounted) setState(() => _newPhotoPath = path);
+  }
+
   Future<void> _save(BuildContext context) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    await context.read<CvlLookupCubit>().updateInfo(
+    final cubit = context.read<CvlLookupCubit>();
+
+    final stagedPhotoPath = _newPhotoPath;
+    if (stagedPhotoPath != null) {
+      final username = context.read<AuthBloc>().state.user?.username;
+      await cubit.updatePhoto(stagedPhotoPath, updatedBy: username);
+      // updatePhoto() never throws — it reports failure via
+      // photoUpdateError in state instead. Stop here so a failed photo
+      // upload doesn't silently skip straight to saving the other
+      // fields; the error listener in CvlEditPage shows the message and
+      // the staged photo stays in place for the user to retry.
+      if (!context.mounted || cubit.state.photoUpdateError != null) return;
+    }
+
+    await cubit.updateInfo(
       contactNo: _contactController.text.trim(),
       email: _emailController.text.trim(),
       gender: _gender,
     );
-    if (context.mounted) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Changes saved.')));
-    }
+    if (!context.mounted) return;
+    if (cubit.state.infoUpdateError != null) return;
+
+    setState(() => _newPhotoPath = null);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Changes saved.')));
   }
 
   @override
@@ -166,10 +196,6 @@ class _EditFormState extends State<_EditForm> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            CvlPhotoSection(
-              record: record,
-              isUpdatingPhoto: widget.isUpdatingPhoto,
-            ),
             _ReadOnlySection(record: record),
             const SizedBox(height: 12),
             Card(
@@ -222,10 +248,18 @@ class _EditFormState extends State<_EditForm> {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            _EditablePhotoSection(
+              record: record,
+              newPhotoPath: _newPhotoPath,
+              onCapture: () => _capturePhoto(context),
+            ),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: widget.isSaving ? null : () => _save(context),
-              icon: widget.isSaving
+              onPressed: (widget.isSaving || widget.isUpdatingPhoto)
+                  ? null
+                  : () => _save(context),
+              icon: (widget.isSaving || widget.isUpdatingPhoto)
                   ? const SizedBox(
                       width: 16,
                       height: 16,
@@ -235,7 +269,91 @@ class _EditFormState extends State<_EditForm> {
                       ),
                     )
                   : const Icon(Icons.save_outlined),
-              label: Text(widget.isSaving ? 'Saving...' : 'Save Changes'),
+              label: Text(
+                (widget.isSaving || widget.isUpdatingPhoto)
+                    ? 'Saving...'
+                    : 'Save Changes',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Photo capture for the edit form — unlike [CvlPhotoSection] (used by
+/// the read-only detail view), capturing here only stages [newPhotoPath]
+/// locally; it's uploaded together with the rest of the form when Save
+/// Changes is pressed, not immediately on capture.
+class _EditablePhotoSection extends StatelessWidget {
+  const _EditablePhotoSection({
+    required this.record,
+    required this.newPhotoPath,
+    required this.onCapture,
+  });
+
+  final CvlRecord record;
+
+  /// A freshly captured photo not yet saved, if any — takes priority
+  /// over [record]'s existing photo for the preview.
+  final String? newPhotoPath;
+  final VoidCallback onCapture;
+
+  @override
+  Widget build(BuildContext context) {
+    final stagedPath = newPhotoPath;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 80,
+                height: 80,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: stagedPath != null
+                    ? Image.file(File(stagedPath), fit: BoxFit.cover)
+                    : (record.hasDisplayableImage
+                          ? Image.network(
+                              record.imgPath,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return const Center(
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(
+                                    Icons.broken_image_outlined,
+                                    color: Theme.of(context).colorScheme.outline,
+                                  ),
+                            )
+                          : Icon(
+                              Icons.person_outline,
+                              size: 40,
+                              color: Theme.of(context).colorScheme.outline,
+                            )),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onCapture,
+                icon: const Icon(Icons.camera_alt_outlined),
+                label: Text(
+                  stagedPath != null ? 'Retake Photo' : 'Change Photo',
+                ),
+              ),
             ),
           ],
         ),
