@@ -9,6 +9,7 @@ import '../../../qr_scanner/domain/usecases/capture_photo.dart';
 import '../../domain/entities/cvl_record.dart';
 import '../bloc/cvl_lookup_cubit.dart';
 import '../bloc/cvl_lookup_state.dart';
+import '../widgets/photo_preview_page.dart';
 
 /// Editable fields for a CVL record — everything else (name, address,
 /// birthdate, precinct, etc.) is shown read-only for context, matching
@@ -344,7 +345,7 @@ class _EditablePhotoSection extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => _PhotoPreviewPage(image: _imageProvider),
+        builder: (_) => PhotoPreviewPage(image: _imageProvider),
       ),
     );
   }
@@ -423,69 +424,6 @@ class _EditablePhotoSection extends StatelessWidget {
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Full-screen photo viewer opened by tapping the thumbnail in
-/// [_EditablePhotoSection] — pinch-to-zoom via [InteractiveViewer].
-///
-/// Dismisses only via the explicit close button, not by tapping the
-/// image: [InteractiveViewer] runs its own pan/scale gesture
-/// recognizers, which compete with an overlaid GestureDetector's tap
-/// recognizer in the same gesture arena — a tap-to-dismiss wrapped
-/// around it essentially never wins that arena and stays stuck open.
-class _PhotoPreviewPage extends StatelessWidget {
-  const _PhotoPreviewPage({required this.image});
-
-  final ImageProvider image;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: Center(
-        child: InteractiveViewer(
-          child: Image(
-            image: image,
-            // Unlike the thumbnail's Image.network (which has these and
-            // so degrades to a broken-image icon), this raw Image had
-            // neither — a failed load (bad URL, offline, a stale/moved
-            // staged file) surfaced as Flutter's default red error box
-            // instead of something reasonable to show full-screen.
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return const CircularProgressIndicator(color: Colors.white);
-            },
-            errorBuilder: (context, error, stackTrace) => const Padding(
-              padding: EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.broken_image_outlined,
-                    color: Colors.white70,
-                    size: 64,
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'Could not load this photo.',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ),
       ),
     );

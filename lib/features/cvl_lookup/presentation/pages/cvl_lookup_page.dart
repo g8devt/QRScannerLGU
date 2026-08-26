@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../domain/entities/cvl_record.dart';
 import '../bloc/cvl_lookup_cubit.dart';
@@ -51,15 +52,7 @@ class _CvlLookupPageState extends State<CvlLookupPage> {
       canPop: true,
       child: Scaffold(
         appBar: AppBar(title: const Text('CVL Record')),
-        body: BlocConsumer<CvlLookupCubit, CvlLookupState>(
-          listener: (context, state) {
-            final error = state.photoUpdateError;
-            if (error != null) {
-              ScaffoldMessenger.of(context)
-                ..hideCurrentSnackBar()
-                ..showSnackBar(SnackBar(content: Text(error)));
-            }
-          },
+        body: BlocBuilder<CvlLookupCubit, CvlLookupState>(
           builder: (context, state) {
             switch (state.status) {
               case CvlLookupStatus.initial:
@@ -72,10 +65,7 @@ class _CvlLookupPageState extends State<CvlLookupPage> {
                       'No CVL record was found for this QR code.',
                 );
               case CvlLookupStatus.loaded:
-                return _DetailsView(
-                  record: state.record!,
-                  isUpdatingPhoto: state.isUpdatingPhoto,
-                );
+                return _DetailsView(record: state.record!);
             }
           },
         ),
@@ -122,10 +112,9 @@ class _ErrorView extends StatelessWidget {
 }
 
 class _DetailsView extends StatelessWidget {
-  const _DetailsView({required this.record, required this.isUpdatingPhoto});
+  const _DetailsView({required this.record});
 
   final CvlRecord record;
-  final bool isUpdatingPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -161,13 +150,8 @@ class _DetailsView extends StatelessWidget {
           ),
           if (record.sector.isNotEmpty)
             _SectionCard(title: 'Sector', rows: {'Sector': record.sector}),
-          _SectionCard(
-            title: 'QR Code',
-            rows: {
-              'Code': record.qrCode.isNotEmpty ? record.qrCode : 'Not assigned',
-            },
-          ),
-          CvlPhotoSection(record: record, isUpdatingPhoto: isUpdatingPhoto),
+          _QrCodeSection(qrCode: record.qrCode),
+          CvlPhotoSection(record: record),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () => Navigator.of(context).pop(),
@@ -175,6 +159,66 @@ class _DetailsView extends StatelessWidget {
             label: const Text('Scan Another'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Shows the assigned QR code both as its raw value and as a rendered,
+/// scannable image (encoding the same value [find_cvl_by_qr_bataan]
+/// matches on) — or "Not assigned" with no image when [qrCode] is
+/// empty.
+class _QrCodeSection extends StatelessWidget {
+  const _QrCodeSection({required this.qrCode});
+
+  final String qrCode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('QR Code', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(
+                  width: 120,
+                  child: Text(
+                    'Code',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Expanded(
+                  child: Text(qrCode.isNotEmpty ? qrCode : 'Not assigned'),
+                ),
+              ],
+            ),
+            if (qrCode.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: QrImageView(
+                    data: qrCode,
+                    version: QrVersions.auto,
+                    size: 160,
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
