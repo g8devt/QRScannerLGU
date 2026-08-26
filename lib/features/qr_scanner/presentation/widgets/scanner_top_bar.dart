@@ -28,8 +28,8 @@ class ScannerTopBar extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 18),
+            height: 56,
+            padding: const EdgeInsets.symmetric(horizontal: 22),
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(24),
@@ -120,7 +120,7 @@ class _SearchPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         onTap: onPressed,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
