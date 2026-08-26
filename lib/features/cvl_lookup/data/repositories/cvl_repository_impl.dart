@@ -128,4 +128,35 @@ class CvlRepositoryImpl implements CvlRepository {
       );
     }
   }
+
+  @override
+  Future<(String, String, String)> updateInfo({
+    required int id,
+    String? contactNo,
+    String? email,
+    String? gender,
+    String? updatedBy,
+  }) async {
+    try {
+      final json = await _datasource.updateInfo(
+        id: id,
+        contactNo: contactNo,
+        email: email,
+        gender: gender,
+        updatedBy: updatedBy,
+      );
+      final data = json['data'] as Map<String, dynamic>? ?? {};
+      return (
+        (data['cvl_contact_no'] ?? '').toString(),
+        (data['cvl_email'] ?? '').toString(),
+        (data['cvl_gender'] ?? '').toString(),
+      );
+    } on ApiException catch (e) {
+      throw CvlLookupException(e.message);
+    } catch (e) {
+      throw CvlLookupException(
+        'Network error — could not reach the server: $e',
+      );
+    }
+  }
 }

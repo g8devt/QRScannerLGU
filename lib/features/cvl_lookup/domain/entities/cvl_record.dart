@@ -81,7 +81,12 @@ class CvlRecord extends Equatable {
     );
   }
 
-  CvlRecord copyWith({String? imgPath}) {
+  CvlRecord copyWith({
+    String? imgPath,
+    String? contactNo,
+    String? email,
+    String? gender,
+  }) {
     return CvlRecord(
       id: id,
       cvlId: cvlId,
@@ -95,9 +100,9 @@ class CvlRecord extends Equatable {
       barangay: barangay,
       precinctNo: precinctNo,
       birthdate: birthdate,
-      contactNo: contactNo,
-      email: email,
-      gender: gender,
+      contactNo: contactNo ?? this.contactNo,
+      email: email ?? this.email,
+      gender: gender ?? this.gender,
       sector: sector,
       qrCode: qrCode,
       imgPath: imgPath ?? this.imgPath,

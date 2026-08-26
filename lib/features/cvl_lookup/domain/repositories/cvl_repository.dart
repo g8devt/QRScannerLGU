@@ -43,6 +43,20 @@ abstract class CvlRepository {
   /// — via a human-readable reason — if the record has no QR assigned,
   /// doesn't exist, or on network failure.
   Future<void> removeQr({required int id});
+
+  /// Updates CVL record [id]'s contact number, email, and/or gender —
+  /// whichever of [contactNo]/[email]/[gender] is non-null (at least one
+  /// must be). Everything else on the record is read-only from this app.
+  /// Returns the updated `(contactNo, email, gender)` triple. Throws
+  /// [CvlLookupException] with a human-readable reason on rejection
+  /// (record not found) or network failure.
+  Future<(String, String, String)> updateInfo({
+    required int id,
+    String? contactNo,
+    String? email,
+    String? gender,
+    String? updatedBy,
+  });
 }
 
 class CvlLookupException implements Exception {

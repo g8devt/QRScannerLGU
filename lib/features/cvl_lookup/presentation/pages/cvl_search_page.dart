@@ -13,6 +13,7 @@ import '../../domain/entities/cvl_search_result.dart';
 import '../../domain/repositories/cvl_repository.dart';
 import '../bloc/cvl_search_cubit.dart';
 import '../bloc/cvl_search_state.dart';
+import 'cvl_edit_page.dart';
 import 'cvl_lookup_page.dart';
 
 /// Search-by-name entry point for CVL records — a separate way in from
@@ -410,18 +411,12 @@ class _QrActionSheet extends StatelessWidget {
 }
 
 /// Per-row action buttons shown inline, beyond opening the detail view.
-/// The QR icon opens [_QrActionSheet]; Edit is still a placeholder — not
-/// wired to the backend yet.
+/// The QR icon opens [_QrActionSheet]; Edit opens [CvlEditPage] for
+/// contact-details editing.
 class _ResultActions extends StatelessWidget {
   const _ResultActions({required this.result});
 
   final CvlSearchResult result;
-
-  void _handleTap(BuildContext context, String label) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$label — coming soon')));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -438,7 +433,11 @@ class _ResultActions extends StatelessWidget {
         IconButton.filledTonal(
           tooltip: 'Edit',
           icon: const Icon(Icons.edit_outlined),
-          onPressed: () => _handleTap(context, 'Edit'),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => CvlEditPage(recordId: result.id),
+            ),
+          ),
           visualDensity: VisualDensity.compact,
         ),
       ],

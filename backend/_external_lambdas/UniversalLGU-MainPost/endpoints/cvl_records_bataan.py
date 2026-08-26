@@ -87,11 +87,64 @@ def find_cvl_by_qr_bataan(cur, data, files, ts):
         return fail(f'Server error: {e}', 500)
 
 
+def update_cvl_info_bataan(cur, data, files, ts):
+    """Updates a CVL record's contact number, email, and gender — the
+    "Search CVL Record" list's Edit action. Everything else on the record
+    (name, address, birthdate, precinct, etc.) stays read-only from the
+    app.
+
+    Requires `id`. `contact_no`, `email`, and `gender` are each optional
+    individually, but at least one must be present, otherwise there is
+    nothing to update. Responds with `{status, data: {cvl_contact_no,
+    cvl_email, cvl_gender}}` on success, or a 404 `fail(...)` if the
+    record doesn't exist.
+    """
+    try:
+        require(data, 'id')
+        record_id = data['id']
+
+        cur.execute('SELECT id FROM app_cvl_list WHERE id=%s LIMIT 1', (record_id,))
+        if not cur.fetchone():
+            return fail('CVL record not found', 404)
+
+        fields = {}
+        if 'contact_no' in data:
+            fields['cvl_contact_no'] = (data.get('contact_no') or '').strip()
+        if 'email' in data:
+            fields['cvl_email'] = (data.get('email') or '').strip()
+        if 'gender' in data:
+            fields['cvl_gender'] = (data.get('gender') or '').strip()
+
+        if not fields:
+            return fail('Nothing to update — provide contact_no, email, and/or gender.')
+
+        updated_by = (data.get('updated_by') or '').strip() or 'MOBILE_SCANNER'
+        fields['cvl_updated_by'] = updated_by
+        fields['cvl_last_date_updated'] = ts
+
+        set_clause = ', '.join(f'{column}=%s' for column in fields)
+        cur.execute(
+            f'UPDATE app_cvl_list SET {set_clause} WHERE id=%s',
+            (*fields.values(), record_id),
+        )
+
+        cur.execute(
+            'SELECT cvl_contact_no, cvl_email, cvl_gender FROM app_cvl_list WHERE id=%s LIMIT 1',
+            (record_id,),
+        )
+        row = cur.fetchone()
+        return ok({'status': True, 'data': serialize_row(row)})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f'update_cvl_info_bataan error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
+
 def update_cvl_photo_bataan(cur, data, files, ts):
     """Replaces a CVL record's photo (`cvl_img_path`).
 
-    The only write this module performs — everything else on this record
-    stays read-only from the app, per the design spec. Requires `id` (the
+    Requires `id` (the
     `app_cvl_list` primary key, from a prior `find_cvl_by_qr_bataan` call)
     and a `cvl_photo` file. Uploads to S3 (mirrors the pattern in
     `social_services_bataan.submit_claim_bataan`) and overwrites

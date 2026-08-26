@@ -18,6 +18,7 @@ import 'features/cvl_lookup/domain/usecases/find_cvl_by_qr.dart';
 import 'features/cvl_lookup/domain/usecases/search_cvl_by_name.dart';
 import 'features/cvl_lookup/domain/usecases/remove_cvl_qr.dart';
 import 'features/cvl_lookup/domain/usecases/set_cvl_qr.dart';
+import 'features/cvl_lookup/domain/usecases/update_cvl_info.dart';
 import 'features/cvl_lookup/domain/usecases/update_cvl_photo.dart';
 import 'features/cvl_lookup/presentation/bloc/cvl_lookup_cubit.dart';
 import 'features/cvl_lookup/presentation/bloc/cvl_search_cubit.dart';
@@ -71,6 +72,7 @@ class MyApp extends StatelessWidget {
           final cvlRepository = CvlRepositoryImpl(cvlRemoteDatasource);
           final findCvlByQr = FindCvlByQr(cvlRepository);
           final updateCvlPhoto = UpdateCvlPhoto(cvlRepository);
+          final updateCvlInfo = UpdateCvlInfo(cvlRepository);
           final findCvlById = FindCvlById(cvlRepository);
           final searchCvlByName = SearchCvlByName(cvlRepository);
           final setCvlQr = SetCvlQr(cvlRepository);
@@ -97,7 +99,12 @@ class MyApp extends StatelessWidget {
                 ),
                 BlocProvider(
                   create: (_) =>
-                      CvlLookupCubit(findCvlByQr, updateCvlPhoto, findCvlById),
+                      CvlLookupCubit(
+                        findCvlByQr,
+                        updateCvlPhoto,
+                        findCvlById,
+                        updateCvlInfo,
+                      ),
                 ),
                 BlocProvider(
                   create: (_) =>

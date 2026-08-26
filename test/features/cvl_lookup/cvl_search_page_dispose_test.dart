@@ -37,6 +37,15 @@ class _FakeCvlRepository implements CvlRepository {
 
   @override
   Future<void> removeQr({required int id}) => throw UnimplementedError();
+
+  @override
+  Future<(String, String, String)> updateInfo({
+    required int id,
+    String? contactNo,
+    String? email,
+    String? gender,
+    String? updatedBy,
+  }) => throw UnimplementedError();
 }
 
 void main() {

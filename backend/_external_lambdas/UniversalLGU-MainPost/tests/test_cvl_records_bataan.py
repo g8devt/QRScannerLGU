@@ -11,6 +11,7 @@ from endpoints.cvl_records_bataan import (
     get_cvl_by_id_bataan,
     remove_cvl_qr_bataan,
     search_cvl_by_name_bataan,
+    update_cvl_info_bataan,
     update_cvl_photo_bataan,
 )
 
@@ -185,6 +186,58 @@ class GetCvlByIdBataanTest(unittest.TestCase):
         cur = MagicMock()
         cur.execute.side_effect = RuntimeError('connection lost')
         result = get_cvl_by_id_bataan(cur, {'id': 1}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 500)
+
+
+class UpdateCvlInfoBataanTest(unittest.TestCase):
+    def test_missing_id_returns_400(self):
+        cur = MagicMock()
+        result = update_cvl_info_bataan(cur, {}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 400)
+
+    def test_record_not_found_returns_404(self):
+        cur = MagicMock()
+        cur.fetchone.return_value = None
+        result = update_cvl_info_bataan(
+            cur, {'id': 999, 'contact_no': '09171234567'}, [], '2026-08-26 00:00:00'
+        )
+        self.assertEqual(result['statusCode'], 404)
+
+    def test_no_fields_returns_400(self):
+        cur = MagicMock()
+        cur.fetchone.return_value = {'id': 1}
+        result = update_cvl_info_bataan(cur, {'id': 1}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 400)
+
+    def test_success_updates_only_provided_fields(self):
+        cur = MagicMock()
+        cur.fetchone.side_effect = [
+            {'id': 1},
+            {'cvl_contact_no': '09171234567', 'cvl_email': '', 'cvl_gender': 'Male'},
+        ]
+        result = update_cvl_info_bataan(
+            cur,
+            {'id': 1, 'contact_no': '09171234567', 'gender': 'Male'},
+            [],
+            '2026-08-26 00:00:00',
+        )
+        self.assertEqual(result['statusCode'], 200)
+        body = json.loads(result['body'])
+        self.assertEqual(body['data']['cvl_contact_no'], '09171234567')
+        self.assertEqual(body['data']['cvl_gender'], 'Male')
+
+        update_sql, update_params = cur.execute.call_args_list[1].args
+        self.assertIn('cvl_contact_no=%s', update_sql)
+        self.assertIn('cvl_gender=%s', update_sql)
+        self.assertNotIn('cvl_email=%s', update_sql)
+        self.assertEqual(update_params[-1], 1)
+
+    def test_db_error_returns_500(self):
+        cur = MagicMock()
+        cur.execute.side_effect = RuntimeError('connection lost')
+        result = update_cvl_info_bataan(
+            cur, {'id': 1, 'email': 'a@b.com'}, [], '2026-08-26 00:00:00'
+        )
         self.assertEqual(result['statusCode'], 500)
 
 

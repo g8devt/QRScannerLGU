@@ -2,8 +2,9 @@ import '../../../../core/network/api_client.dart';
 
 /// Talks to `find_cvl_by_qr_bataan` / `get_cvl_by_id_bataan` /
 /// `search_cvl_by_name_bataan` / `update_cvl_photo_bataan` /
-/// `set_cvl_qr_bataan` / `remove_cvl_qr_bataan`. Returns raw decoded
-/// JSON — mapping to domain entities happens in [CvlRepositoryImpl].
+/// `set_cvl_qr_bataan` / `remove_cvl_qr_bataan` / `update_cvl_info_bataan`.
+/// Returns raw decoded JSON — mapping to domain entities happens in
+/// [CvlRepositoryImpl].
 class CvlRemoteDatasource {
   CvlRemoteDatasource(this._apiClient);
 
@@ -43,6 +44,29 @@ class CvlRemoteDatasource {
   /// that has no QR assigned as a [ApiException] via [ApiClient._decode].
   Future<Map<String, dynamic>> removeQr({required int id}) {
     return _apiClient.post('remove_cvl_qr_bataan', {'id': id.toString()});
+  }
+
+  /// Updates [id]'s contact number, email, and/or gender — whichever of
+  /// `contactNo`/`email`/`gender` is non-null. At least one must be
+  /// provided; the backend rejects an all-null call.
+  Future<Map<String, dynamic>> updateInfo({
+    required int id,
+    String? contactNo,
+    String? email,
+    String? gender,
+    String? updatedBy,
+  }) {
+    return _apiClient.post('update_cvl_info_bataan', {
+      'id': id.toString(),
+      // ignore: use_null_aware_elements
+      if (contactNo != null) 'contact_no': contactNo,
+      // ignore: use_null_aware_elements
+      if (email != null) 'email': email,
+      // ignore: use_null_aware_elements
+      if (gender != null) 'gender': gender,
+      // ignore: use_null_aware_elements
+      if (updatedBy != null && updatedBy.isNotEmpty) 'updated_by': updatedBy,
+    });
   }
 
   Future<Map<String, dynamic>> updatePhoto({

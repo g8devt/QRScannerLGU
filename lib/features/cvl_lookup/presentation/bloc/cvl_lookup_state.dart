@@ -11,6 +11,8 @@ class CvlLookupState extends Equatable {
     this.errorMessage,
     this.isUpdatingPhoto = false,
     this.photoUpdateError,
+    this.isUpdatingInfo = false,
+    this.infoUpdateError,
   });
 
   final CvlLookupStatus status;
@@ -25,12 +27,21 @@ class CvlLookupState extends Equatable {
   /// Set when a photo edit fails; cleared on the next edit attempt.
   final String? photoUpdateError;
 
+  /// True while a contact/email/gender edit save is in flight. Same
+  /// reasoning as [isUpdatingPhoto].
+  final bool isUpdatingInfo;
+
+  /// Set when an info edit save fails; cleared on the next save attempt.
+  final String? infoUpdateError;
+
   CvlLookupState copyWith({
     CvlLookupStatus? status,
     CvlRecord? record,
     String? errorMessage,
     bool? isUpdatingPhoto,
     String? photoUpdateError,
+    bool? isUpdatingInfo,
+    String? infoUpdateError,
   }) {
     return CvlLookupState(
       status: status ?? this.status,
@@ -38,6 +49,8 @@ class CvlLookupState extends Equatable {
       errorMessage: errorMessage,
       isUpdatingPhoto: isUpdatingPhoto ?? this.isUpdatingPhoto,
       photoUpdateError: photoUpdateError,
+      isUpdatingInfo: isUpdatingInfo ?? this.isUpdatingInfo,
+      infoUpdateError: infoUpdateError,
     );
   }
 
@@ -48,5 +61,7 @@ class CvlLookupState extends Equatable {
     errorMessage,
     isUpdatingPhoto,
     photoUpdateError,
+    isUpdatingInfo,
+    infoUpdateError,
   ];
 }
