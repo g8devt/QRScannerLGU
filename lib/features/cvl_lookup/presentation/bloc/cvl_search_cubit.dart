@@ -1,12 +1,15 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/usecases/search_cvl_by_name.dart';
+import '../../domain/usecases/set_cvl_qr.dart';
 import 'cvl_search_state.dart';
 
 class CvlSearchCubit extends Cubit<CvlSearchState> {
-  CvlSearchCubit(this._searchCvlByName) : super(const CvlSearchState());
+  CvlSearchCubit(this._searchCvlByName, this._setCvlQr)
+    : super(const CvlSearchState());
 
   final SearchCvlByName _searchCvlByName;
+  final SetCvlQr _setCvlQr;
 
   // Tracks the in-flight/last search term so loadMore() (triggered by
   // scrolling, with no term of its own) knows what to page through.
@@ -70,6 +73,24 @@ class CvlSearchCubit extends Cubit<CvlSearchState> {
       // so the staff member can retry by scrolling again.
       emit(state.copyWith(isLoadingMore: false));
     }
+  }
+
+  /// Assigns [qrCode] (freshly scanned) to CVL record [id]. On success,
+  /// updates that record in [CvlSearchState.results] in place so the list
+  /// reflects it immediately. Rethrows [CvlLookupException] on rejection
+  /// (unregistered/already-used code) or network failure — the caller
+  /// (the scanning sheet) is responsible for showing that error, since a
+  /// rejection shouldn't disturb the rest of the list.
+  Future<void> setQr({required int id, required String qrCode}) async {
+    final assigned = await _setCvlQr(id: id, qrCode: qrCode);
+    emit(
+      state.copyWith(
+        results: [
+          for (final result in state.results)
+            if (result.id == id) result.copyWith(qrCode: assigned) else result,
+        ],
+      ),
+    );
   }
 
   void reset() => emit(const CvlSearchState());

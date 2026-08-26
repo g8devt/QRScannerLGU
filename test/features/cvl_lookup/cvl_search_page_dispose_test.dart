@@ -6,6 +6,7 @@ import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/entities/cvl_recor
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/entities/cvl_search_results_page.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/repositories/cvl_repository.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/usecases/search_cvl_by_name.dart';
+import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/usecases/set_cvl_qr.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/presentation/bloc/cvl_search_cubit.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/presentation/pages/cvl_search_page.dart';
 
@@ -28,11 +29,19 @@ class _FakeCvlRepository implements CvlRepository {
     required String photoPath,
     String? updatedBy,
   }) => throw UnimplementedError();
+
+  @override
+  Future<String> setQr({required int id, required String qrCode}) =>
+      throw UnimplementedError();
 }
 
 void main() {
   testWidgets('CvlSearchPage disposes cleanly when popped', (tester) async {
-    final cubit = CvlSearchCubit(SearchCvlByName(_FakeCvlRepository()));
+    final repository = _FakeCvlRepository();
+    final cubit = CvlSearchCubit(
+      SearchCvlByName(repository),
+      SetCvlQr(repository),
+    );
 
     // The provider must wrap MaterialApp itself (matching main.dart's real
     // wiring), not just `home` — routes pushed via Navigator are siblings

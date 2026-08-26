@@ -16,6 +16,7 @@ import 'features/cvl_lookup/data/repositories/cvl_repository_impl.dart';
 import 'features/cvl_lookup/domain/usecases/find_cvl_by_id.dart';
 import 'features/cvl_lookup/domain/usecases/find_cvl_by_qr.dart';
 import 'features/cvl_lookup/domain/usecases/search_cvl_by_name.dart';
+import 'features/cvl_lookup/domain/usecases/set_cvl_qr.dart';
 import 'features/cvl_lookup/domain/usecases/update_cvl_photo.dart';
 import 'features/cvl_lookup/presentation/bloc/cvl_lookup_cubit.dart';
 import 'features/cvl_lookup/presentation/bloc/cvl_search_cubit.dart';
@@ -33,7 +34,8 @@ import 'features/social_service_claim/domain/usecases/verify_qr.dart';
 import 'features/social_service_claim/presentation/bloc/claim_bloc.dart';
 import 'features/social_service_claim/presentation/bloc/service_details_cubit.dart';
 
-final RouteObserver<PageRoute<void>> routeObserver = RouteObserver<PageRoute<void>>();
+final RouteObserver<PageRoute<void>> routeObserver =
+    RouteObserver<PageRoute<void>>();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -70,10 +72,14 @@ class MyApp extends StatelessWidget {
           final updateCvlPhoto = UpdateCvlPhoto(cvlRepository);
           final findCvlById = FindCvlById(cvlRepository);
           final searchCvlByName = SearchCvlByName(cvlRepository);
+          final setCvlQr = SetCvlQr(cvlRepository);
 
           final authRemoteDatasource = AuthRemoteDatasource(apiClient);
           final authLocalDatasource = AuthLocalDatasource();
-          final authRepository = AuthRepositoryImpl(authRemoteDatasource, authLocalDatasource);
+          final authRepository = AuthRepositoryImpl(
+            authRemoteDatasource,
+            authLocalDatasource,
+          );
           final loginUsecase = LoginUsecase(authRepository);
           final logoutUsecase = LogoutUsecase(authRepository);
           final restoreSessionUsecase = RestoreSessionUsecase(authRepository);
@@ -84,15 +90,32 @@ class MyApp extends StatelessWidget {
               providers: [
                 BlocProvider(create: (_) => ScannerBloc(scannerRepository)),
                 BlocProvider(create: (_) => ClaimBloc(verifyQr, submitClaim)),
-                BlocProvider(create: (_) => ServiceDetailsCubit(getServiceDetails)),
-                BlocProvider(create: (_) => CvlLookupCubit(findCvlByQr, updateCvlPhoto, findCvlById)),
-                BlocProvider(create: (_) => CvlSearchCubit(searchCvlByName)),
-                BlocProvider(create: (_) => AuthBloc(loginUsecase, logoutUsecase, restoreSessionUsecase)),
+                BlocProvider(
+                  create: (_) => ServiceDetailsCubit(getServiceDetails),
+                ),
+                BlocProvider(
+                  create: (_) =>
+                      CvlLookupCubit(findCvlByQr, updateCvlPhoto, findCvlById),
+                ),
+                BlocProvider(
+                  create: (_) => CvlSearchCubit(searchCvlByName, setCvlQr),
+                ),
+                BlocProvider(
+                  create: (_) => AuthBloc(
+                    loginUsecase,
+                    logoutUsecase,
+                    restoreSessionUsecase,
+                  ),
+                ),
               ],
               child: MaterialApp(
                 title: 'Bataan LGU Scanner',
                 debugShowCheckedModeBanner: false,
-                theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
+                theme: ThemeData(
+                  colorScheme: ColorScheme.fromSeed(
+                    seedColor: Colors.deepPurple,
+                  ),
+                ),
                 navigatorObservers: [routeObserver],
                 home: const AuthGate(),
               ),

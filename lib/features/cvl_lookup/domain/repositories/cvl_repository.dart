@@ -31,6 +31,12 @@ abstract class CvlRepository {
     required String photoPath,
     String? updatedBy,
   });
+
+  /// Assigns [qrCode] (freshly scanned) to the CVL record [id]. The
+  /// backend rejects — via [CvlLookupException] — a code that isn't
+  /// registered in `app_qr_code` or one that's already in use. Returns
+  /// the assigned code on success.
+  Future<String> setQr({required int id, required String qrCode});
 }
 
 class CvlLookupException implements Exception {

@@ -94,4 +94,25 @@ class CvlRepositoryImpl implements CvlRepository {
       );
     }
   }
+
+  @override
+  Future<String> setQr({required int id, required String qrCode}) async {
+    try {
+      final json = await _datasource.setQr(id: id, qrCode: qrCode);
+      final data = json['data'] as Map<String, dynamic>? ?? {};
+      // Matches the field name find_cvl_by_qr_bataan / search_cvl_by_name_bataan
+      // use for the same joined app_qr_code.qr_code value — set_cvl_qr_bataan
+      // echoes it back under the same key rather than the raw `cvl_qr` FK.
+      final assigned = (data['cvl_qr_code'] ?? '').toString();
+      return assigned.isEmpty ? qrCode : assigned;
+    } on ApiException catch (e) {
+      throw CvlLookupException(e.message);
+    } on CvlLookupException {
+      rethrow;
+    } catch (e) {
+      throw CvlLookupException(
+        'Network error — could not reach the server: $e',
+      );
+    }
+  }
 }

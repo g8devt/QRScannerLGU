@@ -22,6 +22,16 @@ class CvlSearchResult extends Equatable {
 
   bool get hasQr => qrCode.isNotEmpty;
 
+  CvlSearchResult copyWith({String? qrCode}) {
+    return CvlSearchResult(
+      id: id,
+      fullName: fullName,
+      municipality: municipality,
+      barangay: barangay,
+      qrCode: qrCode ?? this.qrCode,
+    );
+  }
+
   static String _str(dynamic v) => v == null ? '' : v.toString();
 
   factory CvlSearchResult.fromJson(Map<String, dynamic> json) {

@@ -1,9 +1,9 @@
 import '../../../../core/network/api_client.dart';
 
 /// Talks to `find_cvl_by_qr_bataan` / `get_cvl_by_id_bataan` /
-/// `search_cvl_by_name_bataan` / `update_cvl_photo_bataan`. Returns raw
-/// decoded JSON — mapping to domain entities happens in
-/// [CvlRepositoryImpl].
+/// `search_cvl_by_name_bataan` / `update_cvl_photo_bataan` /
+/// `set_cvl_qr_bataan`. Returns raw decoded JSON — mapping to domain
+/// entities happens in [CvlRepositoryImpl].
 class CvlRemoteDatasource {
   CvlRemoteDatasource(this._apiClient);
 
@@ -21,6 +21,20 @@ class CvlRemoteDatasource {
     return _apiClient.post('search_cvl_by_name_bataan', {
       'name': name,
       'offset': offset.toString(),
+    });
+  }
+
+  /// Assigns [qrCode] to CVL record [id]. The server validates the code
+  /// against `app_qr_code` — unregistered or already-used codes come back
+  /// as a rejected [ApiException] via [ApiClient._decode], not a thrown
+  /// error here.
+  Future<Map<String, dynamic>> setQr({
+    required int id,
+    required String qrCode,
+  }) {
+    return _apiClient.post('set_cvl_qr_bataan', {
+      'id': id.toString(),
+      'qr_code': qrCode,
     });
   }
 
