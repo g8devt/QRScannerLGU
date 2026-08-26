@@ -454,7 +454,40 @@ class _PhotoPreviewPage extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Center(child: InteractiveViewer(child: Image(image: image))),
+      body: Center(
+        child: InteractiveViewer(
+          child: Image(
+            image: image,
+            // Unlike the thumbnail's Image.network (which has these and
+            // so degrades to a broken-image icon), this raw Image had
+            // neither — a failed load (bad URL, offline, a stale/moved
+            // staged file) surfaced as Flutter's default red error box
+            // instead of something reasonable to show full-screen.
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return const CircularProgressIndicator(color: Colors.white);
+            },
+            errorBuilder: (context, error, stackTrace) => const Padding(
+              padding: EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.broken_image_outlined,
+                    color: Colors.white70,
+                    size: 64,
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'Could not load this photo.',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
