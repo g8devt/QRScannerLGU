@@ -201,32 +201,37 @@ class _ActionButtons extends StatelessWidget {
     final cubit = context.read<CvlLookupCubit>();
     return Column(
       children: [
-        FilledButton.icon(
-          onPressed: () => _openEditPage(context, record),
-          icon: const Icon(Icons.edit_outlined),
-          label: const Text('Edit'),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: () => _openEditPage(context, record),
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Edit'),
+          ),
         ),
         const SizedBox(height: 8),
-        if (record.hasQr)
-          OutlinedButton.icon(
-            onPressed: () => confirmAndRemoveQr(
-              context,
-              fullName: record.fullName,
-              onRemoveQr: cubit.removeQr,
-            ),
-            icon: const Icon(Icons.qr_code_scanner_outlined),
-            label: const Text('Remove QR Code'),
-          )
-        else
-          OutlinedButton.icon(
-            onPressed: () => openSetQrSheet(
-              context,
-              fullName: record.fullName,
-              onSetQr: cubit.setQr,
-            ),
-            icon: const Icon(Icons.qr_code_2_outlined),
-            label: const Text('Set QR Code'),
-          ),
+        SizedBox(
+          width: double.infinity,
+          child: record.hasQr
+              ? OutlinedButton.icon(
+                  onPressed: () => confirmAndRemoveQr(
+                    context,
+                    fullName: record.fullName,
+                    onRemoveQr: cubit.removeQr,
+                  ),
+                  icon: const Icon(Icons.qr_code_scanner_outlined),
+                  label: const Text('Remove QR Code'),
+                )
+              : OutlinedButton.icon(
+                  onPressed: () => openSetQrSheet(
+                    context,
+                    fullName: record.fullName,
+                    onSetQr: cubit.setQr,
+                  ),
+                  icon: const Icon(Icons.qr_code_2_outlined),
+                  label: const Text('Set QR Code'),
+                ),
+        ),
       ],
     );
   }
