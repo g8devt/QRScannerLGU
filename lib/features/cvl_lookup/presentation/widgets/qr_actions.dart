@@ -2,34 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../qr_scanner/data/datasources/mobile_scanner_datasource.dart';
 import '../../../qr_scanner/presentation/bloc/scanner_bloc.dart';
 import '../../../qr_scanner/presentation/bloc/scanner_event.dart';
 import '../../../qr_scanner/presentation/bloc/scanner_state.dart';
 import '../../../qr_scanner/presentation/widgets/scanner_overlay.dart';
 import '../../domain/repositories/cvl_repository.dart';
-
-/// Generic single-button ("OK") message dialog, used for both the set-QR
-/// and remove-QR flows' rejection messages.
-Future<void> showQrMessageDialog(
-  BuildContext context, {
-  required String title,
-  required String message,
-}) {
-  return showDialog<void>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(title),
-      content: Text(message),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text('OK'),
-        ),
-      ],
-    ),
-  );
-}
 
 /// Opens [SetQrSheet] for [fullName], calling [onSetQr] once a scanned
 /// code is confirmed, then shows a confirmation snackbar on the current
@@ -66,27 +45,16 @@ Future<void> confirmAndRemoveQr(
   required String fullName,
   required Future<void> Function() onRemoveQr,
 }) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('Remove QR code?'),
-      content: Text(
+  final confirmed = await showConfirmDialog(
+    context,
+    title: 'Remove QR code?',
+    message:
         'This will unassign the QR code from $fullName and free '
         'it for reuse on another record.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text('Remove'),
-        ),
-      ],
-    ),
+    confirmLabel: 'Remove',
+    isDestructive: true,
   );
-  if (confirmed != true || !context.mounted) return;
+  if (!confirmed || !context.mounted) return;
 
   try {
     await onRemoveQr();
@@ -96,14 +64,14 @@ Future<void> confirmAndRemoveQr(
       ..showSnackBar(const SnackBar(content: Text('QR code removed.')));
   } on CvlLookupException catch (e) {
     if (!context.mounted) return;
-    await showQrMessageDialog(
+    await showMessageDialog(
       context,
       title: 'Could not remove QR code',
       message: e.message,
     );
   } catch (e) {
     if (!context.mounted) return;
-    await showQrMessageDialog(
+    await showMessageDialog(
       context,
       title: 'Could not remove QR code',
       message: 'Network error — could not reach the server: $e',
@@ -163,25 +131,14 @@ class _SetQrSheetState extends State<SetQrSheet> {
       _phase = _SetQrPhase.confirming;
       _errorMessage = null;
     });
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Set QR code?'),
-        content: Text('Assign this QR code to ${widget.fullName}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Set'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Set QR code?',
+      message: 'Assign this QR code to ${widget.fullName}?',
+      confirmLabel: 'Set',
     );
     if (!mounted) return;
-    if (confirmed != true) {
+    if (!confirmed) {
       _retry();
       return;
     }
@@ -207,18 +164,10 @@ class _SetQrSheetState extends State<SetQrSheet> {
   /// it's dismissed — mirrors the confirm dialog's "stay in the sheet"
   /// behavior rather than closing it outright.
   Future<void> _showRejectionDialog(String message) async {
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Could not set QR code'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+    await showMessageDialog(
+      context,
+      title: 'Could not set QR code',
+      message: message,
     );
     if (mounted) _retry();
   }
