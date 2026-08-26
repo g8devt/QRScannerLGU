@@ -57,6 +57,17 @@
   deliberately invalid token) returning a normal `403 Access Denied`
   body with `FunctionError: null` — proves the new module imports and
   routes cleanly at cold start.
+- **Deployed from this repo:** 2026-08-26 — added `update_cvl_info_bataan`
+  to the same `cvl_records_bataan.py` + its `ROUTES` entry (the "Search
+  CVL Record" list's Edit action — updates `cvl_contact_no`/`cvl_email`/
+  `cvl_gender` individually, each optional but at least one required).
+  Same pull-live/merge-diff/deploy method: pulled the live package fresh
+  immediately before deploying, confirmed zero drift from this mirror
+  beyond this not-yet-deployed addition, applied only it, and deployed
+  via `aws lambda update-function-code`. Verified post-deploy:
+  `LastUpdateStatus: Successful`, two clean invokes (`update_cvl_info_bataan`
+  and `remove_cvl_qr_bataan`, both with a deliberately invalid token)
+  returning a normal `403 Access Denied` body with `FunctionError: null`.
 
 ## Configuration
 
@@ -66,8 +77,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-08-26T12:00:04.000+0000",
-    "CodeSha256": "RnZlzpX2xGp/ZGxrZh/qcZwHrIGAUj2i71Ja29so8Ek="
+    "LastModified": "2026-08-26T13:24:28.000+0000",
+    "CodeSha256": "gyYfCuR2Z7awC6t34cK25+nrMHGAba4RKUwrIaxCKAI="
 }
 ```
 
