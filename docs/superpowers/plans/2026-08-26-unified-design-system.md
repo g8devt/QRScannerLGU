@@ -870,7 +870,7 @@ git commit -m "feat(auth): restyle login page with AppTheme and shared confirm d
 Add the import:
 
 ```dart
-import '../../../core/widgets/confirm_dialog.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 ```
 
 Replace `_confirmLogout`:
@@ -1303,7 +1303,7 @@ git commit -m "refactor(cvl_lookup): route qr_actions dialogs through shared hel
 Add the import:
 
 ```dart
-import '../../../core/widgets/info_card.dart';
+import '../../../../core/widgets/info_card.dart';
 ```
 
 Replace each of the three `_SectionCard(...)` usages in
@@ -1490,7 +1490,7 @@ git commit -m "feat(cvl_lookup): use shared InfoCard, FilledButton in CVL Record
 Add the import:
 
 ```dart
-import '../../../core/widgets/info_card.dart';
+import '../../../../core/widgets/info_card.dart';
 ```
 
 `_ReadOnlySection` has a subtitle disclaimer line
@@ -1633,7 +1633,7 @@ git commit -m "feat(cvl_lookup): use shared InfoCard in CVL Edit Record"
 Add the import:
 
 ```dart
-import '../../../core/widgets/info_card.dart';
+import '../../../../core/widgets/info_card.dart';
 ```
 
 Replace each of the six `_SectionCard(...)` usages in `_DetailsView.build()`
