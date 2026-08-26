@@ -68,6 +68,26 @@
   `LastUpdateStatus: Successful`, two clean invokes (`update_cvl_info_bataan`
   and `remove_cvl_qr_bataan`, both with a deliberately invalid token)
   returning a normal `403 Access Denied` body with `FunctionError: null`.
+- **Deployed from this repo:** 2026-08-26 — fixed a real production bug in
+  `update_cvl_photo_bataan` (same `cvl_records_bataan.py`, no `ROUTES`
+  change — same action name): removed a duplicated `record_id` segment
+  from the uploaded S3 key (`cvl/<id>/<id>/...` -> `cvl/<id>/...`), and
+  added an explicit `_MAX_IMG_PATH_LENGTH` guard that fails the request
+  with a clear error if a URL would exceed `cvl_img_path`'s column
+  width, instead of ever again relying on silent DB-level truncation
+  (root cause of a broken, extension-less `cvl_img_path` found in
+  production — the stored URL was exactly 100 characters, the old
+  column's exact width). Same pull-live/merge-diff/deploy method
+  (drift-checked, none found beyond this change). Verified post-deploy:
+  `LastUpdateStatus: Successful`, clean invoke with `FunctionError: null`.
+  Paired DB migration `034_widen_cvl_img_path.sql` (widens
+  `cvl_img_path` to `varchar(512)`) was applied separately and directly
+  by the project owner against live `bataan_db` — this dev machine has
+  no network path to the RDS instance (VPC-private, connection times
+  out), so it could not be run or independently re-verified from here.
+  The owner confirmed via `SHOW COLUMNS` that `cvl_img_path` now reads
+  `varchar(512)`, matching this deploy's `_MAX_IMG_PATH_LENGTH = 512`
+  guard.
 
 ## Configuration
 
@@ -77,8 +97,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-08-26T13:24:28.000+0000",
-    "CodeSha256": "gyYfCuR2Z7awC6t34cK25+nrMHGAba4RKUwrIaxCKAI="
+    "LastModified": "2026-08-26T14:14:06.000+0000",
+    "CodeSha256": "AgiTtkP8Vm4mEqKcJ5zSB8tQ8lt7PfoXvzG/106fUUw="
 }
 ```
 
