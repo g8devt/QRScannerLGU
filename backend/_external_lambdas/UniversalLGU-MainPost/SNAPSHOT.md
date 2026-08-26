@@ -3,6 +3,11 @@
 - **Account:** 425605448087
 - **Region:** ap-southeast-1
 - **Pulled:** 2026-08-26 (previously 2026-08-25, 2026-08-19, 2026-08-10)
+- **Verified live (no drift):** 2026-08-26 (second pull same day) — pulled
+  the live package again before deploying `remove_cvl_qr_bataan`;
+  `CodeSha256`/`LastModified` matched this file exactly, and a full
+  file-list + content diff (line-ending-insensitive, Bataan/shared code
+  only) found nothing beyond the not-yet-deployed local addition below.
 - **Pulled from live:** 2026-08-26 — synced `set_cvl_qr_bataan`
   (`endpoints/cvl_records_bataan.py` + its `ROUTES` entry in
   `lambda_function.py`), which had been deployed live in an earlier
@@ -39,6 +44,19 @@
   Same pull-live/merge-diff/deploy method (drift-checked, none found).
   Verified post-deploy: `LastUpdateStatus: Successful`, two clean
   invokes with `FunctionError: null`.
+- **Deployed from this repo:** 2026-08-26 — added `remove_cvl_qr_bataan`
+  to the same `cvl_records_bataan.py` + its `ROUTES` entry (the "Search
+  CVL Record" list's Remove QR action — the counterpart to
+  `set_cvl_qr_bataan`; frees the code in `app_qr_code` back to
+  `AVAILABLE` and clears `app_cvl_list.cvl_qr`). Same pull-live/merge-
+  diff/deploy method: pulled the live package fresh immediately before
+  deploying, confirmed it had zero drift from this mirror, applied only
+  this addition, and deployed via `aws lambda update-function-code`.
+  Verified post-deploy: `LastUpdateStatus: Successful`, two clean
+  invokes (`remove_cvl_qr_bataan` and `set_cvl_qr_bataan`, both with a
+  deliberately invalid token) returning a normal `403 Access Denied`
+  body with `FunctionError: null` — proves the new module imports and
+  routes cleanly at cold start.
 
 ## Configuration
 
@@ -48,8 +66,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-08-26T08:44:39.000+0000",
-    "CodeSha256": "IvyGgtWfi7WV8kqULlprf0jbQhbkpanGM4sa4ByDjxU="
+    "LastModified": "2026-08-26T12:00:04.000+0000",
+    "CodeSha256": "RnZlzpX2xGp/ZGxrZh/qcZwHrIGAUj2i71Ja29so8Ek="
 }
 ```
 
