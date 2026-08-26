@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/widgets/info_card.dart';
 import '../../domain/entities/social_service_details.dart';
 import '../bloc/service_details_cubit.dart';
 import '../bloc/service_details_state.dart';
@@ -72,9 +73,13 @@ class _ErrorView extends StatelessWidget {
           children: [
             Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error, size: 64),
             const SizedBox(height: 16),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
+            FilledButton.icon(
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.qr_code_scanner),
               label: const Text('Scan Again'),
@@ -97,7 +102,7 @@ class _DetailsView extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _SectionCard(
+          InfoCard(
             title: 'Application',
             rows: {
               'Application #': details.applicationNumber,
@@ -108,7 +113,8 @@ class _DetailsView extends StatelessWidget {
               if (details.briefDescription.isNotEmpty) 'Description': details.briefDescription,
             },
           ),
-          _SectionCard(
+          const SizedBox(height: 12),
+          InfoCard(
             title: 'Beneficiary',
             rows: {
               if (details.beneficiaryName.isNotEmpty) 'Beneficiary': details.beneficiaryName,
@@ -120,7 +126,8 @@ class _DetailsView extends StatelessWidget {
               if (details.requestedForEmail.isNotEmpty) 'Email': details.requestedForEmail,
             },
           ),
-          _SectionCard(
+          const SizedBox(height: 12),
+          InfoCard(
             title: 'Address',
             rows: {
               if (details.requestedForAddress.isNotEmpty) 'Address': details.requestedForAddress,
@@ -129,14 +136,16 @@ class _DetailsView extends StatelessWidget {
               if (details.requestedForProvince.isNotEmpty) 'Province': details.requestedForProvince,
             },
           ),
-          _SectionCard(
+          const SizedBox(height: 12),
+          InfoCard(
             title: 'Amount',
             rows: {
               if (details.amount.isNotEmpty) 'Requested Amount': _formatAmount(details.amount),
               if (details.claimedAmount.isNotEmpty) 'Claimed Amount': _formatAmount(details.claimedAmount),
             },
           ),
-          _SectionCard(
+          const SizedBox(height: 12),
+          InfoCard(
             title: 'Appointment',
             rows: {
               if (details.appointmentDate.isNotEmpty) 'Date': details.appointmentDate,
@@ -144,7 +153,8 @@ class _DetailsView extends StatelessWidget {
               if (details.appointmentLocation.isNotEmpty) 'Location': details.appointmentLocation,
             },
           ),
-          _SectionCard(
+          const SizedBox(height: 12),
+          InfoCard(
             title: 'Timeline',
             rows: {
               if (details.dateRequested.isNotEmpty) 'Requested': details.dateRequested,
@@ -154,9 +164,10 @@ class _DetailsView extends StatelessWidget {
               if (details.dateClaimed.isNotEmpty) 'Claimed': details.dateClaimed,
             },
           ),
+          const SizedBox(height: 12),
           _DocumentsSection(details: details),
           const SizedBox(height: 16),
-          ElevatedButton.icon(
+          FilledButton.icon(
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(Icons.qr_code_scanner),
             label: const Text('Scan Another'),
@@ -310,44 +321,3 @@ class _ImageViewerPage extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.rows});
-
-  final String title;
-  final Map<String, String> rows;
-
-  @override
-  Widget build(BuildContext context) {
-    if (rows.isEmpty) return const SizedBox.shrink();
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            for (final entry in rows.entries)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 140,
-                      child: Text(
-                        entry.key,
-                        style: TextStyle(color: Theme.of(context).colorScheme.outline),
-                      ),
-                    ),
-                    Expanded(child: Text(entry.value)),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
