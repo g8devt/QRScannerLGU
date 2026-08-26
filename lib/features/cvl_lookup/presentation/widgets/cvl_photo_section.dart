@@ -38,53 +38,67 @@ class CvlPhotoSection extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: 80,
-                height: 80,
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: record.hasDisplayableImage
-                    ? Image.network(
-                        record.imgPath,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, progress) {
-                          if (progress == null) return child;
-                          return const Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) => Icon(
-                          Icons.broken_image_outlined,
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
-                      )
-                    : Icon(
-                        Icons.person_outline,
-                        size: 40,
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: isUpdatingPhoto ? null : () => _editPhoto(context),
-                icon: isUpdatingPhoto
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.edit_outlined),
-                label: Text(isUpdatingPhoto ? 'Uploading...' : 'Edit Photo'),
-              ),
+            Text('Photo', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    child: record.hasDisplayableImage
+                        ? Image.network(
+                            record.imgPath,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return const Center(
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) =>
+                                Icon(
+                                  Icons.broken_image_outlined,
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
+                          )
+                        : Icon(
+                            Icons.person_outline,
+                            size: 40,
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: isUpdatingPhoto
+                        ? null
+                        : () => _editPhoto(context),
+                    icon: isUpdatingPhoto
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.edit_outlined),
+                    label: Text(isUpdatingPhoto ? 'Uploading...' : 'Edit Photo'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

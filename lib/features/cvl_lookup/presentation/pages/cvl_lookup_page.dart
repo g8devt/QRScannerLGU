@@ -133,7 +133,6 @@ class _DetailsView extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          CvlPhotoSection(record: record, isUpdatingPhoto: isUpdatingPhoto),
           _SectionCard(
             title: 'Identity',
             rows: {
@@ -168,6 +167,7 @@ class _DetailsView extends StatelessWidget {
               'Code': record.qrCode.isNotEmpty ? record.qrCode : 'Not assigned',
             },
           ),
+          CvlPhotoSection(record: record, isUpdatingPhoto: isUpdatingPhoto),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () => Navigator.of(context).pop(),
