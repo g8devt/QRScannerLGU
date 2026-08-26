@@ -99,12 +99,28 @@ class _EditFormState extends State<_EditForm> {
   late final TextEditingController _emailController;
   late String? _gender;
 
+  /// `cvl_gender` is a free-text column (no DB enum constraint) — legacy
+  /// data holds casings like "MALE" that don't exactly match
+  /// [_genderOptions]' "Male"/"Female", and DropdownButtonFormField
+  /// requires an exact value match or it throws. Normalizes to the
+  /// canonical option when it matches case-insensitively; otherwise
+  /// keeps the raw value as-is so it can still be shown (see the
+  /// dropdown's `items` in build(), which adds it as an extra entry)
+  /// instead of crashing or silently discarding it.
+  static String? _normalizeGender(String raw) {
+    if (raw.isEmpty) return null;
+    for (final option in _genderOptions) {
+      if (option.toLowerCase() == raw.toLowerCase()) return option;
+    }
+    return raw;
+  }
+
   @override
   void initState() {
     super.initState();
     _contactController = TextEditingController(text: widget.record.contactNo);
     _emailController = TextEditingController(text: widget.record.email);
-    _gender = widget.record.gender.isNotEmpty ? widget.record.gender : null;
+    _gender = _normalizeGender(widget.record.gender);
   }
 
   @override
@@ -116,7 +132,7 @@ class _EditFormState extends State<_EditForm> {
     if (oldWidget.record != widget.record) {
       _contactController.text = widget.record.contactNo;
       _emailController.text = widget.record.email;
-      _gender = widget.record.gender.isNotEmpty ? widget.record.gender : null;
+      _gender = _normalizeGender(widget.record.gender);
     }
   }
 
@@ -194,6 +210,11 @@ class _EditFormState extends State<_EditForm> {
                       items: [
                         for (final option in _genderOptions)
                           DropdownMenuItem(value: option, child: Text(option)),
+                        // Unrecognized legacy value (see _normalizeGender) —
+                        // shown as-is so the field isn't silently blanked,
+                        // and picking one of the options above overwrites it.
+                        if (_gender != null && !_genderOptions.contains(_gender))
+                          DropdownMenuItem(value: _gender, child: Text(_gender!)),
                       ],
                       onChanged: (value) => setState(() => _gender = value),
                     ),
