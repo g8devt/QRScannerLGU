@@ -28,8 +28,8 @@ class ScannerTopBar extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Container(
-            height: 56,
-            padding: const EdgeInsets.symmetric(horizontal: 22),
+            constraints: const BoxConstraints(minHeight: 56),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(24),
@@ -42,6 +42,7 @@ class ScannerTopBar extends StatelessWidget {
               ],
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
                   padding: const EdgeInsets.all(6),
@@ -59,6 +60,7 @@ class ScannerTopBar extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
