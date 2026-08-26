@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
-import '../../../cvl_lookup/presentation/pages/cvl_search_page.dart';
 import '../../../qr_scanner/presentation/pages/scanner_page.dart';
 
 /// Landing page shown right after login. Lets the scanner-staff user jump
@@ -137,18 +136,6 @@ class DashboardPage extends StatelessWidget {
                           MaterialPageRoute(
                             builder: (_) => const ScannerPage(purpose: ScanPurpose.cvlLookup),
                           ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.person_search_outlined, size: 32),
-                        title: const Text('Search CVL Record'),
-                        subtitle: const Text('Find a voter record by name'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const CvlSearchPage()),
                         ),
                       ),
                     ),

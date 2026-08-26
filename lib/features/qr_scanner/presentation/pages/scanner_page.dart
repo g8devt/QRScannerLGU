@@ -4,6 +4,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../main.dart';
 import '../../../cvl_lookup/presentation/pages/cvl_lookup_page.dart';
+import '../../../cvl_lookup/presentation/pages/cvl_search_page.dart';
 import '../../../social_service_claim/presentation/pages/service_details_page.dart';
 import '../../../social_service_claim/presentation/pages/verify_page.dart';
 import '../../data/datasources/mobile_scanner_datasource.dart';
@@ -12,6 +13,7 @@ import '../bloc/scanner_event.dart';
 import '../bloc/scanner_state.dart';
 import '../widgets/info_banner.dart';
 import '../widgets/scanner_overlay.dart';
+import '../widgets/scanner_top_bar.dart';
 
 /// What a scan should do once a QR code is detected.
 enum ScanPurpose {
@@ -137,24 +139,18 @@ class _ScannerPageState extends State<ScannerPage>
                   child: SafeArea(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: InfoBanner(
-                        icon: Icons.qr_code_scanner,
-                        trailing: IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                          ),
-                          tooltip: 'Back',
-                          onPressed: () => _goBack(context),
-                        ),
-                        child: Text(
-                          switch (widget.purpose) {
-                            ScanPurpose.viewDetails => 'Scan QR to View Details',
-                            ScanPurpose.cvlLookup => 'Scan QR to View CVL Record',
-                            ScanPurpose.claim => 'Scan QR to Fetch ID',
-                          },
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                      child: ScannerTopBar(
+                        title: switch (widget.purpose) {
+                          ScanPurpose.viewDetails => 'Scan QR to View Details',
+                          ScanPurpose.cvlLookup => 'Scan QR to View CVL Record',
+                          ScanPurpose.claim => 'Scan QR to Fetch ID',
+                        },
+                        onBack: () => _goBack(context),
+                        onSearch: widget.purpose == ScanPurpose.cvlLookup
+                            ? () => Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const CvlSearchPage()),
+                              )
+                            : null,
                       ),
                     ),
                   ),
