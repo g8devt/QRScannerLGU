@@ -73,6 +73,19 @@ class _ScannerPageState extends State<ScannerPage>
   }
 
   @override
+  void didPushNext() {
+    // Mirrors _goBack()'s reasoning: mobile_scanner's controller.start()
+    // no-ops while value.isRunning is already true (see MobileScanner
+    // Controller.start()). Without pausing here, a route pushed on top —
+    // e.g. tapping the search icon into CvlSearchPage — leaves the
+    // camera "running" underneath, so the next start() call elsewhere
+    // (the Set QR scanner sheet) silently does nothing and that sheet's
+    // preview stays blank until this page's camera is genuinely stopped
+    // and restarted at least once.
+    context.read<ScannerBloc>().add(const PauseScan());
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!mounted) return;
     final isCurrentRoute = ModalRoute.of(context)?.isCurrent == true;
