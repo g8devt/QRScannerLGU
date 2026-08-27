@@ -255,7 +255,10 @@ class _QrCodeSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('QR Code', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Kabaka QR Code',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
