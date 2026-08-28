@@ -320,7 +320,7 @@ class _QrActionSheet extends StatelessWidget {
             const SizedBox(height: 16),
             FilledButton.icon(
               icon: const Icon(Icons.qr_code_2_outlined),
-              label: const Text('Set QR Code'),
+              label: const Text('Tag Kabaka Card'),
               onPressed: result.hasQr
                   ? null
                   : () => Navigator.of(context).pop(_QrAction.setQr),
