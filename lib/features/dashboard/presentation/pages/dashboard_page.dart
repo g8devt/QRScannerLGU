@@ -92,8 +92,8 @@ class DashboardPage extends StatelessWidget {
                             color: Theme.of(context).colorScheme.onPrimaryContainer,
                           ),
                         ),
-                        title: const Text('Scan QR for Claim'),
-                        subtitle: const Text('Fetch and verify an ID'),
+                        title: const Text('Claim Assistance'),
+                        subtitle: const Text('Scan a QR to claim assistance'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
