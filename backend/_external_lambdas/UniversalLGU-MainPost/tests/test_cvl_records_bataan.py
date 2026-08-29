@@ -445,8 +445,6 @@ class SearchCvlByNameBataanTest(unittest.TestCase):
                 'mun': 'Balanga',
                 'brgy': 'Poblacion',
                 'precinct': '0001A',
-                'position_code': 'LEADER',
-                'leader': 'Barangay Captain',
                 'secondary_position': 'SUPPORTER',
                 'sector': 'PWD',
             },
@@ -458,14 +456,60 @@ class SearchCvlByNameBataanTest(unittest.TestCase):
         sql, params = args
         for column in (
             'c.cvl_mun = %s', 'c.cvl_brgy = %s', 'c.cvl_precinct_no = %s',
-            'c.cvl_position_code = %s', 'c.cvl_leader = %s',
             'c.cvl_secondary_position = %s', 'c.cvl_sector = %s',
         ):
             self.assertIn(column, sql)
         self.assertEqual(
             params,
-            ('Balanga', 'Poblacion', '0001A', 'LEADER', 'Barangay Captain', 'SUPPORTER', 'PWD', 0),
+            ('Balanga', 'Poblacion', '0001A', 'SUPPORTER', 'PWD', 0),
         )
+
+    def test_position_code_and_leader_join_leader_structure_tbl(self):
+        # Regression: c.cvl_position_code is a leader_structure_tbl.leader_unique_id
+        # code, not the major-position text itself, and c.cvl_leader is an
+        # unrelated column — matching either directly against app_cvl_list
+        # silently returned zero rows for every filter value.
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(
+            cur,
+            {'position_code': 'ATR', 'leader': 'COORDINATOR'},
+            [],
+            '2026-08-26 00:00:00',
+        )
+
+        args, _ = cur.execute.call_args
+        sql, params = args
+        self.assertIn(
+            'INNER JOIN leader_structure_tbl ls ON ls.leader_unique_id = c.cvl_position_code',
+            sql,
+        )
+        self.assertIn('ls.leader_structure_name = %s', sql)
+        self.assertIn('ls.leader_title = %s', sql)
+        self.assertNotIn('c.cvl_position_code = %s', sql)
+        self.assertNotIn('c.cvl_leader = %s', sql)
+        self.assertEqual(params, ('ATR', 'COORDINATOR', 0))
+
+    def test_position_code_only_joins_without_leader_condition(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(cur, {'position_code': 'ATR'}, [], '2026-08-26 00:00:00')
+
+        args, _ = cur.execute.call_args
+        sql, params = args
+        self.assertIn('leader_structure_tbl', sql)
+        self.assertIn('ls.leader_structure_name = %s', sql)
+        self.assertNotIn('ls.leader_title = %s', sql)
+        self.assertEqual(params, ('ATR', 0))
+
+    def test_no_leader_join_when_neither_filter_set(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(cur, {'mun': 'Balanga'}, [], '2026-08-26 00:00:00')
+
+        args, _ = cur.execute.call_args
+        sql, _ = args
+        self.assertNotIn('leader_structure_tbl', sql)
 
     def test_has_photo_yes_filters_non_empty_img_path(self):
         cur = MagicMock()

@@ -127,6 +127,23 @@
   post-deploy: `LastUpdateStatus: Successful`, clean invoke
   (`get_cvl_filter_options_bataan`, deliberately invalid token)
   returning a normal `403 Access Denied` body.
+- **Deployed from this repo:** 2026-08-29 — fixed the Major
+  Position/Leader Title filters returning zero results (same
+  `cvl_records_bataan.py`, no `ROUTES` change). Root cause:
+  `app_cvl_list.cvl_position_code` is a `leader_structure_tbl
+  .leader_unique_id` code, not the major-position/leader-title text
+  itself, and `cvl_leader` is an unrelated column — matching either
+  filter directly against `app_cvl_list` (the original implementation)
+  silently matched nothing for every value. `search_cvl_by_name_bataan`
+  now joins `leader_structure_tbl` (only when either filter is set) on
+  `leader_unique_id = c.cvl_position_code` and matches `position_code`
+  against that row's `leader_structure_name`, `leader` against its
+  `leader_title`. No app change needed — the app already sent the same
+  `position_code`/`leader` param names. Same pull-live/merge-diff/
+  deploy method (drift-checked against the prior deploy, none found).
+  Verified post-deploy: `LastUpdateStatus: Successful`, clean invoke
+  (`search_cvl_by_name_bataan` with both filters set, deliberately
+  invalid token) returning a normal `403 Access Denied` body.
 
 ## Configuration
 
@@ -136,8 +153,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-08-29T07:52:00.000+0000",
-    "CodeSha256": "q0+THGpMSS4cNlw1VOphZjTs8DbWXbaaMaYxWuXc8s0="
+    "LastModified": "2026-08-29T11:18:17.000+0000",
+    "CodeSha256": "wQMCwYOChtNKEiNdozEzAuVTD+hDaO66+qJ/hg3Ud7I="
 }
 ```
 

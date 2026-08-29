@@ -375,15 +375,47 @@ _SEARCH_PAGE_SIZE = 25
 
 # search_cvl_by_name_bataan filter params: request key -> exact-match column.
 # Each becomes an `AND column = %s` clause when present and non-empty.
+# position_code/leader are handled separately (see _search_leader_join_conditions)
+# — c.cvl_position_code isn't itself the major-position/leader-title text,
+# it's a leader_structure_tbl.leader_unique_id that must be joined to
+# resolve those.
 _SEARCH_EXACT_FILTERS = {
     'mun': 'c.cvl_mun',
     'brgy': 'c.cvl_brgy',
     'precinct': 'c.cvl_precinct_no',
-    'position_code': 'c.cvl_position_code',
-    'leader': 'c.cvl_leader',
     'secondary_position': 'c.cvl_secondary_position',
     'sector': 'c.cvl_sector',
 }
+
+
+def _search_leader_join_conditions(data):
+    """Builds the JOIN clause and WHERE conditions/params for the
+    `position_code`/`leader` filters — both resolve through the same
+    single join, `leader_structure_tbl ls ON ls.leader_unique_id =
+    c.cvl_position_code`: `position_code` matches `ls.leader_structure_name`
+    (the major position, e.g. ATR/KABAKA) and `leader` matches
+    `ls.leader_title` (the leader title, e.g. COORDINATOR/PRESIDENT) — both
+    off that same joined row, not `c.cvl_leader` (a different, unrelated
+    column). Returns `(join_clause, conditions, params)`; `join_clause` is
+    '' when neither filter is set, so the join is skipped entirely for the
+    common case of searching without them.
+    """
+    position_code = (data.get('position_code') or '').strip()
+    leader = (data.get('leader') or '').strip()
+    if not position_code and not leader:
+        return '', [], []
+
+    conditions = []
+    params = []
+    if position_code:
+        conditions.append('ls.leader_structure_name = %s')
+        params.append(position_code)
+    if leader:
+        conditions.append('ls.leader_title = %s')
+        params.append(leader)
+
+    join_clause = 'INNER JOIN leader_structure_tbl ls ON ls.leader_unique_id = c.cvl_position_code'
+    return join_clause, conditions, params
 
 # Columns whose distinct live values back the app's filter-sheet location
 # dropdowns (get_cvl_filter_options_bataan) — genuinely free-text columns
@@ -442,12 +474,15 @@ def search_cvl_by_name_bataan(cur, data, files, ts):
     minimum indexed word length would silently drop short words).
 
     Filters (all optional, AND-ed with the name match and each other):
-    `mun`, `brgy`, `precinct`, `position_code`, `leader`,
-    `secondary_position`, `sector` — each an exact match against its
-    column. `has_photo` / `has_card` — `"1"` for yes, `"0"` for no,
-    omitted/anything else for "any"; `has_photo` checks `cvl_img_path`
-    is set, `has_card` checks `cvl_qr` is set (i.e. a Kabaka Card is
-    tagged).
+    `mun`, `brgy`, `precinct`, `secondary_position`, `sector` — each an
+    exact match against its `app_cvl_list` column. `position_code` /
+    `leader` — resolved through `leader_structure_tbl` instead (see
+    `_search_leader_join_conditions`): `c.cvl_position_code` is a
+    `leader_structure_tbl.leader_unique_id`, not the major-position/
+    leader-title text itself. `has_photo` / `has_card` — `"1"` for yes,
+    `"0"` for no, omitted/anything else for "any"; `has_photo` checks
+    `cvl_img_path` is set, `has_card` checks `cvl_qr` is set (i.e. a
+    Kabaka Card is tagged).
 
     `LEFT JOIN`s `app_qr_code` so records with no QR assigned yet still
     show up. Paginated: optional `offset` (default 0) skips that many
@@ -472,6 +507,10 @@ def search_cvl_by_name_bataan(cur, data, files, ts):
             if value:
                 filter_conditions.append(f'{column} = %s')
                 filter_params.append(value)
+
+        leader_join, leader_conditions, leader_params = _search_leader_join_conditions(data)
+        filter_conditions.extend(leader_conditions)
+        filter_params.extend(leader_params)
 
         has_photo = data.get('has_photo')
         if has_photo == '1':
@@ -526,6 +565,7 @@ def search_cvl_by_name_bataan(cur, data, files, ts):
                    q.qr_code AS cvl_qr_code
             FROM app_cvl_list c
             LEFT JOIN app_qr_code q ON q.id = c.cvl_qr
+            {leader_join}
             WHERE {where_clause}
             ORDER BY c.cvl_fullname
             LIMIT {_SEARCH_PAGE_SIZE + 1} OFFSET %s
