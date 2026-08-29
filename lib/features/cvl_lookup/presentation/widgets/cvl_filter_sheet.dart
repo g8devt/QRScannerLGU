@@ -9,12 +9,13 @@ import '../bloc/cvl_search_state.dart';
 /// tri-state segmented choice; municipality/barangay/precinct as
 /// dropdowns backed by live values from [CvlSearchState.filterOptions]
 /// (genuinely free-text, organically-varying columns); major position,
-/// leader title, and sector as dropdowns from the fixed, hardcoded
-/// option lists in `cvl_search_filters.dart` (matching
-/// `bataan_lgu_admin`'s EMS dropdowns); and secondary position as fixed
-/// chips (a DB enum). Edits are held locally and only committed (popped
-/// back to the caller) on "Apply" — "Clear all" resets the local draft,
-/// not the already-applied filters, until Apply is tapped.
+/// leader title, secondary position, and sector as dropdowns from the
+/// fixed, hardcoded option lists in `cvl_search_filters.dart` (matching
+/// `bataan_lgu_admin`'s EMS dropdowns — secondary position is
+/// additionally a DB-level enum). Edits are held locally and only
+/// committed (popped back to the caller) on "Apply" — "Clear all"
+/// resets the local draft, not the already-applied filters, until
+/// Apply is tapped.
 class CvlFilterSheet extends StatefulWidget {
   const CvlFilterSheet({super.key});
 
@@ -192,14 +193,8 @@ class _FilterOptionsBody extends StatelessWidget {
           onChanged: (v) => onChanged(draft.copyWith(leaderTitle: v)),
         ),
         const SizedBox(height: 10),
-        Text(
-          'Secondary position',
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 6),
-        _ChipChoice(
+        _OptionDropdown(
+          label: 'Secondary position',
           value: draft.secondaryPosition,
           options: cvlSecondaryPositionOptions,
           onChanged: (v) => onChanged(draft.copyWith(secondaryPosition: v)),
@@ -302,36 +297,6 @@ class _OptionDropdown extends StatelessWidget {
         ),
       ],
       onChanged: (v) => onChanged(v ?? ''),
-    );
-  }
-}
-
-/// Wrap of choice chips for a fixed, hardcoded option list (secondary
-/// position's DB enum). [value] is '' for "Any".
-class _ChipChoice extends StatelessWidget {
-  const _ChipChoice({
-    required this.value,
-    required this.options,
-    required this.onChanged,
-  });
-
-  final String value;
-  final List<String> options;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: options.map((o) {
-        final selected = value == o;
-        return ChoiceChip(
-          label: Text(o),
-          selected: selected,
-          onSelected: (_) => onChanged(selected ? '' : o),
-        );
-      }).toList(),
     );
   }
 }
