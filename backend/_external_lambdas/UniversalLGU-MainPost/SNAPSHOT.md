@@ -161,6 +161,24 @@
   `LastUpdateStatus: Successful`, clean invoke
   (`get_cvl_filter_options_bataan`, deliberately invalid token)
   returning a normal `403 Access Denied` body.
+- **Deployed from this repo:** 2026-08-29 — fixed a `Server error: (1267,
+  "Illegal mix of collations (utf8mb4_general_ci,IMPLICIT) and
+  (utf8mb4_unicode_ci,IMPLICIT) for operation '='")` thrown by
+  `search_cvl_by_name_bataan` (same `cvl_records_bataan.py`, no
+  `ROUTES` change) whenever Major Position or Leader Title was used —
+  the new `leader_structure_tbl` join compared
+  `ls.leader_unique_id` (`utf8mb4_general_ci`) directly against
+  `c.cvl_position_code` (`utf8mb4_unicode_ci`), which MySQL rejects
+  outright rather than silently mismatching. Added an explicit
+  `COLLATE utf8mb4_general_ci` on the `c.cvl_position_code` side of the
+  join condition. Same pull-live/merge-diff/deploy method (drift-
+  checked, none found). Verified post-deploy: `LastUpdateStatus:
+  Successful`, clean invoke (`search_cvl_by_name_bataan` with
+  `position_code`, deliberately invalid token) returning a normal `403
+  Access Denied` body — this only confirms the code imports/routes
+  cleanly (auth rejects before the query runs); the actual collation
+  fix could only be confirmed from the app itself, not from here (no
+  valid session token available in this environment).
 
 ## Configuration
 
@@ -170,8 +188,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-08-29T11:31:16.000+0000",
-    "CodeSha256": "pewCDU/FOEdVdFPkr3k8KP2OPYN4G/Hc2DbIPBWX1gU="
+    "LastModified": "2026-08-29T11:37:42.000+0000",
+    "CodeSha256": "4KpcdrpWP5D8BJqAka5dvlQwM9msd5GCLorZ53SnMng="
 }
 ```
 

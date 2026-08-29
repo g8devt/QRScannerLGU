@@ -481,7 +481,8 @@ class SearchCvlByNameBataanTest(unittest.TestCase):
         args, _ = cur.execute.call_args
         sql, params = args
         self.assertIn(
-            'INNER JOIN leader_structure_tbl ls ON ls.leader_unique_id = c.cvl_position_code',
+            'INNER JOIN leader_structure_tbl ls '
+            'ON ls.leader_unique_id = c.cvl_position_code COLLATE utf8mb4_general_ci',
             sql,
         )
         self.assertIn('ls.leader_structure_name = %s', sql)
@@ -489,6 +490,20 @@ class SearchCvlByNameBataanTest(unittest.TestCase):
         self.assertNotIn('c.cvl_position_code = %s', sql)
         self.assertNotIn('c.cvl_leader = %s', sql)
         self.assertEqual(params, ('ATR', 'COORDINATOR', 0))
+
+    def test_join_collates_position_code_to_avoid_1267(self):
+        # Regression: leader_structure_tbl's columns are utf8mb4_general_ci
+        # while app_cvl_list.cvl_position_code is utf8mb4_unicode_ci —
+        # joining them without an explicit COLLATE is a hard MySQL error
+        # (1267, "Illegal mix of collations"), surfaced to staff as a 500
+        # every time either filter was used.
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(cur, {'position_code': 'ATR'}, [], '2026-08-26 00:00:00')
+
+        args, _ = cur.execute.call_args
+        sql, _ = args
+        self.assertIn('c.cvl_position_code COLLATE utf8mb4_general_ci', sql)
 
     def test_position_code_only_joins_without_leader_condition(self):
         cur = MagicMock()

@@ -399,6 +399,13 @@ def _search_leader_join_conditions(data):
     column). Returns `(join_clause, conditions, params)`; `join_clause` is
     '' when neither filter is set, so the join is skipped entirely for the
     common case of searching without them.
+
+    The join condition needs an explicit `COLLATE` — `leader_structure_tbl`'s
+    columns are `utf8mb4_general_ci` while `app_cvl_list.cvl_position_code`
+    is `utf8mb4_unicode_ci`; comparing two differently-collated columns
+    directly is a hard MySQL error (1267, "Illegal mix of collations"), not
+    just a silent no-match, so this can't be worked around by matching
+    values case-insensitively alone.
     """
     position_code = (data.get('position_code') or '').strip()
     leader = (data.get('leader') or '').strip()
@@ -414,7 +421,10 @@ def _search_leader_join_conditions(data):
         conditions.append('ls.leader_title = %s')
         params.append(leader)
 
-    join_clause = 'INNER JOIN leader_structure_tbl ls ON ls.leader_unique_id = c.cvl_position_code'
+    join_clause = (
+        'INNER JOIN leader_structure_tbl ls '
+        'ON ls.leader_unique_id = c.cvl_position_code COLLATE utf8mb4_general_ci'
+    )
     return join_clause, conditions, params
 
 # app_cvl_list columns whose distinct live values back the app's
