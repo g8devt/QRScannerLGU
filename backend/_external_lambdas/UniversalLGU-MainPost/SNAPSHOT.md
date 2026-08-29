@@ -89,6 +89,11 @@
   `varchar(512)`, matching this deploy's `_MAX_IMG_PATH_LENGTH = 512`
   guard.
 
+- **Checked:** 2026-08-29 — live `CodeSha256`/`LastModified` unchanged
+  since the 2026-08-26 pull; also pulled the live package fresh and
+  diffed file contents directly against this mirror (line-ending-
+  insensitive, Bataan/shared code only), confirming zero drift.
+
 ## Configuration
 
 ```json
