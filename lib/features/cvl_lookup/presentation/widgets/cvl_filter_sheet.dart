@@ -6,16 +6,20 @@ import '../bloc/cvl_search_cubit.dart';
 import '../bloc/cvl_search_state.dart';
 
 /// Bottom sheet for the "Search CVL Record" filters — photo/card as a
-/// tri-state segmented choice; municipality/barangay/precinct as
-/// dropdowns backed by live values from [CvlSearchState.filterOptions]
-/// (genuinely free-text, organically-varying columns); major position,
-/// leader title, secondary position, and sector as dropdowns from the
-/// fixed, hardcoded option lists in `cvl_search_filters.dart` (matching
-/// `bataan_lgu_admin`'s EMS dropdowns — secondary position is
-/// additionally a DB-level enum). Edits are held locally and only
-/// committed (popped back to the caller) on "Apply" — "Clear all"
-/// resets the local draft, not the already-applied filters, until
-/// Apply is tapped.
+/// tri-state segmented choice; municipality/barangay/precinct/major
+/// position/leader title as dropdowns backed by live values from
+/// [CvlSearchState.filterOptions] (municipality/barangay/precinct are
+/// genuinely free-text, organically-varying `app_cvl_list` columns;
+/// major position and leader title come from `leader_structure_tbl`
+/// instead — leader title cascades to only the titles valid for
+/// whichever major position is selected, since one major position can
+/// have several leader titles under it); and secondary position/sector
+/// as dropdowns from the fixed, hardcoded option lists in
+/// `cvl_search_filters.dart` (matching `bataan_lgu_admin`'s EMS
+/// dropdowns — secondary position is additionally a DB-level enum).
+/// Edits are held locally and only committed (popped back to the
+/// caller) on "Apply" — "Clear all" resets the local draft, not the
+/// already-applied filters, until Apply is tapped.
 class CvlFilterSheet extends StatefulWidget {
   const CvlFilterSheet({super.key});
 
@@ -182,14 +186,24 @@ class _FilterOptionsBody extends StatelessWidget {
         _OptionDropdown(
           label: 'Major position',
           value: draft.positionCode,
-          options: cvlMajorPositionOptions,
-          onChanged: (v) => onChanged(draft.copyWith(positionCode: v)),
+          options: options.majorPositions,
+          onChanged: (v) {
+            // Changing the major position can invalidate the already-picked
+            // leader title (it belongs to a different position's list) —
+            // clear it rather than silently keep applying a title the
+            // dropdown no longer shows as selected.
+            final validTitles = options.leaderTitlesFor(v);
+            final leaderTitle = validTitles.contains(draft.leaderTitle)
+                ? draft.leaderTitle
+                : '';
+            onChanged(draft.copyWith(positionCode: v, leaderTitle: leaderTitle));
+          },
         ),
         const SizedBox(height: 10),
         _OptionDropdown(
           label: 'Leader title',
           value: draft.leaderTitle,
-          options: cvlLeaderTitleOptions,
+          options: options.leaderTitlesFor(draft.positionCode),
           onChanged: (v) => onChanged(draft.copyWith(leaderTitle: v)),
         ),
         const SizedBox(height: 10),
@@ -262,7 +276,15 @@ class _TriStateChoice extends StatelessWidget {
 
 /// Dropdown for a filter column backed by live DB values. [value] is ''
 /// for "Any"; falls back to '' if it no longer appears in [options] (e.g.
-/// stale after options reload).
+/// stale after options reload, or a cascading reset from another filter
+/// changing — see the Major Position handler in [_FilterOptionsBody]).
+///
+/// Keyed on [value]: `DropdownButtonFormField`'s `initialValue` only
+/// takes effect on first build, so a value change coming from outside
+/// (not the user picking a new item in *this* dropdown) would otherwise
+/// leave the displayed selection stale. The key forces Flutter to
+/// recreate the field's state — and so re-read `initialValue` — whenever
+/// [value] changes for any reason.
 class _OptionDropdown extends StatelessWidget {
   const _OptionDropdown({
     required this.label,
@@ -280,6 +302,7 @@ class _OptionDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final safeValue = options.contains(value) ? value : '';
     return DropdownButtonFormField<String>(
+      key: ValueKey('$label:$safeValue'),
       initialValue: safeValue.isEmpty ? '' : safeValue,
       isExpanded: true,
       decoration: InputDecoration(

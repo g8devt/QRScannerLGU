@@ -568,6 +568,7 @@ class GetCvlFilterOptionsBataanTest(unittest.TestCase):
             [{'v': 'Balanga'}, {'v': 'Mariveles'}],
             [{'v': 'Poblacion'}],
             [{'v': '0001A'}],
+            [],
         ]
         result = get_cvl_filter_options_bataan(cur, {}, [], '2026-08-26 00:00:00')
         self.assertEqual(result['statusCode'], 200)
@@ -575,7 +576,32 @@ class GetCvlFilterOptionsBataanTest(unittest.TestCase):
         self.assertEqual(body['data']['mun'], ['Balanga', 'Mariveles'])
         self.assertEqual(body['data']['brgy'], ['Poblacion'])
         self.assertEqual(body['data']['precinct'], ['0001A'])
-        self.assertEqual(cur.execute.call_count, 3)
+        self.assertEqual(cur.execute.call_count, 4)
+
+    def test_major_positions_and_leader_titles_grouped_from_leader_structure_tbl(self):
+        # Regression: leader title options must cascade from the selected
+        # major position — one leader_structure_name (major position) can
+        # have several leader_titles under it (e.g. ATR has both MAIN
+        # COORDINATOR and PUROK COORDINATOR), not one universal list.
+        cur = MagicMock()
+        cur.fetchall.side_effect = [
+            [],  # mun
+            [],  # brgy
+            [],  # precinct
+            [
+                {'leader_structure_name': 'ATR', 'leader_title': 'MAIN COORDINATOR'},
+                {'leader_structure_name': 'ATR', 'leader_title': 'PUROK COORDINATOR'},
+                {'leader_structure_name': 'BECS', 'leader_title': 'PRESIDENT'},
+            ],
+        ]
+        result = get_cvl_filter_options_bataan(cur, {}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 200)
+        body = json.loads(result['body'])
+        self.assertEqual(body['data']['major_positions'], ['ATR', 'BECS'])
+        self.assertEqual(
+            body['data']['leader_titles_by_position'],
+            {'ATR': ['MAIN COORDINATOR', 'PUROK COORDINATOR'], 'BECS': ['PRESIDENT']},
+        )
 
     def test_db_error_returns_500(self):
         cur = MagicMock()

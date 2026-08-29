@@ -417,12 +417,16 @@ def _search_leader_join_conditions(data):
     join_clause = 'INNER JOIN leader_structure_tbl ls ON ls.leader_unique_id = c.cvl_position_code'
     return join_clause, conditions, params
 
-# Columns whose distinct live values back the app's filter-sheet location
-# dropdowns (get_cvl_filter_options_bataan) — genuinely free-text columns
-# with no fixed option set. position_code, leader, secondary_position, and
-# sector are all fixed admin-defined dropdowns in bataan_lgu_admin's EMS
+# app_cvl_list columns whose distinct live values back the app's
+# filter-sheet location dropdowns (get_cvl_filter_options_bataan) —
+# genuinely free-text columns with no fixed option set. secondary_position
+# and sector are fixed admin-defined dropdowns in bataan_lgu_admin's EMS
 # (cvl_secondary_position is additionally a DB-level enum) — the app
-# hardcodes those instead of fetching them here.
+# hardcodes those instead of fetching them here. Major position/leader
+# title are fetched too, but from leader_structure_tbl, not this table
+# (see get_cvl_filter_options_bataan) — cvl_position_code isn't itself
+# that text, it's a leader_structure_tbl.leader_unique_id (same as the
+# join in _search_leader_join_conditions).
 _FILTER_OPTION_COLUMNS = {
     'mun': 'cvl_mun',
     'brgy': 'cvl_brgy',
@@ -431,14 +435,23 @@ _FILTER_OPTION_COLUMNS = {
 
 
 def get_cvl_filter_options_bataan(cur, data, files, ts):
-    """Returns each free-text filterable column's distinct, non-empty
-    live values, sorted, for the "Search CVL Record" filter sheet's
-    location dropdowns.
+    """Returns each filterable column's distinct, non-empty live values,
+    sorted, for the "Search CVL Record" filter sheet's dropdowns.
 
-    No params. Major position, leader title, secondary position, and
-    sector are all fixed, admin-defined option sets the app hardcodes
-    instead of fetching, so they're not included here. Responds with
-    `{status, data: {mun, brgy, precinct}}`, each a list of strings.
+    No params. Secondary position and sector are fixed, admin-defined
+    option sets the app hardcodes instead of fetching, so they're not
+    included here. Major position and leader title, however, are
+    genuinely data-driven and fetched from `leader_structure_tbl`
+    (`app_cvl_list.cvl_position_code` doesn't hold them itself — see
+    `_search_leader_join_conditions`): `major_positions` is every
+    distinct `leader_structure_name`, and `leader_titles_by_position`
+    maps each `leader_structure_name` to its distinct `leader_title`
+    values — one leader_structure_name can have several leader_titles
+    under it (e.g. ATR has both MAIN COORDINATOR and PUROK COORDINATOR),
+    so the app's Leader Title dropdown cascades from whichever Major
+    Position is selected rather than offering one universal list.
+    Responds with `{status, data: {mun, brgy, precinct, major_positions,
+    leader_titles_by_position}}`.
     """
     try:
         options = {}
@@ -451,6 +464,23 @@ def get_cvl_filter_options_bataan(cur, data, files, ts):
                 """
             )
             options[key] = [r['v'] for r in cur.fetchall()]
+
+        cur.execute(
+            """
+            SELECT DISTINCT leader_structure_name, leader_title
+            FROM leader_structure_tbl
+            WHERE leader_structure_name IS NOT NULL AND leader_structure_name != ''
+              AND leader_title IS NOT NULL AND leader_title != ''
+            ORDER BY leader_structure_name, leader_title
+            """
+        )
+        leader_titles_by_position = {}
+        for row in cur.fetchall():
+            leader_titles_by_position.setdefault(row['leader_structure_name'], []).append(
+                row['leader_title']
+            )
+        options['major_positions'] = sorted(leader_titles_by_position)
+        options['leader_titles_by_position'] = leader_titles_by_position
 
         return ok({'status': True, 'data': options})
     except Exception as e:

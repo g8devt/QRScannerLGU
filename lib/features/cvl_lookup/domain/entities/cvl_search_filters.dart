@@ -13,43 +13,6 @@ const List<String> cvlSecondaryPositionOptions = [
   'DOUBLE ENTRY',
 ];
 
-/// Fixed list of `cvl_position_code` values, matching `bataan_lgu_admin`'s
-/// EMS dropdown — hardcoded rather than fetched via [CvlFilterOptions], the
-/// same as [cvlSecondaryPositionOptions]: this is a fixed admin-defined
-/// option set, not a free-text column with organically varying values.
-const List<String> cvlMajorPositionOptions = [
-  'ATR',
-  'BECS',
-  'D-DAY',
-  'KABAKA',
-  'R1-POLITICAL',
-];
-
-/// Fixed list of `cvl_leader` values, matching `bataan_lgu_admin`'s EMS
-/// dropdown — hardcoded for the same reason as [cvlMajorPositionOptions].
-const List<String> cvlLeaderTitleOptions = [
-  'AREA COORDINATOR',
-  'COORDINATOR',
-  'DISTRICT COORDINATOR',
-  'MAIN COORDINATOR',
-  'PRINCIPAL',
-  'BARANGAY COORDINATOR',
-  'BARANGAY COORDINATOR [CHAIRMAN]',
-  'BARANGAY COORDINATOR [KAGAWAD]',
-  'CAMPAIGN MANAGER',
-  'MEMBERS',
-  'MUNICIPAL COORDINATOR',
-  'PUROK COORDINATOR',
-  'CHIEF OF STAFF',
-  'PUROK LEADER',
-  'HOUSEHOLD LEADER',
-  'POLITICAL CONSULTANT',
-  'PRESIDENT',
-  'MEMBER',
-  'HEAD WATCHER',
-  'WATCHER',
-];
-
 /// Fixed list of `cvl_sector` values, matching `bataan_lgu_admin`'s EMS
 /// dropdown — hardcoded for the same reason as [cvlMajorPositionOptions].
 const List<String> cvlSectorOptions = [
@@ -174,35 +137,71 @@ class CvlSearchFilters extends Equatable {
   ];
 }
 
-/// The dropdown choices for [CvlSearchFilters]'s location filters, as
-/// returned by `get_cvl_filter_options_bataan` — each list is that
-/// column's distinct, non-empty live values, sorted. Major position,
-/// leader title, secondary position, and sector are fixed admin-defined
-/// option sets instead (see [cvlMajorPositionOptions] etc.), not fetched
-/// here — municipality/barangay/precinct are the only genuinely
-/// free-text, organically-varying columns among the filterable fields.
+/// The dropdown choices for [CvlSearchFilters], as returned by
+/// `get_cvl_filter_options_bataan`. Municipality/barangay/precinct are
+/// each that column's distinct, non-empty live values from `app_cvl_list`,
+/// sorted. Major position ([majorPositions]) and leader title
+/// ([leaderTitlesByPosition]) instead come from `leader_structure_tbl` —
+/// `app_cvl_list.cvl_position_code` doesn't hold that text itself, it's a
+/// `leader_structure_tbl.leader_unique_id`. One major position can have
+/// several leader titles under it (e.g. ATR has both MAIN COORDINATOR and
+/// PUROK COORDINATOR), so [leaderTitlesByPosition] maps each major
+/// position to its own leader titles rather than offering one universal
+/// list — see [leaderTitlesFor]. Secondary position and sector are fixed
+/// admin-defined option sets instead (see [cvlSecondaryPositionOptions],
+/// [cvlSectorOptions]), not fetched here.
 class CvlFilterOptions extends Equatable {
   const CvlFilterOptions({
     this.municipalities = const [],
     this.barangays = const [],
     this.precincts = const [],
+    this.majorPositions = const [],
+    this.leaderTitlesByPosition = const {},
   });
 
   final List<String> municipalities;
   final List<String> barangays;
   final List<String> precincts;
+  final List<String> majorPositions;
+  final Map<String, List<String>> leaderTitlesByPosition;
+
+  /// Leader titles valid for [majorPosition] — every title across all
+  /// positions, flattened and de-duplicated, when [majorPosition] is
+  /// empty (no position picked yet).
+  List<String> leaderTitlesFor(String majorPosition) {
+    if (majorPosition.isEmpty) {
+      return leaderTitlesByPosition.values
+          .expand((titles) => titles)
+          .toSet()
+          .toList()
+        ..sort();
+    }
+    return leaderTitlesByPosition[majorPosition] ?? const [];
+  }
 
   static List<String> _list(dynamic v) =>
       (v as List<dynamic>? ?? []).map((e) => e.toString()).toList();
 
   factory CvlFilterOptions.fromJson(Map<String, dynamic> json) {
+    final rawByPosition =
+        json['leader_titles_by_position'] as Map<String, dynamic>? ?? {};
     return CvlFilterOptions(
       municipalities: _list(json['mun']),
       barangays: _list(json['brgy']),
       precincts: _list(json['precinct']),
+      majorPositions: _list(json['major_positions']),
+      leaderTitlesByPosition: rawByPosition.map(
+        (position, titles) => MapEntry(position, _list(titles)),
+      ),
     );
   }
 
   @override
-  List<Object?> get props => [municipalities, barangays, precincts];
+  List<Object?> get props => [
+    municipalities,
+    barangays,
+    precincts,
+    majorPositions,
+    leaderTitlesByPosition,
+  ];
 }

@@ -144,6 +144,23 @@
   Verified post-deploy: `LastUpdateStatus: Successful`, clean invoke
   (`search_cvl_by_name_bataan` with both filters set, deliberately
   invalid token) returning a normal `403 Access Denied` body.
+- **Deployed from this repo:** 2026-08-29 — fixed Major Position and
+  Leader Title filter options showing the wrong/incomplete choices
+  (same `cvl_records_bataan.py`, no `ROUTES` change): the app's
+  previously hardcoded Leader Title list didn't cascade from the
+  selected Major Position, and one major position (`leader_structure_name`)
+  can have several leader titles under it (e.g. ATR has both MAIN
+  COORDINATOR and PUROK COORDINATOR) — confirmed against the live admin
+  EMS UI. `get_cvl_filter_options_bataan` now also queries
+  `leader_structure_tbl` directly for `major_positions` (every distinct
+  `leader_structure_name`) and `leader_titles_by_position` (each
+  `leader_structure_name` mapped to its own distinct `leader_title`
+  values), replacing the two hardcoded app-side lists so they can't
+  drift from the live data again the same way. Same pull-live/merge-
+  diff/deploy method (drift-checked, none found). Verified post-deploy:
+  `LastUpdateStatus: Successful`, clean invoke
+  (`get_cvl_filter_options_bataan`, deliberately invalid token)
+  returning a normal `403 Access Denied` body.
 
 ## Configuration
 
@@ -153,8 +170,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-08-29T11:18:17.000+0000",
-    "CodeSha256": "wQMCwYOChtNKEiNdozEzAuVTD+hDaO66+qJ/hg3Ud7I="
+    "LastModified": "2026-08-29T11:31:16.000+0000",
+    "CodeSha256": "pewCDU/FOEdVdFPkr3k8KP2OPYN4G/Hc2DbIPBWX1gU="
 }
 ```
 
