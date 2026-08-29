@@ -385,27 +385,28 @@ _SEARCH_EXACT_FILTERS = {
     'sector': 'c.cvl_sector',
 }
 
-# Columns whose distinct live values back the app's filter-sheet dropdowns
-# (get_cvl_filter_options_bataan). cvl_secondary_position is a fixed DB enum
-# the app hardcodes instead — not included here.
+# Columns whose distinct live values back the app's filter-sheet location
+# dropdowns (get_cvl_filter_options_bataan) — genuinely free-text columns
+# with no fixed option set. position_code, leader, secondary_position, and
+# sector are all fixed admin-defined dropdowns in bataan_lgu_admin's EMS
+# (cvl_secondary_position is additionally a DB-level enum) — the app
+# hardcodes those instead of fetching them here.
 _FILTER_OPTION_COLUMNS = {
     'mun': 'cvl_mun',
     'brgy': 'cvl_brgy',
     'precinct': 'cvl_precinct_no',
-    'position_code': 'cvl_position_code',
-    'leader': 'cvl_leader',
-    'sector': 'cvl_sector',
 }
 
 
 def get_cvl_filter_options_bataan(cur, data, files, ts):
-    """Returns each filterable column's distinct, non-empty live values,
-    sorted, for the "Search CVL Record" filter sheet's dropdowns.
+    """Returns each free-text filterable column's distinct, non-empty
+    live values, sorted, for the "Search CVL Record" filter sheet's
+    location dropdowns.
 
-    No params. `cvl_secondary_position` is a fixed DB enum the app
-    hardcodes instead of fetching, so it's not included here. Responds
-    with `{status, data: {mun, brgy, precinct, position_code, leader,
-    sector}}`, each a list of strings.
+    No params. Major position, leader title, secondary position, and
+    sector are all fixed, admin-defined option sets the app hardcodes
+    instead of fetching, so they're not included here. Responds with
+    `{status, data: {mun, brgy, precinct}}`, each a list of strings.
     """
     try:
         options = {}

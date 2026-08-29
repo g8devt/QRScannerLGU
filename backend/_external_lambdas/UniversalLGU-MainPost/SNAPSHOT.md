@@ -113,6 +113,20 @@
   returning a normal `403 Access Denied` body — proves the new
   endpoint and the relaxed name requirement import and route cleanly
   at cold start.
+- **Deployed from this repo:** 2026-08-29 — narrowed
+  `get_cvl_filter_options_bataan` (same `cvl_records_bataan.py`) to
+  only fetch `mun`/`brgy`/`precinct`, dropping `position_code`/
+  `leader`/`sector`. Those three turned out to be fixed, admin-defined
+  dropdown option sets in `bataan_lgu_admin`'s EMS (confirmed via
+  screenshots of that UI), not organically-varying free text as
+  originally assumed — the app now hardcodes their option lists
+  instead (matching the EMS dropdowns exactly), so fetching distinct
+  live values for them would have silently omitted any option not yet
+  used by an existing record. Same pull-live/merge-diff/deploy method
+  (drift-checked against the prior deploy, none found). Verified
+  post-deploy: `LastUpdateStatus: Successful`, clean invoke
+  (`get_cvl_filter_options_bataan`, deliberately invalid token)
+  returning a normal `403 Access Denied` body.
 
 ## Configuration
 
@@ -122,8 +136,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-08-29T07:36:04.000+0000",
-    "CodeSha256": "H7HlkQsK3NaabJSWvoAUONkS3KYLYtQ9WiVXeI66TT4="
+    "LastModified": "2026-08-29T07:52:00.000+0000",
+    "CodeSha256": "q0+THGpMSS4cNlw1VOphZjTs8DbWXbaaMaYxWuXc8s0="
 }
 ```
 

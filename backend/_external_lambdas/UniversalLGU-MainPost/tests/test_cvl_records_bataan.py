@@ -524,9 +524,6 @@ class GetCvlFilterOptionsBataanTest(unittest.TestCase):
             [{'v': 'Balanga'}, {'v': 'Mariveles'}],
             [{'v': 'Poblacion'}],
             [{'v': '0001A'}],
-            [{'v': 'LEADER'}],
-            [{'v': 'Barangay Captain'}],
-            [{'v': 'PWD'}],
         ]
         result = get_cvl_filter_options_bataan(cur, {}, [], '2026-08-26 00:00:00')
         self.assertEqual(result['statusCode'], 200)
@@ -534,10 +531,7 @@ class GetCvlFilterOptionsBataanTest(unittest.TestCase):
         self.assertEqual(body['data']['mun'], ['Balanga', 'Mariveles'])
         self.assertEqual(body['data']['brgy'], ['Poblacion'])
         self.assertEqual(body['data']['precinct'], ['0001A'])
-        self.assertEqual(body['data']['position_code'], ['LEADER'])
-        self.assertEqual(body['data']['leader'], ['Barangay Captain'])
-        self.assertEqual(body['data']['sector'], ['PWD'])
-        self.assertEqual(cur.execute.call_count, 6)
+        self.assertEqual(cur.execute.call_count, 3)
 
     def test_db_error_returns_500(self):
         cur = MagicMock()

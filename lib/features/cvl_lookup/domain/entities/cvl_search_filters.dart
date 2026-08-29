@@ -13,6 +13,57 @@ const List<String> cvlSecondaryPositionOptions = [
   'DOUBLE ENTRY',
 ];
 
+/// Fixed list of `cvl_position_code` values, matching `bataan_lgu_admin`'s
+/// EMS dropdown — hardcoded rather than fetched via [CvlFilterOptions], the
+/// same as [cvlSecondaryPositionOptions]: this is a fixed admin-defined
+/// option set, not a free-text column with organically varying values.
+const List<String> cvlMajorPositionOptions = [
+  'ATR',
+  'BECS',
+  'D-DAY',
+  'KABAKA',
+  'R1-POLITICAL',
+];
+
+/// Fixed list of `cvl_leader` values, matching `bataan_lgu_admin`'s EMS
+/// dropdown — hardcoded for the same reason as [cvlMajorPositionOptions].
+const List<String> cvlLeaderTitleOptions = [
+  'AREA COORDINATOR',
+  'COORDINATOR',
+  'DISTRICT COORDINATOR',
+  'MAIN COORDINATOR',
+  'PRINCIPAL',
+  'BARANGAY COORDINATOR',
+  'BARANGAY COORDINATOR [CHAIRMAN]',
+  'BARANGAY COORDINATOR [KAGAWAD]',
+  'CAMPAIGN MANAGER',
+  'MEMBERS',
+  'MUNICIPAL COORDINATOR',
+  'PUROK COORDINATOR',
+  'CHIEF OF STAFF',
+  'PUROK LEADER',
+  'HOUSEHOLD LEADER',
+  'POLITICAL CONSULTANT',
+  'PRESIDENT',
+  'MEMBER',
+  'HEAD WATCHER',
+  'WATCHER',
+];
+
+/// Fixed list of `cvl_sector` values, matching `bataan_lgu_admin`'s EMS
+/// dropdown — hardcoded for the same reason as [cvlMajorPositionOptions].
+const List<String> cvlSectorOptions = [
+  '4Ps',
+  'FARMER',
+  'FISHERFOLKS',
+  'LGBTQIA+',
+  'OFW',
+  'PWD',
+  'SENIOR',
+  'SOLO PARENTS',
+  'WOMAN',
+];
+
 /// A yes/no filter that can also be left unset ("any").
 enum TriState { any, yes, no }
 
@@ -123,25 +174,23 @@ class CvlSearchFilters extends Equatable {
   ];
 }
 
-/// The dropdown choices for [CvlSearchFilters], as returned by
-/// `get_cvl_filter_options_bataan` — each list is that column's distinct,
-/// non-empty live values, sorted.
+/// The dropdown choices for [CvlSearchFilters]'s location filters, as
+/// returned by `get_cvl_filter_options_bataan` — each list is that
+/// column's distinct, non-empty live values, sorted. Major position,
+/// leader title, secondary position, and sector are fixed admin-defined
+/// option sets instead (see [cvlMajorPositionOptions] etc.), not fetched
+/// here — municipality/barangay/precinct are the only genuinely
+/// free-text, organically-varying columns among the filterable fields.
 class CvlFilterOptions extends Equatable {
   const CvlFilterOptions({
     this.municipalities = const [],
     this.barangays = const [],
     this.precincts = const [],
-    this.positionCodes = const [],
-    this.leaderTitles = const [],
-    this.sectors = const [],
   });
 
   final List<String> municipalities;
   final List<String> barangays;
   final List<String> precincts;
-  final List<String> positionCodes;
-  final List<String> leaderTitles;
-  final List<String> sectors;
 
   static List<String> _list(dynamic v) =>
       (v as List<dynamic>? ?? []).map((e) => e.toString()).toList();
@@ -151,19 +200,9 @@ class CvlFilterOptions extends Equatable {
       municipalities: _list(json['mun']),
       barangays: _list(json['brgy']),
       precincts: _list(json['precinct']),
-      positionCodes: _list(json['position_code']),
-      leaderTitles: _list(json['leader']),
-      sectors: _list(json['sector']),
     );
   }
 
   @override
-  List<Object?> get props => [
-    municipalities,
-    barangays,
-    precincts,
-    positionCodes,
-    leaderTitles,
-    sectors,
-  ];
+  List<Object?> get props => [municipalities, barangays, precincts];
 }

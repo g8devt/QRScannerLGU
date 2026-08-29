@@ -6,12 +6,15 @@ import '../bloc/cvl_search_cubit.dart';
 import '../bloc/cvl_search_state.dart';
 
 /// Bottom sheet for the "Search CVL Record" filters — photo/card as a
-/// tri-state segmented choice, municipality/barangay/precinct/major
-/// position/leader title/sector as dropdowns backed by
-/// [CvlSearchState.filterOptions], and secondary position as fixed chips
-/// (a DB enum, not fetched). Edits are held locally and only committed
-/// (popped back to the caller) on "Apply" — "Clear all" resets the local
-/// draft, not the already-applied filters, until Apply is tapped.
+/// tri-state segmented choice; municipality/barangay/precinct as
+/// dropdowns backed by live values from [CvlSearchState.filterOptions]
+/// (genuinely free-text, organically-varying columns); major position,
+/// leader title, and sector as dropdowns from the fixed, hardcoded
+/// option lists in `cvl_search_filters.dart` (matching
+/// `bataan_lgu_admin`'s EMS dropdowns); and secondary position as fixed
+/// chips (a DB enum). Edits are held locally and only committed (popped
+/// back to the caller) on "Apply" — "Clear all" resets the local draft,
+/// not the already-applied filters, until Apply is tapped.
 class CvlFilterSheet extends StatefulWidget {
   const CvlFilterSheet({super.key});
 
@@ -178,14 +181,14 @@ class _FilterOptionsBody extends StatelessWidget {
         _OptionDropdown(
           label: 'Major position',
           value: draft.positionCode,
-          options: options.positionCodes,
+          options: cvlMajorPositionOptions,
           onChanged: (v) => onChanged(draft.copyWith(positionCode: v)),
         ),
         const SizedBox(height: 10),
         _OptionDropdown(
           label: 'Leader title',
           value: draft.leaderTitle,
-          options: options.leaderTitles,
+          options: cvlLeaderTitleOptions,
           onChanged: (v) => onChanged(draft.copyWith(leaderTitle: v)),
         ),
         const SizedBox(height: 10),
@@ -206,7 +209,7 @@ class _FilterOptionsBody extends StatelessWidget {
         _OptionDropdown(
           label: 'Sector',
           value: draft.sector,
-          options: options.sectors,
+          options: cvlSectorOptions,
           onChanged: (v) => onChanged(draft.copyWith(sector: v)),
         ),
         const SizedBox(height: 8),
