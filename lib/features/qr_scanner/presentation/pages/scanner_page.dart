@@ -11,7 +11,6 @@ import '../../data/datasources/mobile_scanner_datasource.dart';
 import '../bloc/scanner_bloc.dart';
 import '../bloc/scanner_event.dart';
 import '../bloc/scanner_state.dart';
-import '../widgets/info_banner.dart';
 import '../widgets/scanner_overlay.dart';
 import '../widgets/scanner_top_bar.dart';
 
@@ -129,7 +128,15 @@ class _ScannerPageState extends State<ScannerPage>
       child: Scaffold(
         body: BlocConsumer<ScannerBloc, ScannerState>(
           listener: (context, state) {
-            if (state is ScannerDetected) {
+            // ScannerPage stays mounted underneath whatever gets pushed on
+            // top of it (e.g. CvlLookupPage, then its Set QR sheet), but it
+            // keeps listening to this same shared ScannerBloc. Without this
+            // guard, a scan performed by something on top (like the Set QR
+            // sheet's own camera) also gets treated as a detection here,
+            // pushing a duplicate page for the same raw value and racing
+            // whatever that top screen is doing with it.
+            final isCurrentRoute = ModalRoute.of(context)?.isCurrent == true;
+            if (state is ScannerDetected && isCurrentRoute) {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => switch (widget.purpose) {
@@ -146,62 +153,100 @@ class _ScannerPageState extends State<ScannerPage>
             }
           },
           builder: (context, state) {
+            final scheme = Theme.of(context).colorScheme;
+            final title = switch (widget.purpose) {
+              ScanPurpose.viewDetails => 'Scan to View Details',
+              ScanPurpose.cvlLookup => 'Scan to View CVL Record',
+              ScanPurpose.claim => 'Scan to Fetch ID',
+            };
+            final subtitle = switch (widget.purpose) {
+              ScanPurpose.viewDetails =>
+                'Align the QR within the frame to view application details.',
+              ScanPurpose.cvlLookup =>
+                'Align the QR within the frame to view the CVL record.',
+              ScanPurpose.claim =>
+                'Align the QR within the frame. After scan, you can capture a verification photo.',
+            };
             return Stack(
               fit: StackFit.expand,
               children: [
                 MobileScanner(controller: controller),
-                const ScannerOverlay(),
+                ScannerOverlay(isDetected: state is ScannerDetected),
+                // Minimal top chrome: just the controls, no title bar —
+                // the frame is the focal point, not a page header pasted
+                // over the camera feed.
                 Align(
                   alignment: Alignment.topCenter,
                   child: SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: ScannerTopBar(
-                        title: switch (widget.purpose) {
-                          ScanPurpose.viewDetails => 'Scan QR to View Details',
-                          ScanPurpose.cvlLookup => 'Scan QR to View CVL Record',
-                          ScanPurpose.claim => 'Scan QR to Fetch ID',
-                        },
-                        onBack: () => _goBack(context),
-                        onSearch: widget.purpose == ScanPurpose.cvlLookup
-                            ? () => Navigator.of(context).push(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Row(
+                        children: [
+                          ScannerIconButton(
+                            icon: Icons.close_rounded,
+                            tooltip: 'Close',
+                            onPressed: () => _goBack(context),
+                          ),
+                          const Spacer(),
+                          if (widget.purpose == ScanPurpose.cvlLookup)
+                            ScannerIconButton(
+                              icon: Icons.search_rounded,
+                              tooltip: 'Search by name',
+                              onPressed: () => Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => const CvlSearchPage(),
                                 ),
-                              )
-                            : null,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
                 ),
+                // Caption + controls anchored to the bottom, below the
+                // centered frame — matches a modern scanner app's
+                // "Scan Code" caption over a floating control pill,
+                // rather than a hint banner competing with the frame.
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: InfoBanner(
-                        icon: Icons.info_outline,
-                        trailing: state is ScannerScanning
-                            ? IconButton(
-                                icon: Icon(
-                                  state.torchOn
-                                      ? Icons.flash_on
-                                      : Icons.flash_off,
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            title,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
                                   color: Colors.white,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                                onPressed: () => context
-                                    .read<ScannerBloc>()
-                                    .add(const ToggleTorch()),
-                              )
-                            : null,
-                        child: Text(switch (widget.purpose) {
-                          ScanPurpose.viewDetails =>
-                            'Align the QR within the frame to view application details.',
-                          ScanPurpose.cvlLookup =>
-                            'Align the QR within the frame to view the CVL record.',
-                          ScanPurpose.claim =>
-                            'Align the QR within the frame. After scan, you can capture a verification photo.',
-                        }),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            subtitle,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.75),
+                                  height: 1.3,
+                                ),
+                          ),
+                          const SizedBox(height: 20),
+                          if (state is ScannerScanning)
+                            ScannerIconButton(
+                              icon: state.torchOn
+                                  ? Icons.flash_on_rounded
+                                  : Icons.flash_off_rounded,
+                              tooltip: 'Toggle flashlight',
+                              active: state.torchOn,
+                              onPressed: () => context.read<ScannerBloc>().add(
+                                const ToggleTorch(),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
@@ -209,19 +254,31 @@ class _ScannerPageState extends State<ScannerPage>
                 if (state is ScannerError)
                   Center(
                     child: Card(
+                      color: scheme.errorContainer,
                       margin: const EdgeInsets.all(24),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(20),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(state.message, textAlign: TextAlign.center),
+                            Icon(
+                              Icons.error_outline_rounded,
+                              color: scheme.onErrorContainer,
+                              size: 32,
+                            ),
                             const SizedBox(height: 12),
-                            ElevatedButton(
+                            Text(
+                              state.message,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: scheme.onErrorContainer),
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
                               onPressed: () => context.read<ScannerBloc>().add(
                                 const RetryScan(),
                               ),
-                              child: const Text('Retry'),
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('Retry'),
                             ),
                           ],
                         ),

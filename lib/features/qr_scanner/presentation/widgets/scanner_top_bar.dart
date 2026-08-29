@@ -1,146 +1,46 @@
 import 'package:flutter/material.dart';
 
-/// Scanner's top overlay: a standalone circular back button beside a
-/// translucent title bar, with an optional "Search" pill on the trailing
-/// edge for scan purposes that also support searching by name.
-class ScannerTopBar extends StatelessWidget {
-  const ScannerTopBar({
+/// A frosted, translucent circular icon button floating over the camera
+/// preview — the scanner's whole control vocabulary (back, search,
+/// torch) is built from this one shape instead of a titled pill bar, so
+/// controls read as a camera app's chrome rather than a page header
+/// pasted onto a live feed.
+class ScannerIconButton extends StatelessWidget {
+  const ScannerIconButton({
     super.key,
-    required this.title,
-    required this.onBack,
-    this.onSearch,
-  });
-
-  final String title;
-  final VoidCallback onBack;
-  final VoidCallback? onSearch;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        _CircleButton(
-          icon: Icons.arrow_back,
-          tooltip: 'Back',
-          onPressed: onBack,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 56),
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.55),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.qr_code_scanner,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                if (onSearch != null) ...[
-                  const SizedBox(width: 10),
-                  _SearchPill(onPressed: onSearch!),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CircleButton extends StatelessWidget {
-  const _CircleButton({
     required this.icon,
     required this.tooltip,
     required this.onPressed,
+    this.active = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
 
+  /// Tints the button with the theme's accent when the control it
+  /// represents is toggled on (e.g. torch).
+  final bool active;
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: Colors.white,
+      color: active
+          ? scheme.primary
+          : Colors.black.withValues(alpha: 0.4),
       shape: const CircleBorder(),
-      elevation: 4,
-      shadowColor: Colors.black45,
-      child: IconButton(
-        icon: Icon(icon, color: Colors.black87),
-        tooltip: tooltip,
-        onPressed: onPressed,
-      ),
-    );
-  }
-}
-
-class _SearchPill extends StatelessWidget {
-  const _SearchPill({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.search,
-                color: Theme.of(context).colorScheme.primary,
-                size: 18,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'Search',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: IconButton(
+          icon: Icon(
+            icon,
+            color: active ? scheme.onPrimary : Colors.white,
+            size: 22,
           ),
+          tooltip: tooltip,
+          onPressed: onPressed,
         ),
       ),
     );

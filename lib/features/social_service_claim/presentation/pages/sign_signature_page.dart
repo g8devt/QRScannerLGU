@@ -41,13 +41,15 @@ class _SignSignaturePageState extends State<SignSignaturePage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sign Here'),
         actions: [
           IconButton(
             tooltip: 'Clear',
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: () => _controller.clear(),
           ),
         ],
@@ -56,25 +58,47 @@ class _SignSignaturePageState extends State<SignSignaturePage> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Sign inside the box below'),
+              Text('Sign inside the box below', style: textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text(
+                'Use a finger or stylus to draw the claimant\'s signature.',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
               const SizedBox(height: 16),
               Expanded(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    border: Border.all(color: Theme.of(context).colorScheme.outline),
-                    borderRadius: BorderRadius.circular(8),
+                    color: colorScheme.surfaceContainerLow,
+                    border: Border.all(color: colorScheme.outlineVariant),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Signature(controller: _controller, backgroundColor: Colors.white),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Signature(
+                      controller: _controller,
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _saving ? null : _save,
-                icon: _saving
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.check),
-                label: const Text('Use This Signature'),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _saving ? null : _save,
+                  icon: _saving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_rounded),
+                  label: const Text('Use This Signature'),
+                ),
               ),
             ],
           ),

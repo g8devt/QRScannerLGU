@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../qr_scanner/data/datasources/mobile_scanner_datasource.dart';
 import '../../../qr_scanner/presentation/bloc/scanner_bloc.dart';
@@ -24,9 +25,6 @@ Future<void> openSetQrSheet(
   final success = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
     builder: (_) => SetQrSheet(fullName: fullName, onSetQr: onSetQr),
   );
   if (success == true && context.mounted) {
@@ -228,10 +226,12 @@ class _SetQrSheetState extends State<SetQrSheet> {
                 'Set QR — ${widget.fullName}',
                 style: Theme.of(context).textTheme.titleMedium,
                 textAlign: TextAlign.center,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 10),
+              Center(child: _SetQrStatusPill(phase: _phase)),
+              const SizedBox(height: 6),
               Text(
                 _subtitle,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -242,36 +242,34 @@ class _SetQrSheetState extends State<SetQrSheet> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: SizedBox(
-                  height: 260,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      MobileScanner(controller: controller),
-                      const ScannerOverlay(),
-                      if (_phase == _SetQrPhase.validating)
-                        const ColoredBox(
-                          color: Colors.black54,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      if (_phase == _SetQrPhase.success)
-                        const ColoredBox(
-                          color: Colors.black54,
-                          child: Center(
-                            child: Icon(
-                              Icons.check_circle,
-                              color: Colors.greenAccent,
-                              size: 56,
-                            ),
-                          ),
-                        ),
-                    ],
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: scheme.outlineVariant),
+                  boxShadow: [
+                    BoxShadow(
+                      color: scheme.shadow.withValues(alpha: 0.12),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(17),
+                  child: SizedBox(
+                    height: 260,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        MobileScanner(controller: controller),
+                        const ScannerOverlay(),
+                        if (_phase == _SetQrPhase.validating)
+                          const _ValidatingOverlay(),
+                        if (_phase == _SetQrPhase.success)
+                          const _SuccessOverlay(),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -289,6 +287,151 @@ class _SetQrSheetState extends State<SetQrSheet> {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Small pill summarizing [_SetQrPhase] at a glance — mirrors
+/// `_QrStatusBadge` on the search page rather than leaving the phase
+/// only implied by the longer sentence underneath it.
+class _SetQrStatusPill extends StatelessWidget {
+  const _SetQrStatusPill({required this.phase});
+
+  final _SetQrPhase phase;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final status = Theme.of(context).extension<AppStatusColors>()!;
+    final (background, foreground, icon, label) = switch (phase) {
+      _SetQrPhase.scanning => (
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+        Icons.qr_code_scanner_rounded,
+        'Scanning',
+      ),
+      _SetQrPhase.confirming => (
+        scheme.primaryContainer,
+        scheme.onPrimaryContainer,
+        Icons.touch_app_rounded,
+        'Confirm to continue',
+      ),
+      _SetQrPhase.validating => (
+        scheme.primaryContainer,
+        scheme.onPrimaryContainer,
+        Icons.hourglass_top_rounded,
+        'Validating',
+      ),
+      _SetQrPhase.success => (
+        status.successContainer,
+        status.onSuccessContainer,
+        Icons.check_circle_rounded,
+        'QR code set',
+      ),
+      _SetQrPhase.error => (
+        scheme.errorContainer,
+        scheme.onErrorContainer,
+        Icons.error_outline_rounded,
+        'Could not set QR code',
+      ),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: foreground),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: foreground,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Scrim shown over the camera frame while the scanned code is being
+/// validated with the backend — a contained pill instead of a bare
+/// spinner floating on a flat scrim.
+class _ValidatingOverlay extends StatelessWidget {
+  const _ValidatingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.6),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 3,
+                ),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Checking…',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Scrim shown once the QR code has been accepted — the checkmark tint
+/// comes from [AppStatusColors.success] rather than a raw
+/// `Colors.greenAccent`, in a soft glowing badge instead of a bare icon.
+class _SuccessOverlay extends StatelessWidget {
+  const _SuccessOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    final status = Theme.of(context).extension<AppStatusColors>()!;
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.6),
+      child: Center(
+        child: Container(
+          width: 84,
+          height: 84,
+          decoration: BoxDecoration(
+            color: status.success,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: status.success.withValues(alpha: 0.5),
+                blurRadius: 20,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Icon(Icons.check_rounded, color: status.onSuccess, size: 44),
         ),
       ),
     );

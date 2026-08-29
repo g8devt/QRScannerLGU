@@ -87,14 +87,8 @@ class _CvlEditPageState extends State<CvlEditPage> {
             case CvlLookupStatus.loading:
               return const Center(child: CircularProgressIndicator());
             case CvlLookupStatus.failed:
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    state.errorMessage ?? 'Could not load this record.',
-                    textAlign: TextAlign.center,
-                  ),
-                ),
+              return _LoadErrorView(
+                message: state.errorMessage ?? 'Could not load this record.',
               );
             case CvlLookupStatus.loaded:
               return _EditForm(
@@ -104,6 +98,49 @@ class _CvlEditPageState extends State<CvlEditPage> {
               );
           }
         },
+      ),
+    );
+  }
+}
+
+/// Failed-to-load state — a soft circular icon badge over the error
+/// message, matching the empty/error state pattern used elsewhere (e.g.
+/// `_HintMessage` in cvl_search_page.dart) instead of bare centered text.
+class _LoadErrorView extends StatelessWidget {
+  const _LoadErrorView({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: scheme.errorContainer,
+              ),
+              child: Icon(
+                Icons.error_outline,
+                size: 40,
+                color: scheme.onErrorContainer,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -187,6 +224,29 @@ class _EditFormState extends State<_EditForm> {
 
   Future<void> _save(BuildContext context) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Save changes?'),
+        content: const Text(
+          'This will update the contact details and photo for this CVL record.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
     final cubit = context.read<CvlLookupCubit>();
 
     final stagedPhotoPath = _newPhotoPath;
@@ -218,115 +278,173 @@ class _EditFormState extends State<_EditForm> {
   @override
   Widget build(BuildContext context) {
     final record = widget.record;
-    return SafeArea(
-      child: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                'Read-only — only contact details below can be edited.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+    final scheme = Theme.of(context).colorScheme;
+    final isBusy = widget.isSaving || widget.isUpdatingPhoto;
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
                 ),
-              ),
-            ),
-            InfoCard(
-              title: 'Record Details',
-              rows: {
-                'Full Name': record.fullName,
-                if (record.gender.isNotEmpty) 'Gender': record.gender,
-                if (record.birthdate.isNotEmpty) 'Birthdate': record.birthdate,
-                if (record.address.isNotEmpty) 'Address': record.address,
-                if (record.barangay.isNotEmpty) 'Barangay': record.barangay,
-                if (record.municipality.isNotEmpty)
-                  'Municipality': record.municipality,
-                if (record.precinctNo.isNotEmpty)
-                  'Precinct No.': record.precinctNo,
-                if (record.sector.isNotEmpty) 'Sector': record.sector,
-              },
-            ),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
                   children: [
-                    Text(
-                      'Contact Details',
-                      style: Theme.of(context).textTheme.titleMedium,
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 18,
+                      color: scheme.onSurfaceVariant,
                     ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _contactController,
-                      keyboardType: TextInputType.phone,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(11),
-                      ],
-                      decoration: const InputDecoration(
-                        labelText: 'Contact No.',
-                        hintText: '09XXXXXXXXX',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Only contact details and photo below can be edited.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
-                      validator: _validateContactNo,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(labelText: 'Email'),
-                      validator: _validateEmail,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _gender,
-                      decoration: const InputDecoration(labelText: 'Gender'),
-                      items: [
-                        for (final option in _genderOptions)
-                          DropdownMenuItem(value: option, child: Text(option)),
-                        // Unrecognized legacy value (see _normalizeGender) —
-                        // shown as-is so the field isn't silently blanked,
-                        // and picking one of the options above overwrites it.
-                        if (_gender != null && !_genderOptions.contains(_gender))
-                          DropdownMenuItem(value: _gender, child: Text(_gender!)),
-                      ],
-                      onChanged: (value) => setState(() => _gender = value),
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            _EditablePhotoSection(
-              record: record,
-              newPhotoPath: _newPhotoPath,
-              onCapture: () => _capturePhoto(context),
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: (widget.isSaving || widget.isUpdatingPhoto)
-                  ? null
-                  : () => _save(context),
-              icon: (widget.isSaving || widget.isUpdatingPhoto)
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text(
-                (widget.isSaving || widget.isUpdatingPhoto)
-                    ? 'Saving...'
-                    : 'Save Changes',
+              const SizedBox(height: 16),
+              InfoCard(
+                title: 'Record Details',
+                rows: {
+                  'Full Name': record.fullName,
+                  if (record.gender.isNotEmpty) 'Gender': record.gender,
+                  if (record.birthdate.isNotEmpty)
+                    'Birthdate': record.birthdate,
+                  if (record.address.isNotEmpty) 'Address': record.address,
+                  if (record.barangay.isNotEmpty) 'Barangay': record.barangay,
+                  if (record.municipality.isNotEmpty)
+                    'Municipality': record.municipality,
+                  if (record.precinctNo.isNotEmpty)
+                    'Precinct No.': record.precinctNo,
+                  if (record.sector.isNotEmpty) 'Sector': record.sector,
+                },
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.contact_phone_outlined,
+                            size: 20,
+                            color: scheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Contact Details',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _contactController,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(11),
+                        ],
+                        decoration: const InputDecoration(
+                          labelText: 'Contact No.',
+                          hintText: '09XXXXXXXXX',
+                          prefixIcon: Icon(Icons.phone_outlined),
+                        ),
+                        validator: _validateContactNo,
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          prefixIcon: Icon(Icons.email_outlined),
+                        ),
+                        validator: _validateEmail,
+                      ),
+                      const SizedBox(height: 14),
+                      DropdownButtonFormField<String>(
+                        initialValue: _gender,
+                        decoration: const InputDecoration(
+                          labelText: 'Gender',
+                          prefixIcon: Icon(Icons.wc_outlined),
+                        ),
+                        items: [
+                          for (final option in _genderOptions)
+                            DropdownMenuItem(
+                              value: option,
+                              child: Text(option),
+                            ),
+                          // Unrecognized legacy value (see _normalizeGender) —
+                          // shown as-is so the field isn't silently blanked,
+                          // and picking one of the options above overwrites it.
+                          if (_gender != null &&
+                              !_genderOptions.contains(_gender))
+                            DropdownMenuItem(
+                              value: _gender,
+                              child: Text(_gender!),
+                            ),
+                        ],
+                        onChanged: (value) => setState(() => _gender = value),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _EditablePhotoSection(
+                record: record,
+                newPhotoPath: _newPhotoPath,
+                onCapture: () => _capturePhoto(context),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: isBusy ? null : () => _save(context),
+                  icon: isBusy
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: scheme.onPrimary,
+                          ),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: Text(
+                    isBusy ? 'Saving…' : 'Save Changes',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: scheme.onPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: scheme.primary,
+                    foregroundColor: scheme.onPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -379,14 +497,25 @@ class _EditablePhotoSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stagedPath = newPhotoPath;
+    final scheme = Theme.of(context).colorScheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Photo', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  Icons.photo_camera_back_outlined,
+                  size: 20,
+                  color: scheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text('Photo', style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 GestureDetector(
@@ -394,7 +523,7 @@ class _EditablePhotoSection extends StatelessWidget {
                       ? () => _openFullScreenPreview(context)
                       : null,
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
                     child: Container(
                       width: 80,
                       height: 80,

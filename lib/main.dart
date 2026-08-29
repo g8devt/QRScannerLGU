@@ -124,7 +124,7 @@ class MyApp extends StatelessWidget {
               child: MaterialApp(
                 title: 'Bataan LGU Scanner',
                 debugShowCheckedModeBanner: false,
-                theme: AppTheme.light,
+                theme: AppTheme.dark,
                 navigatorObservers: [routeObserver],
                 home: const AuthGate(),
               ),

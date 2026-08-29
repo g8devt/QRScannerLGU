@@ -282,63 +282,247 @@ Future<void> _openEditPage(BuildContext context, CvlSearchResult result) async {
   }
 }
 
-/// Bottom sheet offering "Set QR Code" / "Remove QR Code" for one search
-/// result — replaces jumping straight into the scanner from the row.
+/// Bottom sheet offering "Tag Kabaka Card" / "Remove QR Code" for one
+/// search result — replaces jumping straight into the scanner from the
+/// row. Leads with the record's identity and current tag status so the
+/// two actions below read as "what happens if I tap this", not a bare
+/// button pair.
 class _QrActionSheet extends StatelessWidget {
   const _QrActionSheet({required this.result});
 
   final CvlSearchResult result;
 
+  static String _initials(String fullName) {
+    final words = fullName.trim().split(RegExp(r'\s+'));
+    final letters = words
+        .where((w) => w.isNotEmpty)
+        .take(2)
+        .map((w) => w[0].toUpperCase());
+    return letters.isEmpty ? '?' : letters.join();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Center(
               child: Container(
-                width: 40,
+                width: 36,
                 height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
+                margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
                   color: scheme.outlineVariant,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-            Text(
-              result.fullName,
-              style: Theme.of(context).textTheme.titleMedium,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: scheme.primaryContainer,
+                  child: Text(
+                    _initials(result.fullName),
+                    style: textTheme.titleMedium?.copyWith(
+                      color: scheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        result.fullName,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      _QrStatusBadge(hasQr: result.hasQr),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              icon: const Icon(Icons.qr_code_2_outlined),
-              label: const Text('Tag Kabaka Card'),
-              onPressed: result.hasQr
-                  ? null
-                  : () => Navigator.of(context).pop(_QrAction.setQr),
+            const SizedBox(height: 20),
+            _QrActionTile(
+              icon: Icons.qr_code_2_rounded,
+              iconBackground: scheme.primaryContainer,
+              iconColor: scheme.onPrimaryContainer,
+              title: 'Tag Kabaka Card',
+              subtitle: result.hasQr
+                  ? 'Already tagged with a Kabaka Card'
+                  : 'Link a Kabaka Card to this record',
+              enabled: !result.hasQr,
+              onTap: () => Navigator.of(context).pop(_QrAction.setQr),
             ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.qr_code_scanner_outlined),
-              label: const Text('Remove QR Code'),
-              onPressed: result.hasQr
-                  ? () => Navigator.of(context).pop(_QrAction.removeQr)
-                  : null,
+            const SizedBox(height: 10),
+            _QrActionTile(
+              icon: Icons.qr_code_scanner_rounded,
+              iconBackground: scheme.errorContainer,
+              iconColor: scheme.onErrorContainer,
+              title: 'Remove QR Code',
+              subtitle: result.hasQr
+                  ? 'Unlink the current Kabaka Card'
+                  : 'No Kabaka Card is tagged yet',
+              enabled: result.hasQr,
+              onTap: () => Navigator.of(context).pop(_QrAction.removeQr),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancel'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small pill next to the record name showing whether a Kabaka Card is
+/// currently tagged — the same fact the two tiles below act on, made
+/// legible at a glance instead of only implied by which button is
+/// disabled.
+class _QrStatusBadge extends StatelessWidget {
+  const _QrStatusBadge({required this.hasQr});
+
+  final bool hasQr;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final background = hasQr
+        ? scheme.tertiaryContainer
+        : scheme.surfaceContainerHighest;
+    final foreground = hasQr
+        ? scheme.onTertiaryContainer
+        : scheme.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            hasQr ? Icons.check_circle_rounded : Icons.circle_outlined,
+            size: 12,
+            color: foreground,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            hasQr ? 'Kabaka Card tagged' : 'No Kabaka Card tagged',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: foreground,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One row of the QR action sheet: a colored icon chip, a title/subtitle
+/// pair, and a trailing chevron — reads as "what tapping this does"
+/// rather than a bare button. Dims and drops the chevron when [enabled]
+/// is false, matching the disabled state the plain buttons used to show.
+class _QrActionTile extends StatelessWidget {
+  const _QrActionTile({
+    required this.icon,
+    required this.iconBackground,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color iconBackground;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final contentOpacity = enabled ? 1.0 : 0.4;
+    return Material(
+      color: scheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: enabled ? onTap : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Opacity(
+                opacity: contentOpacity,
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: iconBackground,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 22),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Opacity(
+                  opacity: contentOpacity,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (enabled)
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: scheme.onSurfaceVariant,
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -518,7 +702,7 @@ class _ResultCard extends StatelessWidget {
                     Text(
                       result.fullName,
                       style: Theme.of(context).textTheme.titleSmall,
-                      maxLines: 1,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (location.isNotEmpty) ...[

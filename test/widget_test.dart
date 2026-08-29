@@ -15,5 +15,10 @@ void main() {
     await tester.pump();
 
     expect(find.byType(MaterialApp), findsOneWidget);
+
+    // AuthGate starts a 3s Future.delayed splash timer in initState();
+    // without letting it fire, the test framework flags it as "still
+    // pending" when the tree is disposed at the end of the test.
+    await tester.pump(const Duration(seconds: 3));
   });
 }

@@ -18,18 +18,28 @@ class PhotoPreviewPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: Padding(
+          padding: const EdgeInsets.all(8),
+          child: _ScrimIconButton(
+            icon: Icons.close,
+            tooltip: 'Close',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
       ),
       body: Center(
         child: InteractiveViewer(
+          minScale: 1,
+          maxScale: 4,
           child: Image(
             image: image,
+            fit: BoxFit.contain,
             // A failed load (bad/unreachable URL, offline device) would
             // otherwise surface as Flutter's default red error box.
             loadingBuilder: (context, child, progress) {
@@ -56,6 +66,33 @@ class PhotoPreviewPage extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Round, semi-transparent icon button that reads clearly over a photo of
+/// any brightness, without relying on the app bar to provide contrast.
+class _ScrimIconButton extends StatelessWidget {
+  const _ScrimIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black45,
+      shape: const CircleBorder(),
+      child: IconButton(
+        tooltip: tooltip,
+        icon: Icon(icon, color: Colors.white),
+        onPressed: onPressed,
       ),
     );
   }

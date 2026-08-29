@@ -21,17 +21,20 @@ class InfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (rows.isEmpty) return const SizedBox.shrink();
     final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            Text(title, style: textTheme.titleMedium),
             const SizedBox(height: 8),
+            Divider(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+            const SizedBox(height: 4),
             for (final entry in rows.entries)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -39,13 +42,15 @@ class InfoCard extends StatelessWidget {
                       width: _labelWidth,
                       child: Text(
                         entry.key,
-                        style: TextStyle(
+                        style: textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
-                    Expanded(child: Text(entry.value)),
+                    Expanded(
+                      child: Text(entry.value, style: textTheme.bodyMedium),
+                    ),
                   ],
                 ),
               ),

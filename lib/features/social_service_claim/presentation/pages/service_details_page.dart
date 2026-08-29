@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/info_card.dart';
 import '../../domain/entities/social_service_details.dart';
 import '../bloc/service_details_cubit.dart';
@@ -45,13 +46,39 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
             switch (state.status) {
               case ServiceDetailsStatus.initial:
               case ServiceDetailsStatus.loading:
-                return const Center(child: CircularProgressIndicator());
+                return const _LoadingView();
               case ServiceDetailsStatus.failed:
                 return _ErrorView(message: state.errorMessage ?? 'Could not load details.');
               case ServiceDetailsStatus.loaded:
                 return _DetailsView(details: state.details!);
             }
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingView extends StatelessWidget {
+  const _LoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 20),
+            Text(
+              'Loading application details…',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -65,14 +92,20 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error, size: 64),
-            const SizedBox(height: 16),
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: scheme.errorContainer),
+              child: Icon(Icons.error_outline, size: 40, color: scheme.onErrorContainer),
+            ),
+            const SizedBox(height: 20),
             Text(
               message,
               textAlign: TextAlign.center,
@@ -91,6 +124,77 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
+/// Application number + status shown as a prominent banner above the
+/// read-only detail sections — surfaces the two facts a staff member scans
+/// for first instead of burying them as just another row inside the
+/// "Application" [InfoCard].
+class _ApplicationHeader extends StatelessWidget {
+  const _ApplicationHeader({required this.details});
+
+  final SocialServiceDetails details;
+
+  static const _successStatuses = {'approved', 'released', 'claimed', 'completed'};
+  static const _warningStatuses = {'pending', 'scheduled', 'processing'};
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final status = Theme.of(context).extension<AppStatusColors>()!;
+    final textTheme = Theme.of(context).textTheme;
+    final statusLower = details.status.toLowerCase();
+
+    final Color background;
+    final Color foreground;
+    if (_successStatuses.any(statusLower.contains)) {
+      background = status.successContainer;
+      foreground = status.onSuccessContainer;
+    } else if (_warningStatuses.any(statusLower.contains)) {
+      background = status.warningContainer;
+      foreground = status.onWarningContainer;
+    } else {
+      background = scheme.surfaceContainerHighest;
+      foreground = scheme.onSurfaceVariant;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(18)),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Application #',
+                  style: textTheme.labelSmall?.copyWith(color: scheme.onPrimaryContainer),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  details.applicationNumber,
+                  style: textTheme.titleMedium?.copyWith(color: scheme.onPrimaryContainer),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          if (details.status.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(10)),
+              child: Text(
+                details.status,
+                style: textTheme.labelMedium?.copyWith(color: foreground, fontWeight: FontWeight.w600),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DetailsView extends StatelessWidget {
   const _DetailsView({required this.details});
 
@@ -102,11 +206,11 @@ class _DetailsView extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          _ApplicationHeader(details: details),
+          const SizedBox(height: 12),
           InfoCard(
             title: 'Application',
             rows: {
-              'Application #': details.applicationNumber,
-              'Status': details.status,
               'Service Type': details.serviceType,
               if (details.serviceSubCategory.isNotEmpty) 'Sub-category': details.serviceSubCategory,
               if (details.assistanceType.isNotEmpty) 'Assistance Type': details.assistanceType,

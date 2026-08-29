@@ -13,8 +13,9 @@ class StopPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
-      backgroundColor: Colors.red.shade50,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -22,21 +23,44 @@ class StopPage extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.block, color: Colors.red.shade700, size: 64),
-                const SizedBox(height: 16),
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colorScheme.errorContainer,
+                  ),
+                  child: Icon(
+                    Icons.block_rounded,
+                    size: 44,
+                    color: colorScheme.onErrorContainer,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Claim cannot proceed',
+                  style: textTheme.titleMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
                 Text(
                   reason,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: textTheme.headlineSmall,
                 ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    context.read<ClaimBloc>().add(const ClaimSessionReset());
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  },
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('Scan Again'),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      context.read<ClaimBloc>().add(const ClaimSessionReset());
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Scan Again'),
+                  ),
                 ),
               ],
             ),

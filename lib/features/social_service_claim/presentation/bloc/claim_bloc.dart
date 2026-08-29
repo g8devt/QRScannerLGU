@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../domain/entities/claimant_info.dart';
 import '../../domain/usecases/submit_claim.dart';
 import '../../domain/usecases/verify_qr.dart';
 import 'claim_event.dart';
@@ -64,6 +65,19 @@ class ClaimBloc extends Bloc<ClaimEvent, ClaimState> {
   }
 
   void _onClaimSessionReset(ClaimSessionReset event, Emitter<ClaimState> emit) {
-    emit(const ClaimState());
+    // Keep the ID type/number the officer already entered when starting a
+    // new claim session (e.g. "Scan Again" after a failed verification, or
+    // after a successful submit) — these are often the same for the next
+    // claimant scanned in the same batch, so don't force re-entry.
+    final previousClaimant = state.claimant;
+    emit(
+      ClaimState(
+        claimant: ClaimantInfo(
+          type: ClaimantType.self,
+          idType: previousClaimant.idType,
+          idNumber: previousClaimant.idNumber,
+        ),
+      ),
+    );
   }
 }
