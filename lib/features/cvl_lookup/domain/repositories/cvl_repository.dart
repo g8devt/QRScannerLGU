@@ -1,4 +1,5 @@
 import '../entities/cvl_record.dart';
+import '../entities/cvl_search_filters.dart';
 import '../entities/cvl_search_results_page.dart';
 
 abstract class CvlRepository {
@@ -14,12 +15,22 @@ abstract class CvlRepository {
   /// failure.
   Future<CvlRecord> findById(int id);
 
-  /// Searches by full [name] (at least 2 characters), returning the page
-  /// of up to 25 lightweight matches starting at [offset] — including
-  /// records with no QR assigned yet — plus whether another page exists
-  /// beyond it. Throws [CvlLookupException] with a human-readable reason
-  /// on any rejection or network failure.
-  Future<CvlSearchResultsPage> searchByName(String name, {int offset});
+  /// Searches by full [name] and/or [filters], returning the page of up
+  /// to 25 lightweight matches starting at [offset] — including records
+  /// with no QR assigned yet — plus whether another page exists beyond
+  /// it. [name] may be empty if [filters] is non-empty; otherwise it must
+  /// be at least 2 characters. Throws [CvlLookupException] with a
+  /// human-readable reason on any rejection or network failure.
+  Future<CvlSearchResultsPage> searchByName(
+    String name, {
+    int offset,
+    CvlSearchFilters filters,
+  });
+
+  /// Fetches the live dropdown choices for the search filter sheet.
+  /// Throws [CvlLookupException] with a human-readable reason on any
+  /// rejection or network failure.
+  Future<CvlFilterOptions> getFilterOptions();
 
   /// Uploads [photoPath] (a local file path) as the new photo for the CVL
   /// record [id], attributed to [updatedBy] (the logged-in scanner

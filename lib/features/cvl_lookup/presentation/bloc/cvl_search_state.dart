@@ -1,8 +1,13 @@
 import 'package:equatable/equatable.dart';
 
+import '../../domain/entities/cvl_search_filters.dart';
 import '../../domain/entities/cvl_search_result.dart';
 
 enum CvlSearchStatus { initial, loading, loaded, failed }
+
+/// Load state for [CvlSearchState.filterOptions], fetched lazily the first
+/// time the filter sheet is opened.
+enum CvlFilterOptionsStatus { notLoaded, loading, loaded, failed }
 
 class CvlSearchState extends Equatable {
   const CvlSearchState({
@@ -11,6 +16,9 @@ class CvlSearchState extends Equatable {
     this.hasMore = false,
     this.isLoadingMore = false,
     this.errorMessage,
+    this.filters = const CvlSearchFilters(),
+    this.filterOptions = const CvlFilterOptions(),
+    this.filterOptionsStatus = CvlFilterOptionsStatus.notLoaded,
   });
 
   final CvlSearchStatus status;
@@ -29,12 +37,22 @@ class CvlSearchState extends Equatable {
 
   final String? errorMessage;
 
+  /// Currently applied filter selection.
+  final CvlSearchFilters filters;
+
+  /// Dropdown choices for the filter sheet, from `get_cvl_filter_options_bataan`.
+  final CvlFilterOptions filterOptions;
+  final CvlFilterOptionsStatus filterOptionsStatus;
+
   CvlSearchState copyWith({
     CvlSearchStatus? status,
     List<CvlSearchResult>? results,
     bool? hasMore,
     bool? isLoadingMore,
     String? errorMessage,
+    CvlSearchFilters? filters,
+    CvlFilterOptions? filterOptions,
+    CvlFilterOptionsStatus? filterOptionsStatus,
   }) {
     return CvlSearchState(
       status: status ?? this.status,
@@ -42,6 +60,9 @@ class CvlSearchState extends Equatable {
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       errorMessage: errorMessage,
+      filters: filters ?? this.filters,
+      filterOptions: filterOptions ?? this.filterOptions,
+      filterOptionsStatus: filterOptionsStatus ?? this.filterOptionsStatus,
     );
   }
 
@@ -52,5 +73,8 @@ class CvlSearchState extends Equatable {
     hasMore,
     isLoadingMore,
     errorMessage,
+    filters,
+    filterOptions,
+    filterOptionsStatus,
   ];
 }

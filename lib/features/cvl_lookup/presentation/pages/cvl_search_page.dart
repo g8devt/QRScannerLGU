@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../domain/entities/cvl_search_filters.dart';
 import '../../domain/entities/cvl_search_result.dart';
 import '../bloc/cvl_search_cubit.dart';
 import '../bloc/cvl_search_state.dart';
+import '../widgets/cvl_filter_sheet.dart';
 import '../widgets/qr_actions.dart';
 import 'cvl_edit_page.dart';
 import 'cvl_lookup_page.dart';
@@ -64,6 +66,21 @@ class _CvlSearchPageState extends State<CvlSearchPage> {
     _cubit.search('');
   }
 
+  Future<void> _openFilterSheet() async {
+    _cubit.loadFilterOptions();
+    final applied = await showModalBottomSheet<CvlSearchFilters>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => BlocProvider.value(value: _cubit, child: const CvlFilterSheet()),
+    );
+    if (applied != null) {
+      _cubit.applyFilters(applied);
+    }
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -94,10 +111,28 @@ class _CvlSearchPageState extends State<CvlSearchPage> {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: _SearchField(
-                  controller: _controller,
-                  onChanged: _onChanged,
-                  onClear: _clearSearch,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: _SearchField(
+                        controller: _controller,
+                        onChanged: _onChanged,
+                        onClear: _clearSearch,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    BlocBuilder<CvlSearchCubit, CvlSearchState>(
+                      buildWhen: (previous, current) =>
+                          previous.filters != current.filters,
+                      builder: (context, state) {
+                        return _FilterButton(
+                          activeCount: state.filters.activeCount,
+                          onTap: _openFilterSheet,
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
               Expanded(
@@ -105,9 +140,11 @@ class _CvlSearchPageState extends State<CvlSearchPage> {
                   builder: (context, state) {
                     switch (state.status) {
                       case CvlSearchStatus.initial:
-                        return const _HintMessage(
+                        return _HintMessage(
                           icon: Icons.person_search_outlined,
-                          message: 'Search for a CVL record by name.',
+                          message: state.filters.isEmpty
+                              ? 'Search for a CVL record by name.'
+                              : 'Search by name, or filter to browse.',
                         );
                       case CvlSearchStatus.loading:
                         return const Center(child: CircularProgressIndicator());
@@ -206,6 +243,57 @@ class _SearchField extends StatelessWidget {
         ),
         onChanged: onChanged,
       ),
+    );
+  }
+}
+
+/// Opens the filter sheet; shows a small badge with the active-filter
+/// count once any filter is set.
+class _FilterButton extends StatelessWidget {
+  const _FilterButton({required this.activeCount, required this.onTap});
+
+  final int activeCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final active = activeCount > 0;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton.filledTonal(
+          tooltip: 'Filter',
+          style: active
+              ? IconButton.styleFrom(
+                  backgroundColor: scheme.primaryContainer,
+                  foregroundColor: scheme.onPrimaryContainer,
+                )
+              : null,
+          icon: const Icon(Icons.filter_list_rounded),
+          onPressed: onTap,
+        ),
+        if (active)
+          Positioned(
+            right: -2,
+            top: -2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: scheme.error,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$activeCount',
+                style: TextStyle(
+                  color: scheme.onError,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

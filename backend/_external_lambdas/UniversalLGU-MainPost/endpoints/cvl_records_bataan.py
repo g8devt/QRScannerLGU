@@ -373,19 +373,81 @@ def remove_cvl_qr_bataan(cur, data, files, ts):
 
 _SEARCH_PAGE_SIZE = 25
 
+# search_cvl_by_name_bataan filter params: request key -> exact-match column.
+# Each becomes an `AND column = %s` clause when present and non-empty.
+_SEARCH_EXACT_FILTERS = {
+    'mun': 'c.cvl_mun',
+    'brgy': 'c.cvl_brgy',
+    'precinct': 'c.cvl_precinct_no',
+    'position_code': 'c.cvl_position_code',
+    'leader': 'c.cvl_leader',
+    'secondary_position': 'c.cvl_secondary_position',
+    'sector': 'c.cvl_sector',
+}
+
+# Columns whose distinct live values back the app's filter-sheet dropdowns
+# (get_cvl_filter_options_bataan). cvl_secondary_position is a fixed DB enum
+# the app hardcodes instead — not included here.
+_FILTER_OPTION_COLUMNS = {
+    'mun': 'cvl_mun',
+    'brgy': 'cvl_brgy',
+    'precinct': 'cvl_precinct_no',
+    'position_code': 'cvl_position_code',
+    'leader': 'cvl_leader',
+    'sector': 'cvl_sector',
+}
+
+
+def get_cvl_filter_options_bataan(cur, data, files, ts):
+    """Returns each filterable column's distinct, non-empty live values,
+    sorted, for the "Search CVL Record" filter sheet's dropdowns.
+
+    No params. `cvl_secondary_position` is a fixed DB enum the app
+    hardcodes instead of fetching, so it's not included here. Responds
+    with `{status, data: {mun, brgy, precinct, position_code, leader,
+    sector}}`, each a list of strings.
+    """
+    try:
+        options = {}
+        for key, column in _FILTER_OPTION_COLUMNS.items():
+            cur.execute(
+                f"""
+                SELECT DISTINCT {column} AS v FROM app_cvl_list
+                WHERE {column} IS NOT NULL AND {column} != ''
+                ORDER BY {column}
+                """
+            )
+            options[key] = [r['v'] for r in cur.fetchall()]
+
+        return ok({'status': True, 'data': options})
+    except Exception as e:
+        logger.error(f'get_cvl_filter_options_bataan error: {e}', exc_info=True)
+        return fail(f'Server error: {e}', 500)
+
 
 def search_cvl_by_name_bataan(cur, data, files, ts):
-    """Searches `app_cvl_list` by full name for the scanner app's staff-
-    facing "Search CVL Record" flow (a separate entry point from
-    scanning a QR).
+    """Searches `app_cvl_list` by full name and/or filters, for the
+    scanner app's staff-facing "Search CVL Record" flow (a separate
+    entry point from scanning a QR).
 
-    Requires `name`, at least 2 characters after trimming. Mirrors
-    `bataan_lgu_admin`'s `EMS/index.php` search logic: each whitespace-
+    `name` is optional, but if given must be at least 2 characters after
+    trimming; at least one of `name` or a filter param must be present,
+    otherwise there's no criteria to search on. Mirrors `bataan_lgu_admin`'s
+    `EMS/index.php` search logic for the name match: each whitespace-
     separated keyword of 3+ alphanumeric characters becomes a `+word*`
     fulltext boolean-mode term (prefix match, via the `ft_cvl_fullname`
     index); if any keyword is shorter than that, the whole search falls
     back to `LIKE '%word%'` per keyword instead (fulltext's default
     minimum indexed word length would silently drop short words).
+
+    Filters (all optional, AND-ed with the name match and each other):
+    `mun`, `brgy`, `precinct`, `position_code`, `leader`,
+    `secondary_position`, `sector` — each an exact match against its
+    column. `has_photo` / `has_card` — `"1"` for yes, `"0"` for no,
+    omitted/anything else for "any"; `has_photo` checks `cvl_img_path`
+    is set, `has_card` checks `cvl_qr` is set (i.e. a Kabaka Card is
+    tagged).
+
     `LEFT JOIN`s `app_qr_code` so records with no QR assigned yet still
     show up. Paginated: optional `offset` (default 0) skips that many
     matches, ordered by name; each page holds up to 25 rows. Fetches one
@@ -398,10 +460,32 @@ def search_cvl_by_name_bataan(cur, data, files, ts):
     exists beyond this one.
     """
     try:
-        require(data, 'name')
         raw_term = (data.get('name') or '').strip()
-        if len(raw_term) < 2:
+        if raw_term and len(raw_term) < 2:
             return fail('Enter at least 2 characters to search')
+
+        filter_conditions = []
+        filter_params = []
+        for key, column in _SEARCH_EXACT_FILTERS.items():
+            value = (data.get(key) or '').strip()
+            if value:
+                filter_conditions.append(f'{column} = %s')
+                filter_params.append(value)
+
+        has_photo = data.get('has_photo')
+        if has_photo == '1':
+            filter_conditions.append("c.cvl_img_path IS NOT NULL AND c.cvl_img_path != ''")
+        elif has_photo == '0':
+            filter_conditions.append("(c.cvl_img_path IS NULL OR c.cvl_img_path = '')")
+
+        has_card = data.get('has_card')
+        if has_card == '1':
+            filter_conditions.append('c.cvl_qr IS NOT NULL')
+        elif has_card == '0':
+            filter_conditions.append('c.cvl_qr IS NULL')
+
+        if not raw_term and not filter_conditions:
+            return fail('Enter a search term or choose at least one filter')
 
         try:
             offset = int(data.get('offset') or 0)
@@ -410,27 +494,30 @@ def search_cvl_by_name_bataan(cur, data, files, ts):
         if offset < 0:
             return fail('Invalid offset')
 
-        keywords = [k for k in re.split(r'\s+', raw_term) if k]
+        conditions = list(filter_conditions)
+        params = list(filter_params)
 
-        fulltext_terms = []
-        can_use_fulltext = True
-        for keyword in keywords:
-            normalized = re.sub(r'[^0-9A-Za-z]+', '', keyword)
-            if len(normalized) < 3:
-                can_use_fulltext = False
-                break
-            fulltext_terms.append(f'+{normalized}*')
+        if raw_term:
+            keywords = [k for k in re.split(r'\s+', raw_term) if k]
 
-        if can_use_fulltext and fulltext_terms:
-            where_clause = 'MATCH(c.cvl_fullname) AGAINST (%s IN BOOLEAN MODE)'
-            params = [' '.join(fulltext_terms)]
-        else:
-            conditions = []
-            params = []
+            fulltext_terms = []
+            can_use_fulltext = True
             for keyword in keywords:
-                conditions.append('c.cvl_fullname LIKE %s')
-                params.append(f'%{keyword}%')
-            where_clause = ' AND '.join(conditions)
+                normalized = re.sub(r'[^0-9A-Za-z]+', '', keyword)
+                if len(normalized) < 3:
+                    can_use_fulltext = False
+                    break
+                fulltext_terms.append(f'+{normalized}*')
+
+            if can_use_fulltext and fulltext_terms:
+                conditions.append('MATCH(c.cvl_fullname) AGAINST (%s IN BOOLEAN MODE)')
+                params.append(' '.join(fulltext_terms))
+            else:
+                for keyword in keywords:
+                    conditions.append('c.cvl_fullname LIKE %s')
+                    params.append(f'%{keyword}%')
+
+        where_clause = ' AND '.join(conditions)
 
         cur.execute(
             f"""

@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from endpoints.cvl_records_bataan import (
     find_cvl_by_qr_bataan,
     get_cvl_by_id_bataan,
+    get_cvl_filter_options_bataan,
     remove_cvl_qr_bataan,
     search_cvl_by_name_bataan,
     update_cvl_info_bataan,
@@ -414,6 +415,134 @@ class SearchCvlByNameBataanTest(unittest.TestCase):
         cur = MagicMock()
         cur.execute.side_effect = RuntimeError('connection lost')
         result = search_cvl_by_name_bataan(cur, {'name': 'Juan'}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 500)
+
+    def test_no_name_and_no_filters_returns_400(self):
+        cur = MagicMock()
+        result = search_cvl_by_name_bataan(cur, {}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 400)
+
+    def test_filter_only_with_no_name_still_searches(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        result = search_cvl_by_name_bataan(
+            cur, {'mun': 'Balanga'}, [], '2026-08-26 00:00:00'
+        )
+        self.assertEqual(result['statusCode'], 200)
+
+        args, _ = cur.execute.call_args
+        sql, params = args
+        self.assertIn('c.cvl_mun = %s', sql)
+        self.assertNotIn('MATCH(', sql)
+        self.assertEqual(params, ('Balanga', 0))
+
+    def test_exact_match_filters_are_and_ed_together(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(
+            cur,
+            {
+                'mun': 'Balanga',
+                'brgy': 'Poblacion',
+                'precinct': '0001A',
+                'position_code': 'LEADER',
+                'leader': 'Barangay Captain',
+                'secondary_position': 'SUPPORTER',
+                'sector': 'PWD',
+            },
+            [],
+            '2026-08-26 00:00:00',
+        )
+
+        args, _ = cur.execute.call_args
+        sql, params = args
+        for column in (
+            'c.cvl_mun = %s', 'c.cvl_brgy = %s', 'c.cvl_precinct_no = %s',
+            'c.cvl_position_code = %s', 'c.cvl_leader = %s',
+            'c.cvl_secondary_position = %s', 'c.cvl_sector = %s',
+        ):
+            self.assertIn(column, sql)
+        self.assertEqual(
+            params,
+            ('Balanga', 'Poblacion', '0001A', 'LEADER', 'Barangay Captain', 'SUPPORTER', 'PWD', 0),
+        )
+
+    def test_has_photo_yes_filters_non_empty_img_path(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(cur, {'mun': 'Balanga', 'has_photo': '1'}, [], '2026-08-26 00:00:00')
+
+        args, _ = cur.execute.call_args
+        sql, _ = args
+        self.assertIn("c.cvl_img_path IS NOT NULL AND c.cvl_img_path != ''", sql)
+
+    def test_has_photo_no_filters_empty_img_path(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(cur, {'mun': 'Balanga', 'has_photo': '0'}, [], '2026-08-26 00:00:00')
+
+        args, _ = cur.execute.call_args
+        sql, _ = args
+        self.assertIn("(c.cvl_img_path IS NULL OR c.cvl_img_path = '')", sql)
+
+    def test_has_card_yes_filters_qr_assigned(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(cur, {'mun': 'Balanga', 'has_card': '1'}, [], '2026-08-26 00:00:00')
+
+        args, _ = cur.execute.call_args
+        sql, _ = args
+        self.assertIn('c.cvl_qr IS NOT NULL', sql)
+
+    def test_has_card_no_filters_qr_unassigned(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(cur, {'mun': 'Balanga', 'has_card': '0'}, [], '2026-08-26 00:00:00')
+
+        args, _ = cur.execute.call_args
+        sql, _ = args
+        self.assertIn('c.cvl_qr IS NULL', sql)
+
+    def test_name_and_filters_combine_with_and(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(
+            cur, {'name': 'Juan Cruz', 'mun': 'Balanga'}, [], '2026-08-26 00:00:00'
+        )
+
+        args, _ = cur.execute.call_args
+        sql, params = args
+        self.assertIn('c.cvl_mun = %s', sql)
+        self.assertIn('MATCH(c.cvl_fullname) AGAINST', sql)
+        self.assertEqual(params, ('Balanga', '+Juan* +Cruz*', 0))
+
+
+class GetCvlFilterOptionsBataanTest(unittest.TestCase):
+    def test_returns_distinct_values_per_column(self):
+        cur = MagicMock()
+        cur.fetchall.side_effect = [
+            [{'v': 'Balanga'}, {'v': 'Mariveles'}],
+            [{'v': 'Poblacion'}],
+            [{'v': '0001A'}],
+            [{'v': 'LEADER'}],
+            [{'v': 'Barangay Captain'}],
+            [{'v': 'PWD'}],
+        ]
+        result = get_cvl_filter_options_bataan(cur, {}, [], '2026-08-26 00:00:00')
+        self.assertEqual(result['statusCode'], 200)
+        body = json.loads(result['body'])
+        self.assertEqual(body['data']['mun'], ['Balanga', 'Mariveles'])
+        self.assertEqual(body['data']['brgy'], ['Poblacion'])
+        self.assertEqual(body['data']['precinct'], ['0001A'])
+        self.assertEqual(body['data']['position_code'], ['LEADER'])
+        self.assertEqual(body['data']['leader'], ['Barangay Captain'])
+        self.assertEqual(body['data']['sector'], ['PWD'])
+        self.assertEqual(cur.execute.call_count, 6)
+
+    def test_db_error_returns_500(self):
+        cur = MagicMock()
+        cur.execute.side_effect = RuntimeError('connection lost')
+        result = get_cvl_filter_options_bataan(cur, {}, [], '2026-08-26 00:00:00')
         self.assertEqual(result['statusCode'], 500)
 
 

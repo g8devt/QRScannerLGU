@@ -1,36 +1,46 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../domain/entities/cvl_search_filters.dart';
+import '../../domain/usecases/get_cvl_filter_options.dart';
 import '../../domain/usecases/remove_cvl_qr.dart';
 import '../../domain/usecases/search_cvl_by_name.dart';
 import '../../domain/usecases/set_cvl_qr.dart';
 import 'cvl_search_state.dart';
 
 class CvlSearchCubit extends Cubit<CvlSearchState> {
-  CvlSearchCubit(this._searchCvlByName, this._setCvlQr, this._removeCvlQr)
-    : super(const CvlSearchState());
+  CvlSearchCubit(
+    this._searchCvlByName,
+    this._setCvlQr,
+    this._removeCvlQr,
+    this._getCvlFilterOptions,
+  ) : super(const CvlSearchState());
 
   final SearchCvlByName _searchCvlByName;
   final SetCvlQr _setCvlQr;
   final RemoveCvlQr _removeCvlQr;
+  final GetCvlFilterOptions _getCvlFilterOptions;
 
-  // Tracks the in-flight/last search term so loadMore() (triggered by
-  // scrolling, with no term of its own) knows what to page through.
+  // Tracks the in-flight/last search term so loadMore() and applyFilters()
+  // (triggered without a term of their own) know what to page through /
+  // re-search with.
   String _term = '';
 
-  /// Searches by [name]. No-ops (clears results) for names shorter than
-  /// 2 characters, matching the backend's minimum — avoids a request the
-  /// server would just reject. Always starts from the first page.
+  /// Searches by [name]. With no filters applied, no-ops (clears results)
+  /// for names shorter than 2 characters, matching the backend's minimum
+  /// — avoids a request the server would just reject. A non-empty
+  /// [state.filters] relaxes that: an empty or short term still searches,
+  /// browsing purely by filter. Always starts from the first page.
   Future<void> search(String name) async {
     final trimmed = name.trim();
     _term = trimmed;
-    if (trimmed.length < 2) {
-      emit(const CvlSearchState());
+    if (trimmed.length < 2 && state.filters.isEmpty) {
+      emit(state.copyWith(status: CvlSearchStatus.initial, results: const []));
       return;
     }
 
     emit(state.copyWith(status: CvlSearchStatus.loading));
     try {
-      final page = await _searchCvlByName(trimmed);
+      final page = await _searchCvlByName(trimmed, filters: state.filters);
       emit(
         state.copyWith(
           status: CvlSearchStatus.loaded,
@@ -62,7 +72,11 @@ class CvlSearchCubit extends Cubit<CvlSearchState> {
 
     emit(state.copyWith(isLoadingMore: true));
     try {
-      final page = await _searchCvlByName(_term, offset: state.results.length);
+      final page = await _searchCvlByName(
+        _term,
+        offset: state.results.length,
+        filters: state.filters,
+      );
       emit(
         state.copyWith(
           results: [...state.results, ...page.results],
@@ -74,6 +88,38 @@ class CvlSearchCubit extends Cubit<CvlSearchState> {
       // Keep the results already on screen; just drop back to "has more"
       // so the staff member can retry by scrolling again.
       emit(state.copyWith(isLoadingMore: false));
+    }
+  }
+
+  /// Applies [filters] and re-runs the search from the first page. Passed
+  /// through to [search], so the same empty-term/no-filters no-op rule
+  /// applies.
+  Future<void> applyFilters(CvlSearchFilters filters) async {
+    emit(state.copyWith(filters: filters));
+    await search(_term);
+  }
+
+  /// Loads the filter sheet's dropdown choices, once, the first time it's
+  /// opened. A no-op on repeat calls once loaded or already in flight.
+  Future<void> loadFilterOptions() async {
+    if (state.filterOptionsStatus == CvlFilterOptionsStatus.loading ||
+        state.filterOptionsStatus == CvlFilterOptionsStatus.loaded) {
+      return;
+    }
+
+    emit(state.copyWith(filterOptionsStatus: CvlFilterOptionsStatus.loading));
+    try {
+      final options = await _getCvlFilterOptions();
+      emit(
+        state.copyWith(
+          filterOptions: options,
+          filterOptionsStatus: CvlFilterOptionsStatus.loaded,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(filterOptionsStatus: CvlFilterOptionsStatus.failed),
+      );
     }
   }
 

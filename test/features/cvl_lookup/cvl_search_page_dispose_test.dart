@@ -3,8 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/entities/cvl_record.dart';
+import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/entities/cvl_search_filters.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/entities/cvl_search_results_page.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/repositories/cvl_repository.dart';
+import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/usecases/get_cvl_filter_options.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/usecases/remove_cvl_qr.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/usecases/search_cvl_by_name.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/usecases/set_cvl_qr.dart';
@@ -22,7 +24,11 @@ class _FakeCvlRepository implements CvlRepository {
   Future<CvlSearchResultsPage> searchByName(
     String name, {
     int offset = 0,
+    CvlSearchFilters filters = const CvlSearchFilters(),
   }) async => const CvlSearchResultsPage(results: [], hasMore: false);
+
+  @override
+  Future<CvlFilterOptions> getFilterOptions() async => const CvlFilterOptions();
 
   @override
   Future<String> updatePhoto({
@@ -55,6 +61,7 @@ void main() {
       SearchCvlByName(repository),
       SetCvlQr(repository),
       RemoveCvlQr(repository),
+      GetCvlFilterOptions(repository),
     );
 
     // The provider must wrap MaterialApp itself (matching main.dart's real

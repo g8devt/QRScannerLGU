@@ -189,6 +189,7 @@ ROUTES = {
     'set_cvl_qr_bataan': cvl_records_bataan.set_cvl_qr_bataan,
     'remove_cvl_qr_bataan': cvl_records_bataan.remove_cvl_qr_bataan,
     'update_cvl_info_bataan': cvl_records_bataan.update_cvl_info_bataan,
+    'get_cvl_filter_options_bataan': cvl_records_bataan.get_cvl_filter_options_bataan,
     'request_profile_update': profile.request_profile_update,
     'get_user_profile': profile.get_user_profile,
     'get_profile_update_requests': profile.get_profile_update_requests,

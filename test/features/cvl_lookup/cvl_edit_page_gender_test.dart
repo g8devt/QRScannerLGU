@@ -9,6 +9,7 @@ import 'package:bataan_lgu_scanner/features/auth/domain/usecases/logout_usecase.
 import 'package:bataan_lgu_scanner/features/auth/domain/usecases/restore_session_usecase.dart';
 import 'package:bataan_lgu_scanner/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/entities/cvl_record.dart';
+import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/entities/cvl_search_filters.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/entities/cvl_search_results_page.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/repositories/cvl_repository.dart';
 import 'package:bataan_lgu_scanner/features/cvl_lookup/domain/usecases/find_cvl_by_id.dart';
@@ -54,8 +55,14 @@ class _FakeCvlRepository implements CvlRepository {
   Future<CvlRecord> findByQr(String qrCode) => throw UnimplementedError();
 
   @override
-  Future<CvlSearchResultsPage> searchByName(String name, {int offset = 0}) =>
-      throw UnimplementedError();
+  Future<CvlSearchResultsPage> searchByName(
+    String name, {
+    int offset = 0,
+    CvlSearchFilters filters = const CvlSearchFilters(),
+  }) => throw UnimplementedError();
+
+  @override
+  Future<CvlFilterOptions> getFilterOptions() => throw UnimplementedError();
 
   @override
   Future<String> updatePhoto({

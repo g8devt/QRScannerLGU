@@ -1,5 +1,6 @@
 import '../../../../core/network/api_client.dart';
 import '../../domain/entities/cvl_record.dart';
+import '../../domain/entities/cvl_search_filters.dart';
 import '../../domain/entities/cvl_search_results_page.dart';
 import '../../domain/entities/cvl_search_result.dart';
 import '../../domain/repositories/cvl_repository.dart';
@@ -44,9 +45,14 @@ class CvlRepositoryImpl implements CvlRepository {
   Future<CvlSearchResultsPage> searchByName(
     String name, {
     int offset = 0,
+    CvlSearchFilters filters = const CvlSearchFilters(),
   }) async {
     try {
-      final json = await _datasource.searchByName(name, offset: offset);
+      final json = await _datasource.searchByName(
+        name,
+        offset: offset,
+        filters: filters,
+      );
       final data = json['data'] as Map<String, dynamic>? ?? {};
       final results = data['results'] as List<dynamic>? ?? [];
       return CvlSearchResultsPage(
@@ -55,6 +61,21 @@ class CvlRepositoryImpl implements CvlRepository {
             .toList(),
         hasMore: data['has_more'] == true,
       );
+    } on ApiException catch (e) {
+      throw CvlLookupException(e.message);
+    } catch (e) {
+      throw CvlLookupException(
+        'Network error — could not reach the server: $e',
+      );
+    }
+  }
+
+  @override
+  Future<CvlFilterOptions> getFilterOptions() async {
+    try {
+      final json = await _datasource.getFilterOptions();
+      final data = json['data'] as Map<String, dynamic>? ?? {};
+      return CvlFilterOptions.fromJson(data);
     } on ApiException catch (e) {
       throw CvlLookupException(e.message);
     } catch (e) {

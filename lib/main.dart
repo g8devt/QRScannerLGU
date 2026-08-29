@@ -16,6 +16,7 @@ import 'features/cvl_lookup/data/datasources/cvl_remote_datasource.dart';
 import 'features/cvl_lookup/data/repositories/cvl_repository_impl.dart';
 import 'features/cvl_lookup/domain/usecases/find_cvl_by_id.dart';
 import 'features/cvl_lookup/domain/usecases/find_cvl_by_qr.dart';
+import 'features/cvl_lookup/domain/usecases/get_cvl_filter_options.dart';
 import 'features/cvl_lookup/domain/usecases/search_cvl_by_name.dart';
 import 'features/cvl_lookup/domain/usecases/remove_cvl_qr.dart';
 import 'features/cvl_lookup/domain/usecases/set_cvl_qr.dart';
@@ -78,6 +79,7 @@ class MyApp extends StatelessWidget {
           final searchCvlByName = SearchCvlByName(cvlRepository);
           final setCvlQr = SetCvlQr(cvlRepository);
           final removeCvlQr = RemoveCvlQr(cvlRepository);
+          final getCvlFilterOptions = GetCvlFilterOptions(cvlRepository);
 
           final authRemoteDatasource = AuthRemoteDatasource(apiClient);
           final authLocalDatasource = AuthLocalDatasource();
@@ -110,8 +112,12 @@ class MyApp extends StatelessWidget {
                       ),
                 ),
                 BlocProvider(
-                  create: (_) =>
-                      CvlSearchCubit(searchCvlByName, setCvlQr, removeCvlQr),
+                  create: (_) => CvlSearchCubit(
+                    searchCvlByName,
+                    setCvlQr,
+                    removeCvlQr,
+                    getCvlFilterOptions,
+                  ),
                 ),
                 BlocProvider(
                   create: (_) => AuthBloc(

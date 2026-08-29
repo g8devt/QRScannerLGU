@@ -93,6 +93,26 @@
   since the 2026-08-26 pull; also pulled the live package fresh and
   diffed file contents directly against this mirror (line-ending-
   insensitive, Bataan/shared code only), confirming zero drift.
+- **Deployed from this repo:** 2026-08-29 — added the "Search CVL
+  Record" filter feature: a new `get_cvl_filter_options_bataan`
+  endpoint (returns distinct live values for `cvl_mun`, `cvl_brgy`,
+  `cvl_precinct_no`, `cvl_position_code`, `cvl_leader`, `cvl_sector`
+  for the app's filter-sheet dropdowns) plus its `ROUTES` entry, and
+  extended `search_cvl_by_name_bataan` (same `cvl_records_bataan.py`)
+  to accept optional exact-match filters (`mun`, `brgy`, `precinct`,
+  `position_code`, `leader`, `secondary_position`, `sector`) and
+  tri-state `has_photo`/`has_card` params, AND-ed with the name match;
+  `name` is now optional as long as at least one filter is set (still
+  rejects an entirely empty request). Same pull-live/merge-diff/deploy
+  method: pulled the live package fresh immediately before deploying,
+  confirmed zero drift from this mirror, applied only this addition,
+  and deployed via `aws lambda update-function-code`. Verified
+  post-deploy: `LastUpdateStatus: Successful`, two clean invokes
+  (`get_cvl_filter_options_bataan` and `search_cvl_by_name_bataan`
+  with a filter and no name, both with a deliberately invalid token)
+  returning a normal `403 Access Denied` body — proves the new
+  endpoint and the relaxed name requirement import and route cleanly
+  at cold start.
 
 ## Configuration
 
@@ -102,8 +122,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-08-26T14:14:06.000+0000",
-    "CodeSha256": "AgiTtkP8Vm4mEqKcJ5zSB8tQ8lt7PfoXvzG/106fUUw="
+    "LastModified": "2026-08-29T07:36:04.000+0000",
+    "CodeSha256": "H7HlkQsK3NaabJSWvoAUONkS3KYLYtQ9WiVXeI66TT4="
 }
 ```
 

@@ -1,8 +1,10 @@
 import '../../../../core/network/api_client.dart';
+import '../../domain/entities/cvl_search_filters.dart';
 
 /// Talks to `find_cvl_by_qr_bataan` / `get_cvl_by_id_bataan` /
 /// `search_cvl_by_name_bataan` / `update_cvl_photo_bataan` /
-/// `set_cvl_qr_bataan` / `remove_cvl_qr_bataan` / `update_cvl_info_bataan`.
+/// `set_cvl_qr_bataan` / `remove_cvl_qr_bataan` / `update_cvl_info_bataan` /
+/// `get_cvl_filter_options_bataan`.
 /// Returns raw decoded JSON — mapping to domain entities happens in
 /// [CvlRepositoryImpl].
 class CvlRemoteDatasource {
@@ -18,11 +20,20 @@ class CvlRemoteDatasource {
     return _apiClient.post('get_cvl_by_id_bataan', {'id': id.toString()});
   }
 
-  Future<Map<String, dynamic>> searchByName(String name, {int offset = 0}) {
+  Future<Map<String, dynamic>> searchByName(
+    String name, {
+    int offset = 0,
+    CvlSearchFilters filters = const CvlSearchFilters(),
+  }) {
     return _apiClient.post('search_cvl_by_name_bataan', {
-      'name': name,
+      if (name.isNotEmpty) 'name': name,
       'offset': offset.toString(),
+      ...filters.toRequestParams(),
     });
+  }
+
+  Future<Map<String, dynamic>> getFilterOptions() {
+    return _apiClient.post('get_cvl_filter_options_bataan', {});
   }
 
   /// Assigns [qrCode] to CVL record [id]. The server validates the code
