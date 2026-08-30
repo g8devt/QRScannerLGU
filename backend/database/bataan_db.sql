@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: dev-rds.c18y82cw62ll.ap-southeast-1.rds.amazonaws.com:3306
--- Generation Time: Aug 30, 2026 at 01:32 PM
+-- Generation Time: Aug 30, 2026 at 01:59 PM
 -- Server version: 8.4.8
 -- PHP Version: 8.1.2-1ubuntu2.25
 
@@ -2504,8 +2504,8 @@ CREATE TABLE `app_user_service_toggles` (
 
 CREATE TABLE `app_version` (
   `id` int NOT NULL,
-  `app_code` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `os_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `app_code` enum('SCANNER','MAIN_APP') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `os_type` enum('ANDROID','IOS') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `version` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `url` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `is_active` enum('ACTIVE','INACTIVE') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ACTIVE',
