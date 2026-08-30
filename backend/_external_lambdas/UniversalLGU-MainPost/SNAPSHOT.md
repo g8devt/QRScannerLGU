@@ -180,6 +180,9 @@
   fix could only be confirmed from the app itself, not from here (no
   valid session token available in this environment).
 
+- **Checked:** 2026-08-30 — live `CodeSha256`/`LastModified` unchanged
+  since the 2026-08-29 pull; no drift, nothing to sync.
+
 ## Configuration
 
 ```json

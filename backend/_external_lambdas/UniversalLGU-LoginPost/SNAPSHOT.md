@@ -8,6 +8,8 @@
 - **Checked:** 2026-08-29 — live `CodeSha256`/`LastModified` still unchanged;
   also pulled the live package fresh and diffed file contents directly
   against this mirror (line-ending-insensitive), confirming zero drift.
+- **Checked:** 2026-08-30 — live `CodeSha256`/`LastModified` unchanged
+  since the 2026-08-25 pull; no drift, nothing to sync.
 
 ## Configuration
 
