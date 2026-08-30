@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: dev-rds.c18y82cw62ll.ap-southeast-1.rds.amazonaws.com:3306
--- Generation Time: Aug 10, 2026 at 12:19 PM
+-- Generation Time: Aug 30, 2026 at 01:32 PM
 -- Server version: 8.4.8
 -- PHP Version: 8.1.2-1ubuntu2.25
 
@@ -103,29 +103,39 @@ CREATE TABLE `app_account_deletion_log` (
 CREATE TABLE `app_admins` (
   `id` bigint UNSIGNED NOT NULL,
   `name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `username` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `password_hash` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `is_active` tinyint(1) NOT NULL DEFAULT '1',
-  `role` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ADMIN',
-  `permissions` longtext COLLATE utf8mb4_unicode_ci,
-  `last_login` datetime DEFAULT NULL,
-  `date_created` datetime NOT NULL,
-  `date_modified` datetime DEFAULT NULL,
-  `invite_id` bigint UNSIGNED DEFAULT NULL,
-  `username` varchar(60) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `mobile_number` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `middle_name` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `photo_url` text COLLATE utf8mb4_unicode_ci,
-  `signature_url` text COLLATE utf8mb4_unicode_ci,
-  `id_front_url` text COLLATE utf8mb4_unicode_ci,
-  `id_back_url` text COLLATE utf8mb4_unicode_ci,
-  `liveness_score` decimal(5,2) DEFAULT NULL,
-  `liveness_reason` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `privacy_accepted_at` datetime DEFAULT NULL,
-  `approval_status` enum('PENDING','APPROVED','REJECTED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING',
-  `rejection_reason` text COLLATE utf8mb4_unicode_ci,
+  `first_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `middle_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `suffix` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `role` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ADMIN',
+  `permissions` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `email` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `mobile_number` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `gender` enum('MALE','FEMALE') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `birthdate` date DEFAULT NULL,
+  `region` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'REGION III (CENTRAL LUZON)',
+  `province` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'BATAAN',
+  `city_municipality` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `barangay` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `approval_status` enum('PENDING','APPROVED','REJECTED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING',
   `approved_by` bigint UNSIGNED DEFAULT NULL,
-  `approved_at` datetime DEFAULT NULL
+  `approved_at` datetime DEFAULT NULL,
+  `last_login` datetime DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `address` varchar(180) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `invite_id` bigint UNSIGNED DEFAULT NULL,
+  `photo_url` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `signature_url` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `id_front_url` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `id_back_url` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `liveness_score` decimal(5,2) DEFAULT NULL,
+  `liveness_reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `privacy_accepted_at` datetime DEFAULT NULL,
+  `rejection_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `date_created` datetime NOT NULL,
+  `date_modified` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -686,7 +696,7 @@ CREATE TABLE `app_cvl_list` (
   `cvl_mun` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `cvl_brgy` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `cvl_precinct_no` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `cvl_img_path` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cvl_img_path` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `cvl_qr` int DEFAULT NULL,
   `cvl_last_date_updated` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `cvl_updated_by` varchar(125) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1119,7 +1129,7 @@ CREATE TABLE `app_nonvoter_list` (
   `cvl_mun` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `cvl_brgy` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `cvl_precinct_no` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `cvl_img_path` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cvl_img_path` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `cvl_qr` int DEFAULT NULL,
   `cvl_last_date_updated` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `cvl_updated_by` varchar(125) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1770,6 +1780,7 @@ CREATE TABLE `app_profile_update_requests` (
 CREATE TABLE `app_qr_code` (
   `id` int NOT NULL,
   `qr_code` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `qr_code_display` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` enum('USED','AVAILABLE') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'AVAILABLE',
   `date_assigned` datetime NOT NULL,
   `date_updated` datetime NOT NULL,
@@ -2005,6 +2016,7 @@ CREATE TABLE `app_social_services` (
   `appointment_time` time DEFAULT NULL COMMENT 'Auto-assigned for ONLINE submissions (9am–3pm, 6-min granularity)',
   `appointment_location` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Office where applicant must appear for online-submission appointment',
   `status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `admin_notes` text COLLATE utf8mb4_unicode_ci,
   `date_requested` datetime(6) DEFAULT NULL,
   `date_reviewed` datetime(6) DEFAULT NULL,
   `date_approved` datetime(6) DEFAULT NULL,
@@ -2070,14 +2082,15 @@ CREATE TABLE `app_social_services` (
   `photo_signature` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `image_verification` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `amount` int DEFAULT NULL,
-  `user_id` bigint DEFAULT NULL,
   `family_composition` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `deceased_fullname` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `deceased_birthdate` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `deceased_deathdate` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `medicine_needed` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `cvl_id` varchar(25) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `document_sent_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_id` bigint DEFAULT NULL COMMENT 'Related to app_users',
+  `admin_id` int DEFAULT NULL COMMENT 'Related to app_admins',
+  `cvl_id` varchar(25) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `qr_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Unique QR token for the auto-scheduled appointment (SS-<id>-<hex>)',
   `date_claimed` datetime DEFAULT NULL,
   `claimed_amount` decimal(12,2) DEFAULT NULL,
@@ -2090,7 +2103,8 @@ CREATE TABLE `app_social_services` (
   `claimant_id_front` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `claimant_id_back` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `claimant_signature` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `claimant_face_photo` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+  `claimant_face_photo` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `users_scanner_id` bigint DEFAULT NULL COMMENT 'this id is from app_users_scanner'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -2417,6 +2431,30 @@ CREATE TABLE `app_users` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `app_users_scanner`
+--
+
+CREATE TABLE `app_users_scanner` (
+  `id` bigint NOT NULL,
+  `user_status` enum('VERIFIED','PENDING','NOT_VERIFIED','DEACTIVATED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING',
+  `username` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `firstname` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `middlename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `lastname` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `suffix` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `gender` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `birth_date` date DEFAULT NULL,
+  `mobile_number` varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `date_created` datetime(6) DEFAULT NULL,
+  `date_modified` datetime(6) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `app_user_operations_tbl`
 --
 
@@ -2466,10 +2504,13 @@ CREATE TABLE `app_user_service_toggles` (
 
 CREATE TABLE `app_version` (
   `id` int NOT NULL,
-  `ios_version` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `android_version` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `is_active` enum('ACTIVE','INACTIVE') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `maintenance` tinyint(1) NOT NULL
+  `app_code` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `os_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `version` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `url` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `is_active` enum('ACTIVE','INACTIVE') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ACTIVE',
+  `date_created` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `date_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -3212,52 +3253,52 @@ CREATE TABLE `business_inspections` (
 -- (See below for the actual view)
 --
 CREATE TABLE `business_inspections_vw` (
-`business_id` varchar(100)
-,`assessor_lot_number` varchar(20)
-,`assessor_lot_owner` varchar(100)
-,`assessor_geo_tagging` varchar(250)
-,`assessor_remark` varchar(250)
-,`assessor_added_by` varchar(100)
+`assessor_added_by` varchar(100)
 ,`assessor_date_added` varchar(20)
 ,`assessor_date_updated` varchar(20)
+,`assessor_geo_tagging` varchar(250)
 ,`assessor_is_sync` enum('0','1')
-,`bfp_remark` varchar(100)
+,`assessor_lot_number` varchar(20)
+,`assessor_lot_owner` varchar(100)
+,`assessor_remark` varchar(250)
 ,`bfp_added_by` varchar(100)
-,`bfp_updated_by` varchar(100)
 ,`bfp_date_added` varchar(20)
 ,`bfp_date_updated` varchar(20)
 ,`bfp_is_sync` enum('0','1')
-,`engineering_compliance` varchar(200)
-,`engineering_remark` varchar(250)
+,`bfp_remark` varchar(100)
+,`bfp_updated_by` varchar(100)
+,`business_id` varchar(100)
 ,`engineering_added_by` varchar(100)
+,`engineering_compliance` varchar(200)
 ,`engineering_date_added` varchar(20)
 ,`engineering_date_updated` varchar(20)
 ,`engineering_is_sync` enum('0','1')
-,`menro_selection` varchar(200)
-,`menro_remark` varchar(250)
+,`engineering_remark` varchar(250)
 ,`menro_added_by` varchar(100)
 ,`menro_date_added` varchar(20)
 ,`menro_date_updated` varchar(20)
 ,`menro_is_sync` enum('0','1')
-,`sanitary_remark` varchar(250)
+,`menro_remark` varchar(250)
+,`menro_selection` varchar(200)
 ,`sanitary_added_by` varchar(100)
 ,`sanitary_date_added` varchar(20)
 ,`sanitary_date_updated` varchar(20)
 ,`sanitary_is_sync` enum('0','1')
-,`treasury_remark` varchar(250)
+,`sanitary_remark` varchar(250)
 ,`treasury_added_by` varchar(100)
-,`treasury_updated_by` varchar(100)
 ,`treasury_date_added` varchar(20)
 ,`treasury_date_updated` varchar(20)
 ,`treasury_is_sync` enum('0','1')
-,`zoning_location_clearance` varchar(50)
-,`zoning_building_structure` varchar(250)
-,`zoning_geo_tagging` varchar(250)
-,`zoning_remark` varchar(100)
+,`treasury_remark` varchar(250)
+,`treasury_updated_by` varchar(100)
 ,`zoning_added_by` varchar(50)
+,`zoning_building_structure` varchar(250)
 ,`zoning_date_added` varchar(20)
 ,`zoning_date_updated` varchar(20)
+,`zoning_geo_tagging` varchar(250)
 ,`zoning_is_sync` enum('0','1')
+,`zoning_location_clearance` varchar(50)
+,`zoning_remark` varchar(100)
 );
 
 -- --------------------------------------------------------
@@ -5892,7 +5933,8 @@ ALTER TABLE `app_social_services`
   ADD KEY `idx_appointment_date_method` (`appointment_date`,`submission_method`),
   ADD KEY `idx_social_services_cvl_id` (`cvl_id`),
   ADD KEY `idx_social_services_qr_code` (`qr_code`),
-  ADD KEY `idx_social_services_schedule_slot_id` (`schedule_slot_id`);
+  ADD KEY `idx_social_services_schedule_slot_id` (`schedule_slot_id`),
+  ADD KEY `idx_social_services_admin_id` (`admin_id`);
 
 --
 -- Indexes for table `app_social_services_family`
@@ -5975,6 +6017,13 @@ ALTER TABLE `app_users`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `card_id` (`card_id`),
   ADD KEY `app_user_card` (`assign_card`);
+
+--
+-- Indexes for table `app_users_scanner`
+--
+ALTER TABLE `app_users_scanner`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_app_users_scanner_username` (`username`);
 
 --
 -- Indexes for table `app_user_operations_tbl`
@@ -7456,6 +7505,12 @@ ALTER TABLE `app_transaction_history`
 -- AUTO_INCREMENT for table `app_users`
 --
 ALTER TABLE `app_users`
+  MODIFY `id` bigint NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `app_users_scanner`
+--
+ALTER TABLE `app_users_scanner`
   MODIFY `id` bigint NOT NULL AUTO_INCREMENT;
 
 --
