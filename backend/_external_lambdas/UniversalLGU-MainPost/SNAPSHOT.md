@@ -182,6 +182,24 @@
 
 - **Checked:** 2026-08-30 — live `CodeSha256`/`LastModified` unchanged
   since the 2026-08-29 pull; no drift, nothing to sync.
+- **Deployed from this repo:** 2026-08-30 — added
+  `check_app_version_scanner_bataan` to `endpoints/scanner_auth_bataan.py`
+  + its `ROUTES` entry (mandatory Scanner-app update check: compares the
+  installed app version against the latest `ACTIVE` `app_version` row for
+  `app_code='SCANNER'`, numeric major.minor.patch comparison, backing
+  `AuthGate`'s pre-login update-block dialog on the Flutter side). Same
+  pull-live/merge-diff/deploy method: pulled the live package fresh
+  immediately before deploying, confirmed zero drift from this mirror
+  (`lambda_function.py` and `scanner_auth_bataan.py` byte-identical
+  line-ending-insensitive, endpoints file listing identical apart from a
+  local-only `__pycache__` dir), applied only this addition, and deployed
+  via `aws lambda update-function-code`. Verified post-deploy:
+  `LastUpdateStatus: Successful`, two clean invokes
+  (`check_app_version_scanner_bataan` and `login_scanner_bataan`, both
+  with a deliberately invalid token) returning a normal `403 Access
+  Denied` body with `FunctionError: None` — proves the new endpoint
+  imports and routes cleanly at cold start without breaking the existing
+  login action.
 
 ## Configuration
 
@@ -191,8 +209,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-08-29T11:37:42.000+0000",
-    "CodeSha256": "4KpcdrpWP5D8BJqAka5dvlQwM9msd5GCLorZ53SnMng="
+    "LastModified": "2026-08-30T14:34:00.000+0000",
+    "CodeSha256": "0fVypz+1OwzDz5IFoskHEGwssi/AI1Q3DMjgucF/ijA="
 }
 ```
 
