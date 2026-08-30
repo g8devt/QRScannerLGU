@@ -364,6 +364,7 @@ ROUTES = {
     'cancel_tourism_booking': tourism.cancel_tourism_booking,
     'confirm_tourism_booking_payment': tourism.confirm_tourism_booking_payment,
     'login_scanner_bataan': scanner_auth_bataan.login_scanner_bataan,
+    'check_app_version_scanner_bataan': scanner_auth_bataan.check_app_version_scanner_bataan,
 }
 
 # Cebu Admin Web: "_cebu"-suffixed endpoints, each routed to its OWN

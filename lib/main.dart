@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/config/app_config.dart';
 import 'core/network/api_client.dart';
 import 'core/theme/app_theme.dart';
+import 'features/app_update/data/datasources/app_update_remote_datasource.dart';
+import 'features/app_update/domain/usecases/check_app_update.dart';
 import 'features/auth/data/datasources/auth_local_datasource.dart';
 import 'features/auth/data/datasources/auth_remote_datasource.dart';
 import 'features/auth/data/repositories/auth_repository_impl.dart';
@@ -91,6 +93,9 @@ class MyApp extends StatelessWidget {
           final logoutUsecase = LogoutUsecase(authRepository);
           final restoreSessionUsecase = RestoreSessionUsecase(authRepository);
 
+          final appUpdateRemoteDatasource = AppUpdateRemoteDatasource(apiClient);
+          final checkAppUpdate = CheckAppUpdate(appUpdateRemoteDatasource);
+
           return RepositoryProvider<CapturePhoto>(
             create: (_) => capturePhoto,
             child: MultiBlocProvider(
@@ -132,7 +137,7 @@ class MyApp extends StatelessWidget {
                 debugShowCheckedModeBanner: false,
                 theme: AppTheme.dark,
                 navigatorObservers: [routeObserver],
-                home: const AuthGate(),
+                home: AuthGate(checkAppUpdate: checkAppUpdate),
               ),
             ),
           );
