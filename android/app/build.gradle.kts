@@ -16,7 +16,9 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.bataan_lgu_scanner.ph"
-    compileSdk = flutter.compileSdkVersion
+    // Hardcoded (not flutter.compileSdkVersion) so Play Store target-API
+    // requirements are visible here regardless of which Flutter SDK builds this.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -29,12 +31,11 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.bataan_lgu_scanner.ph"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        // Hardcoded to 36 (Android 16) to satisfy Play Store's Aug 31, 2025
+        // "must target API 35+" / Aug 2026 "must target API 36+" enforcement.
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
