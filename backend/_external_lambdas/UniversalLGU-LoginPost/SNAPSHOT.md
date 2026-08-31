@@ -10,6 +10,8 @@
   against this mirror (line-ending-insensitive), confirming zero drift.
 - **Checked:** 2026-08-30 — live `CodeSha256`/`LastModified` unchanged
   since the 2026-08-25 pull; no drift, nothing to sync.
+- **Checked:** 2026-08-31 — live `CodeSha256`/`LastModified` unchanged
+  since the 2026-08-25 pull; no drift, nothing to sync.
 
 ## Configuration
 

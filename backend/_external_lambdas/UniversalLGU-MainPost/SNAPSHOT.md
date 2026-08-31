@@ -200,6 +200,8 @@
   Denied` body with `FunctionError: None` — proves the new endpoint
   imports and routes cleanly at cold start without breaking the existing
   login action.
+- **Checked:** 2026-08-31 — live `CodeSha256`/`LastModified` unchanged
+  since last pull; no drift, nothing to sync.
 
 ## Configuration
 
