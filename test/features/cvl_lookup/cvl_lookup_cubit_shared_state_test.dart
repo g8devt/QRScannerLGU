@@ -43,6 +43,7 @@ const _record = CvlRecord(
   sector: '',
   qrCode: '',
   imgPath: '',
+  status: 'ACTIVE',
 );
 
 class _FakeCvlRepository implements CvlRepository {

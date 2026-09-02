@@ -575,6 +575,38 @@ class SearchCvlByNameBataanTest(unittest.TestCase):
         self.assertIn('MATCH(c.cvl_fullname) AGAINST', sql)
         self.assertEqual(params, ('Balanga', '+Juan* +Cruz*', 0))
 
+    def test_always_restricts_to_active_status_by_name(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(cur, {'name': 'Juan Cruz'}, [], '2026-08-26 00:00:00')
+
+        args, _ = cur.execute.call_args
+        sql, _ = args
+        self.assertIn("c.cvl_status = 'ACTIVE'", sql)
+
+    def test_always_restricts_to_active_status_by_filter(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(cur, {'mun': 'Balanga'}, [], '2026-08-26 00:00:00')
+
+        args, _ = cur.execute.call_args
+        sql, _ = args
+        self.assertIn("c.cvl_status = 'ACTIVE'", sql)
+
+    def test_active_status_restriction_is_not_caller_controlled(self):
+        # Regression guard: cvl_status must never be settable from the
+        # request — only name/mun/brgy/precinct/etc. are read from data.
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        search_cvl_by_name_bataan(
+            cur, {'mun': 'Balanga', 'cvl_status': 'INACTIVE'}, [], '2026-08-26 00:00:00'
+        )
+
+        args, _ = cur.execute.call_args
+        sql, _ = args
+        self.assertIn("c.cvl_status = 'ACTIVE'", sql)
+        self.assertNotIn('INACTIVE', sql)
+
 
 class GetCvlFilterOptionsBataanTest(unittest.TestCase):
     def test_returns_distinct_values_per_column(self):
@@ -623,6 +655,20 @@ class GetCvlFilterOptionsBataanTest(unittest.TestCase):
         cur.execute.side_effect = RuntimeError('connection lost')
         result = get_cvl_filter_options_bataan(cur, {}, [], '2026-08-26 00:00:00')
         self.assertEqual(result['statusCode'], 500)
+
+    def test_mun_brgy_precinct_options_restricted_to_active_status(self):
+        # Matches search_cvl_by_name_bataan's always-on ACTIVE restriction
+        # — otherwise the filter sheet could offer a location combination
+        # that search would then return zero (non-active-only) results for.
+        cur = MagicMock()
+        cur.fetchall.side_effect = [[], [], [], []]
+        get_cvl_filter_options_bataan(cur, {}, [], '2026-08-26 00:00:00')
+
+        mun_sql = cur.execute.call_args_list[0].args[0]
+        brgy_sql = cur.execute.call_args_list[1].args[0]
+        precinct_sql = cur.execute.call_args_list[2].args[0]
+        for sql in (mun_sql, brgy_sql, precinct_sql):
+            self.assertIn("cvl_status = 'ACTIVE'", sql)
 
 
 if __name__ == '__main__':

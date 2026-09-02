@@ -2,7 +2,18 @@ import 'package:equatable/equatable.dart';
 
 import '../../domain/entities/cvl_record.dart';
 
-enum CvlLookupStatus { initial, loading, loaded, failed }
+enum CvlLookupStatus {
+  initial,
+  loading,
+  loaded,
+  failed,
+
+  /// Record found via a scanned QR, but its `cvl_status` isn't `ACTIVE` —
+  /// scanning is blocked. [CvlLookupState.record] still holds the record
+  /// (so the blocking dialog can reference its name/status), but no
+  /// scan-related action proceeds.
+  blocked,
+}
 
 class CvlLookupState extends Equatable {
   const CvlLookupState({

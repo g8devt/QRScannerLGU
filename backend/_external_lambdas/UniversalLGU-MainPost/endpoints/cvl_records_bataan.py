@@ -25,7 +25,7 @@ _CVL_DETAIL_COLUMNS = """
     c.cvl_lname, c.cvl_suffix, c.cvl_address, c.cvl_mun,
     c.cvl_brgy, c.cvl_precinct_no, c.cvl_birthdate,
     c.cvl_contact_no, c.cvl_email, c.cvl_gender, c.cvl_sector,
-    c.cvl_img_path, c.cvl_qr, q.qr_code AS cvl_qr_code
+    c.cvl_img_path, c.cvl_qr, c.cvl_status, q.qr_code AS cvl_qr_code
 """
 
 # Must match app_cvl_list.cvl_img_path's column width (see
@@ -51,7 +51,10 @@ def find_cvl_by_qr_bataan(cur, data, files, ts):
     the full `QR-xxxxx` string, its bare numeric suffix, or the
     `app_qr_code.id` itself if the scanned value is purely numeric).
     Responds with `{status, data}` on a match, or a 404 `fail(...)` with
-    a fixed human-readable message when nothing matches.
+    a fixed human-readable message when nothing matches. Does not filter
+    on `cvl_status` — matches are returned regardless of status, and
+    `cvl_status` is included in `data` so the app can gate the scan
+    itself (only `ACTIVE` records may proceed).
     """
     try:
         require(data, 'qr_code')
@@ -448,20 +451,23 @@ def get_cvl_filter_options_bataan(cur, data, files, ts):
     """Returns each filterable column's distinct, non-empty live values,
     sorted, for the "Search CVL Record" filter sheet's dropdowns.
 
-    No params. Secondary position and sector are fixed, admin-defined
-    option sets the app hardcodes instead of fetching, so they're not
-    included here. Major position and leader title, however, are
-    genuinely data-driven and fetched from `leader_structure_tbl`
-    (`app_cvl_list.cvl_position_code` doesn't hold them itself — see
-    `_search_leader_join_conditions`): `major_positions` is every
-    distinct `leader_structure_name`, and `leader_titles_by_position`
-    maps each `leader_structure_name` to its distinct `leader_title`
-    values — one leader_structure_name can have several leader_titles
-    under it (e.g. ATR has both MAIN COORDINATOR and PUROK COORDINATOR),
-    so the app's Leader Title dropdown cascades from whichever Major
-    Position is selected rather than offering one universal list.
-    Responds with `{status, data: {mun, brgy, precinct, major_positions,
-    leader_titles_by_position}}`.
+    No params. `mun`/`brgy`/`precinct` are sourced from `ACTIVE` records
+    only (matching `search_cvl_by_name_bataan`'s own always-on
+    `cvl_status = 'ACTIVE'` restriction), so the dropdowns never offer a
+    combination that search would then return zero results for. Secondary
+    position and sector are fixed, admin-defined option sets the app
+    hardcodes instead of fetching, so they're not included here. Major
+    position and leader title, however, are genuinely data-driven and
+    fetched from `leader_structure_tbl` (`app_cvl_list.cvl_position_code`
+    doesn't hold them itself — see `_search_leader_join_conditions`):
+    `major_positions` is every distinct `leader_structure_name`, and
+    `leader_titles_by_position` maps each `leader_structure_name` to its
+    distinct `leader_title` values — one leader_structure_name can have
+    several leader_titles under it (e.g. ATR has both MAIN COORDINATOR
+    and PUROK COORDINATOR), so the app's Leader Title dropdown cascades
+    from whichever Major Position is selected rather than offering one
+    universal list. Responds with `{status, data: {mun, brgy, precinct,
+    major_positions, leader_titles_by_position}}`.
     """
     try:
         options = {}
@@ -470,6 +476,7 @@ def get_cvl_filter_options_bataan(cur, data, files, ts):
                 f"""
                 SELECT DISTINCT {column} AS v FROM app_cvl_list
                 WHERE {column} IS NOT NULL AND {column} != ''
+                  AND cvl_status = 'ACTIVE'
                 ORDER BY {column}
                 """
             )
@@ -524,6 +531,10 @@ def search_cvl_by_name_bataan(cur, data, files, ts):
     `cvl_img_path` is set, `has_card` checks `cvl_qr` is set (i.e. a
     Kabaka Card is tagged).
 
+    Always restricted to `cvl_status = 'ACTIVE'` — not a caller-supplied
+    filter, so it can't be turned off from the app; inactive/merged/
+    archived records don't show up in search results at all.
+
     `LEFT JOIN`s `app_qr_code` so records with no QR assigned yet still
     show up. Paginated: optional `offset` (default 0) skips that many
     matches, ordered by name; each page holds up to 25 rows. Fetches one
@@ -574,7 +585,12 @@ def search_cvl_by_name_bataan(cur, data, files, ts):
         if offset < 0:
             return fail('Invalid offset')
 
-        conditions = list(filter_conditions)
+        # Always applied, not user-controlled — added after the "give me
+        # something to search on" check above so it can't itself satisfy
+        # that check, and kept out of filter_conditions so it doesn't
+        # affect get_cvl_filter_options_bataan's caller-independent
+        # option lists.
+        conditions = ["c.cvl_status = 'ACTIVE'"] + filter_conditions
         params = list(filter_params)
 
         if raw_term:

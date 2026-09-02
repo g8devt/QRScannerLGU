@@ -204,6 +204,52 @@
   since last pull; no drift, nothing to sync.
 - **Checked:** 2026-09-02 — live `CodeSha256`/`LastModified` unchanged
   since last pull; no drift, nothing to sync.
+- **Deployed from this repo:** 2026-09-02 — added `c.cvl_status` to
+  `_CVL_DETAIL_COLUMNS` in `endpoints/cvl_records_bataan.py` (plus a
+  docstring note on `find_cvl_by_qr_bataan`), so `find_cvl_by_qr_bataan`
+  and `get_cvl_by_id_bataan` now return the CVL record's status —
+  backs the scanner app's new "only ACTIVE records may be scanned" gate
+  (the app itself enforces the gate; this endpoint still doesn't filter
+  on status). Same pull-live/merge-diff/deploy method: pulled the live
+  package fresh immediately before deploying, confirmed zero drift from
+  this mirror (full file-list + content diff, Bataan/shared code only,
+  found nothing beyond this one not-yet-deployed local change), applied
+  only this addition onto the freshly-pulled package (kept all 26
+  `cebu_*`-prefixed files intact — an earlier local diff step had
+  stripped them from a scratch copy for comparison purposes only; that
+  copy was discarded and re-pulled fresh before packaging so nothing
+  Cebu-tenant-specific was ever at risk of being deployed), and deployed
+  via `aws lambda update-function-code`. Verified post-deploy:
+  `LastUpdateStatus: Successful`, two clean invokes
+  (`find_cvl_by_qr_bataan` and `get_cvl_by_id_bataan`, both with a
+  deliberately invalid token) returning a normal `403 Access Denied`
+  body with no `FunctionError` — proves the edited module imports and
+  routes cleanly at cold start.
+
+- **Deployed from this repo:** 2026-09-02 (second deploy same day) —
+  `search_cvl_by_name_bataan` now always applies `c.cvl_status =
+  'ACTIVE'` (not caller-controllable — added directly to the query's
+  `conditions` list, not `filter_conditions`, so it can't be surfaced or
+  overridden as a request param); `get_cvl_filter_options_bataan`'s
+  `mun`/`brgy`/`precinct` dropdown option queries got the same `AND
+  cvl_status = 'ACTIVE'` restriction, so the filter sheet can't offer a
+  location combination search would then return zero results for.
+  Backs "Search CVL Record only searches/filters ACTIVE records". Same
+  pull-live/merge-diff/deploy method: pulled the live package fresh,
+  confirmed zero drift against this mirror using a disposable copy for
+  the comparison (not the copy that got zipped — a prior deploy this
+  session had briefly stripped the 26 `cebu_*` files from the wrong
+  copy for a diff and nearly zipped that one; this time the diff copy
+  and the deploy copy were kept strictly separate, and file-listing
+  parity (111/111) with the fresh download was verified right before
+  upload), applied only this change, and deployed via `aws lambda
+  update-function-code`. Verified post-deploy: `LastUpdateStatus:
+  Successful`, two clean invokes (`search_cvl_by_name_bataan` and
+  `get_cvl_filter_options_bataan`, both with a deliberately invalid
+  token) returning a normal `403 Access Denied` body with no
+  `FunctionError` — proves the edited module imports and routes cleanly
+  at cold start. Added 4 new tests to
+  `tests/test_cvl_records_bataan.py` (79/79 passing).
 
 ## Configuration
 
@@ -213,8 +259,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-08-30T14:34:00.000+0000",
-    "CodeSha256": "0fVypz+1OwzDz5IFoskHEGwssi/AI1Q3DMjgucF/ijA="
+    "LastModified": "2026-09-02T14:21:37.000+0000",
+    "CodeSha256": "SknSWbJXw/D1wIRMZy9RSzkNFhq0lZEz54hM3kHJwPY="
 }
 ```
 

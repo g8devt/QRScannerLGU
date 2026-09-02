@@ -49,6 +49,7 @@ class _FakeCvlRepository implements CvlRepository {
     sector: '',
     qrCode: '',
     imgPath: '',
+    status: 'ACTIVE',
   );
 
   @override

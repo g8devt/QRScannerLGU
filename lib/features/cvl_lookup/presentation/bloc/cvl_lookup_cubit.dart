@@ -29,6 +29,13 @@ class CvlLookupCubit extends Cubit<CvlLookupState> {
     emit(state.copyWith(status: CvlLookupStatus.loading));
     try {
       final record = await _findCvlByQr(qrCode);
+      // Status gate happens right here, immediately after the record is
+      // identified from the scanned QR and before any scan-related
+      // action (viewing details, editing, QR actions) is reachable.
+      if (!record.isActive) {
+        emit(state.copyWith(status: CvlLookupStatus.blocked, record: record));
+        return;
+      }
       emit(state.copyWith(status: CvlLookupStatus.loaded, record: record));
     } catch (e) {
       emit(

@@ -85,6 +85,9 @@ class _CvlEditPageState extends State<CvlEditPage> {
           switch (state.status) {
             case CvlLookupStatus.initial:
             case CvlLookupStatus.loading:
+            // This page always loads via fetchById (never a scan), which
+            // never emits `blocked` — kept here only for exhaustiveness.
+            case CvlLookupStatus.blocked:
               return const Center(child: CircularProgressIndicator());
             case CvlLookupStatus.failed:
               return _LoadErrorView(

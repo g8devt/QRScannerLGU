@@ -58,11 +58,21 @@ class _CvlLookupPageState extends State<CvlLookupPage> {
       canPop: true,
       child: Scaffold(
         appBar: AppBar(title: const Text('CVL Record')),
-        body: BlocBuilder<CvlLookupCubit, CvlLookupState>(
+        body: BlocConsumer<CvlLookupCubit, CvlLookupState>(
+          listener: (context, state) {
+            if (state.status == CvlLookupStatus.blocked) {
+              _showNotActiveDialog(context, state.record!);
+            }
+          },
           builder: (context, state) {
             switch (state.status) {
               case CvlLookupStatus.initial:
               case CvlLookupStatus.loading:
+              // The blocking dialog above is what the user actually
+              // sees; behind it, hold the same spinner rather than
+              // flashing a details view that must immediately be
+              // dismissed.
+              case CvlLookupStatus.blocked:
                 return const Center(child: CircularProgressIndicator());
               case CvlLookupStatus.failed:
                 return _ErrorView(
@@ -78,6 +88,36 @@ class _CvlLookupPageState extends State<CvlLookupPage> {
       ),
     );
   }
+}
+
+/// Blocks the scan when [record]'s status isn't `ACTIVE` — shown right
+/// after the record is identified from the scanned QR, before any
+/// scan-related action (details view, edit, QR actions) is reachable.
+/// Dismissing it pops this page back to the scanner, same as
+/// `_ErrorView`'s "Scan Again".
+Future<void> _showNotActiveDialog(BuildContext context, CvlRecord record) {
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) => AlertDialog(
+      icon: const Icon(Icons.block_rounded),
+      title: const Text('Record Not Active'),
+      content: Text(
+        'This CVL record (${record.fullName}) has status '
+        '"${record.status}" and cannot be scanned. Only records with '
+        'Active status may be scanned.',
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () {
+            Navigator.of(dialogContext).pop();
+            Navigator.of(context).pop();
+          },
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
 }
 
 /// Empty/error state — mirrors `_HintMessage` in cvl_search_page.dart: a
@@ -282,12 +322,69 @@ class _IdentityHeader extends StatelessWidget {
                     ),
                   ],
                   const SizedBox(height: 10),
-                  _QrStatusChip(hasQr: record.hasQr),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _CvlStatusChip(status: record.status),
+                      _QrStatusChip(hasQr: record.hasQr),
+                    ],
+                  ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Small status pill showing the record's `cvl_status` (e.g. ACTIVE,
+/// INACTIVE, MERGED) — green for Active, the shared warning color for
+/// everything else, since scanning only reaches this view for Active
+/// records but the search flow (`CvlLookupPage.byId`) can still land
+/// here on a non-active one.
+class _CvlStatusChip extends StatelessWidget {
+  const _CvlStatusChip({required this.status});
+
+  final String status;
+
+  bool get _isActive => status.trim().toUpperCase() == 'ACTIVE';
+
+  @override
+  Widget build(BuildContext context) {
+    final appStatus = Theme.of(context).extension<AppStatusColors>()!;
+    final background = _isActive
+        ? appStatus.successContainer
+        : appStatus.warningContainer;
+    final foreground = _isActive
+        ? appStatus.onSuccessContainer
+        : appStatus.onWarningContainer;
+    final label = status.trim().isEmpty ? 'UNKNOWN' : status.trim();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _isActive ? Icons.check_circle_rounded : Icons.error_rounded,
+            size: 14,
+            color: foreground,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: foreground,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

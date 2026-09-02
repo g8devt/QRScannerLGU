@@ -22,6 +22,7 @@ class CvlRecord extends Equatable {
     required this.sector,
     required this.qrCode,
     required this.imgPath,
+    required this.status,
   });
 
   final int id;
@@ -49,6 +50,12 @@ class CvlRecord extends Equatable {
   /// [hasDisplayableImage] is what UI code should actually check.
   final String imgPath;
 
+  /// `app_cvl_list.cvl_status` — e.g. `ACTIVE`, `INACTIVE`, `MERGED`.
+  /// Defaults to `ACTIVE` at the DB level; use [isActive] rather than
+  /// comparing this directly, so casing/whitespace can't slip a
+  /// non-active record past a scan check.
+  final String status;
+
   /// Whether [imgPath] is something this app can actually render —
   /// i.e. an absolute URL, not a PHP-admin-relative path.
   bool get hasDisplayableImage =>
@@ -56,6 +63,11 @@ class CvlRecord extends Equatable {
 
   /// Empty when the record has no QR assigned yet.
   bool get hasQr => qrCode.isNotEmpty;
+
+  /// Whether this record's status permits scanning. Only an exact
+  /// (case/whitespace-insensitive) `ACTIVE` counts — inactive, archived,
+  /// merged, or any other/unknown status is treated as not scannable.
+  bool get isActive => status.trim().toUpperCase() == 'ACTIVE';
 
   static String _str(dynamic v) => v == null ? '' : v.toString();
 
@@ -81,6 +93,7 @@ class CvlRecord extends Equatable {
       sector: _str(json['cvl_sector']),
       qrCode: _str(json['cvl_qr_code']),
       imgPath: _str(json['cvl_img_path']),
+      status: _str(json['cvl_status']),
     );
   }
 
@@ -110,6 +123,7 @@ class CvlRecord extends Equatable {
       sector: sector,
       qrCode: qrCode ?? this.qrCode,
       imgPath: imgPath ?? this.imgPath,
+      status: status,
     );
   }
 
@@ -133,5 +147,6 @@ class CvlRecord extends Equatable {
     sector,
     qrCode,
     imgPath,
+    status,
   ];
 }
