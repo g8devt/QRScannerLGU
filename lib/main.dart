@@ -133,7 +133,7 @@ class MyApp extends StatelessWidget {
                 ),
               ],
               child: MaterialApp(
-                title: 'Bataan LGU Scanner',
+                title: AppConfig.appName,
                 debugShowCheckedModeBanner: false,
                 theme: AppTheme.dark,
                 navigatorObservers: [routeObserver],

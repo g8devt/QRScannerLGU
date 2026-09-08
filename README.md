@@ -1,4 +1,4 @@
-# Bataan LGU Scanner
+# District 1 Bataan Scanner
 
 A Flutter app for Bataan LGU field staff to scan QR codes on CVL
 (Community Vulnerability List) records and Kabaka Cards, look up and edit

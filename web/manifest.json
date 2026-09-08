@@ -1,6 +1,6 @@
 {
-    "name": "bataan_lgu_scanner",
-    "short_name": "bataan_lgu_scanner",
+    "name": "District 1 Bataan Scanner",
+    "short_name": "District 1 Bataan Scanner",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

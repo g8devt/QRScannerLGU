@@ -8,6 +8,11 @@ import 'package:package_info_plus/package_info_plus.dart';
 class AppConfig {
   const AppConfig._();
 
+  /// Canonical display name of the app, in title case. Widgets that need a
+  /// stylistic all-caps wordmark (e.g. the login header) should apply
+  /// `.toUpperCase()` to this rather than hardcoding another string.
+  static const String appName = 'District 1 Bataan Scanner';
+
   /// App version, sourced from the native build at runtime via
   /// [loadPackageInfo]. Empty until loaded (e.g. very early startup or tests).
   static String appVersion = '';

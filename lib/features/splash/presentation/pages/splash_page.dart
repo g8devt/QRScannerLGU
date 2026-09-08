@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/config/app_config.dart';
+
 /// Shown while [AuthGate] resolves the initial auth status (restoring a
 /// saved session or landing on the login screen).
 class SplashPage extends StatelessWidget {
@@ -40,7 +42,7 @@ class SplashPage extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'Bataan LGU Scanner',
+                AppConfig.appName,
                 textAlign: TextAlign.center,
                 style: textTheme.headlineSmall,
               ),

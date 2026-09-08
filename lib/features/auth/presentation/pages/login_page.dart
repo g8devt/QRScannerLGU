@@ -203,7 +203,7 @@ class _HeroBand extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'BATAAN LGU SCANNER',
+                  AppConfig.appName.toUpperCase(),
                   textAlign: TextAlign.center,
                   style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
