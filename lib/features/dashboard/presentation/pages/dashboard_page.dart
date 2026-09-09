@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../auth/domain/entities/scanner_user.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
@@ -47,6 +48,22 @@ class DashboardPage extends StatelessWidget {
     );
 
     if (confirmed) SystemNavigator.pop();
+  }
+
+  /// Gates the 3 scan features on account verification: a scanner-staff
+  /// account can log in with `userStatus` PENDING/NOT_VERIFIED (only
+  /// DEACTIVATED/inactive block login, see AuthGate), but must not be
+  /// able to use any scan feature until an admin marks it VERIFIED.
+  /// Returns whether the caller should proceed with navigation.
+  Future<bool> _requireVerified(BuildContext context, ScannerUser? user) async {
+    if (user?.userStatus == 'VERIFIED') return true;
+    await showMessageDialog(
+      context,
+      title: 'Account Not Verified',
+      message:
+          'Your account has not been verified yet. Please contact your administrator for assistance.',
+    );
+    return false;
   }
 
   @override
@@ -131,11 +148,15 @@ class DashboardPage extends StatelessWidget {
                       glowColor: scheme.primary,
                       title: 'Claim Assistance',
                       subtitle: 'Scan a QR to claim assistance',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ScannerPage(),
-                        ),
-                      ),
+                      onTap: () async {
+                        if (!await _requireVerified(context, user)) return;
+                        if (!context.mounted) return;
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ScannerPage(),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 12),
                     _DashboardActionTile(
@@ -144,13 +165,17 @@ class DashboardPage extends StatelessWidget {
                       iconColor: scheme.onTertiaryContainer,
                       title: 'View Social Service Details',
                       subtitle: 'Scan a QR to view application details',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ScannerPage(
-                            purpose: ScanPurpose.viewDetails,
+                      onTap: () async {
+                        if (!await _requireVerified(context, user)) return;
+                        if (!context.mounted) return;
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ScannerPage(
+                              purpose: ScanPurpose.viewDetails,
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 12),
                     _DashboardActionTile(
@@ -159,13 +184,17 @@ class DashboardPage extends StatelessWidget {
                       iconColor: scheme.onSecondaryContainer,
                       title: 'Check CVL Record',
                       subtitle: 'Scan a QR to view voter record',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ScannerPage(
-                            purpose: ScanPurpose.cvlLookup,
+                      onTap: () async {
+                        if (!await _requireVerified(context, user)) return;
+                        if (!context.mounted) return;
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ScannerPage(
+                              purpose: ScanPurpose.cvlLookup,
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ],
                 ),

@@ -60,11 +60,10 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<ScannerUser?> restoreSession() async {
     final json = await _local.getSession();
     if (json == null) return null;
-    final user = ScannerUser.fromJson(json);
 
     final Map<String, dynamic> response;
     try {
-      response = await _remote.checkStatus(userId: user.id);
+      response = await _remote.checkStatus(userId: ScannerUser.fromJson(json).id);
     } on ApiException catch (e) {
       throw AuthException(e.message);
     } catch (_) {
@@ -83,7 +82,15 @@ class AuthRepositoryImpl implements AuthRepository {
         'Your account is no longer active. Please contact your administrator for assistance.',
       );
     }
-    return user;
+
+    // The cached session was captured at login time, so it never sees an
+    // admin's later verification-status change (e.g. VERIFIED->PENDING) on
+    // its own -- that alone doesn't fail is_valid above. Overlay the fresh
+    // user_status this call just returned, and persist it so the cache
+    // doesn't keep resurfacing the stale value on the next launch too.
+    final refreshed = {...json, 'user_status': response['user_status'] ?? json['user_status']};
+    await _local.saveSession(refreshed);
+    return ScannerUser.fromJson(refreshed);
   }
 
   @override

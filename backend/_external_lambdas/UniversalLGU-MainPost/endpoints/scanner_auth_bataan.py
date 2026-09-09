@@ -90,7 +90,13 @@ def check_scanner_status_bataan(cur, data, files, ts):
     path as it does on manual login (DEACTIVATED takes priority when
     both apply). Not present when `is_valid` is true. A row that no
     longer exists at all (deleted account) reports 'INACTIVE' as the
-    safest neutral default, since its true status is unknown."""
+    safest neutral default, since its true status is unknown.
+
+    When `is_valid` is true, also returns the row's current
+    `user_status` (VERIFIED/PENDING/NOT_VERIFIED) -- the app's cached
+    session was captured at login time and never sees an admin's later
+    verification-status change otherwise, since only DEACTIVATED/inactive
+    block login/revalidation here."""
     try:
         require(data, 'user_profile_id')
         user_profile_id = sanitize(data['user_profile_id'])
@@ -110,7 +116,7 @@ def check_scanner_status_bataan(cur, data, files, ts):
             return ok({'status': True, 'is_valid': False, 'reason': 'DEACTIVATED'})
         if not bool(is_active):
             return ok({'status': True, 'is_valid': False, 'reason': 'INACTIVE'})
-        return ok({'status': True, 'is_valid': True})
+        return ok({'status': True, 'is_valid': True, 'user_status': user_status})
     except ValueError as e:
         return fail(str(e))
     except Exception as e:

@@ -171,6 +171,26 @@ void main() {
       expect(local.stored, isNotNull);
     });
 
+    test('overlays a changed user_status from the backend onto the returned user '
+        'and re-persists it', () async {
+      final local = _FakeAuthLocalDatasource();
+      local.stored = {
+        'id': 7, 'username': 'staff1', 'user_status': 'VERIFIED',
+        'firstname': 'Juan', 'middlename': '', 'lastname': 'Dela Cruz', 'suffix': '',
+      };
+      final repo = AuthRepositoryImpl(
+        _FakeAuthRemoteDatasource(
+          checkStatusResponse: const {'status': true, 'is_valid': true, 'user_status': 'PENDING'},
+        ),
+        local,
+      );
+
+      final user = await repo.restoreSession();
+
+      expect(user!.userStatus, 'PENDING');
+      expect(local.stored!['user_status'], 'PENDING');
+    });
+
     test('clears the cached session and throws AccountInactiveException when the '
         'backend rejects it with reason INACTIVE', () async {
       final local = _FakeAuthLocalDatasource();

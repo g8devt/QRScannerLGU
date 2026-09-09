@@ -141,6 +141,17 @@ class CheckScannerStatusBataanTest(unittest.TestCase):
         self.assertTrue(body['status'])
         self.assertTrue(body['is_valid'])
 
+    def test_valid_response_includes_current_user_status(self):
+        # The app's cached session was captured at login time and would
+        # otherwise never see an admin's later VERIFIED->PENDING change,
+        # since that alone doesn't fail is_valid.
+        cur = self._cur({'is_active': 1, 'user_status': 'PENDING'})
+        result = check_scanner_status_bataan(
+            cur, {'user_profile_id': '7'}, [], '2026-09-09 00:00:00')
+        body = json.loads(result['body'])
+        self.assertTrue(body['is_valid'])
+        self.assertEqual(body['user_status'], 'PENDING')
+
     def test_inactive_and_not_deactivated_is_invalid_with_inactive_reason(self):
         cur = self._cur({'is_active': 0, 'user_status': 'VERIFIED'})
         result = check_scanner_status_bataan(
