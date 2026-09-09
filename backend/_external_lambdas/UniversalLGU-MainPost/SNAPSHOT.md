@@ -3,6 +3,39 @@
 - **Account:** 425605448087
 - **Region:** ap-southeast-1
 - **Pulled:** 2026-09-09 (previously 2026-08-26, 2026-08-25, 2026-08-19, 2026-08-10)
+- **Deployed from this repo:** 2026-09-09 (third deploy same day, commit
+  `b8b0c70`) — reworked `login_scanner_bataan` in
+  `endpoints/scanner_auth_bataan.py` (no `ROUTES`/`lambda_function.py`
+  change — same action name) so manual login distinguishes an
+  inactive/deactivated account from a wrong password instead of
+  collapsing both into a generic "Invalid Credential": now fetches the
+  account by `username` alone, verifies the password with
+  `hmac.compare_digest` in Python BEFORE ever inspecting
+  `is_active`/`user_status` (the safety property -- a wrong password
+  always resolves to `INVALID_CREDENTIAL` regardless of account status,
+  so this can't become an unauthenticated status oracle), then always
+  responds 200 with a `login_status` discriminant (`SUCCESS` |
+  `INVALID_CREDENTIAL` | `INACTIVE` | `DEACTIVATED`, `DEACTIVATED` taking
+  priority when both apply) instead of `fail()`/400, mirroring
+  `check_scanner_status_bataan`'s pattern. Same pull-live/merge-diff/
+  deploy method: pulled the live package fresh immediately before
+  deploying, confirmed the only diff from this mirror was this one file
+  (116/116 file-count parity against the fresh pull, `lambda_function.py`
+  and `helpers/` byte-identical), applied only this change, and deployed
+  via `aws lambda update-function-code`. Verified post-deploy:
+  `LastUpdateStatus: Successful`, `State: Active`. Live verification via
+  the public API (valid staff token): an unknown username still returns
+  `{"status": true, "login_status": "INVALID_CREDENTIAL"}` (200, not a
+  `fail()`/400 as before -- confirms the new response contract is live);
+  a missing `password` still returns the unaffected `400 Missing:
+  password`; an invalid app token still returns `403 Access Denied`.
+  The `SUCCESS`/`INACTIVE`/`DEACTIVATED`/combined-status and
+  correct-password-on-a-blocked-account cases were NOT independently
+  live-verified against real accounts -- doing so requires a real
+  scanner-staff account's actual password, which this environment does
+  not have and should not guess; those branches are covered instead by 8
+  dedicated unit tests against mocked DB rows (all passing, part of the
+  92/92 backend suite) and the pre-deploy diff review above.
 - **Deployed from this repo:** 2026-09-09 (second deploy same day, commit
   `01f8440`) — added `check_scanner_status_bataan` to
   `endpoints/scanner_auth_bataan.py` + its `ROUTES` entry (backs the
@@ -315,8 +348,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-09-09T09:42:11.000+0000",
-    "CodeSha256": "2h3YeM158tUFfR3b/h5BpTZ1varDlsY4OR3Pf1lwkS8="
+    "LastModified": "2026-09-09T10:22:12.000+0000",
+    "CodeSha256": "00CsCNWCEWF7fC4bKeZT8je2/W0dIigd0iB9rByuHMM="
 }
 ```
 
