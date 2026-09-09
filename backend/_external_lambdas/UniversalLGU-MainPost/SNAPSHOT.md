@@ -3,6 +3,35 @@
 - **Account:** 425605448087
 - **Region:** ap-southeast-1
 - **Pulled:** 2026-09-09 (previously 2026-08-26, 2026-08-25, 2026-08-19, 2026-08-10)
+- **Deployed from this repo:** 2026-09-09 (fourth deploy same day, commit
+  `d680675`) — reworked `check_scanner_status_bataan` in
+  `endpoints/scanner_auth_bataan.py` so the auto-login/session-revalidation
+  path returns a `reason` (`'INACTIVE'` | `'DEACTIVATED'`) alongside
+  `is_valid: false`, mirroring `login_scanner_bataan`'s `login_status`
+  discriminant, instead of only ever returning `is_valid: false` with no
+  reason. Root cause of a real production bug: this fix had been committed
+  to the repo mirror but never deployed, so the live Lambda still returned
+  bare `is_valid: false` (no `reason` field, and a not-found row returned
+  no `reason` either) — the app's `restoreSession` only special-cases
+  `reason == 'DEACTIVATED'` and otherwise falls back to the generic
+  `AccountInactiveException`, so a deactivated staff account's cached
+  session showed "Account Inactive" on auto-login instead of "Account
+  Deactivated", even though the DB and the manual-login path (already
+  fixed by the `b8b0c70` deploy below) were both correct. Found by pulling
+  the live package fresh and diffing against this mirror: confirmed the
+  live `check_scanner_status_bataan` predated this fix (old
+  `is_valid = bool(is_active) and user_status != 'DEACTIVATED'`
+  one-liner, no `reason` key at all) while every other file — including
+  `lambda_function.py`'s `ROUTES` and `helpers/` — was byte-identical to
+  this mirror (116/116 file-count parity). Applied only this file's
+  current mirror content into the freshly pulled package and deployed via
+  `aws lambda update-function-code`. Verified post-deploy:
+  `LastUpdateStatus: Successful`, `State: Active`,
+  `CodeSha256: icTNSdOt9IEX3eVcUQTD6SEtgLLEyNqMtvnF9MfT6To=`. Not
+  independently re-verified against a real deactivated scanner account's
+  live session (would require that account's actual cached
+  `user_profile_id`); covered instead by the existing unit tests for this
+  function plus the pre-deploy diff review above.
 - **Deployed from this repo:** 2026-09-09 (third deploy same day, commit
   `b8b0c70`) — reworked `login_scanner_bataan` in
   `endpoints/scanner_auth_bataan.py` (no `ROUTES`/`lambda_function.py`
@@ -348,8 +377,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-09-09T10:22:12.000+0000",
-    "CodeSha256": "00CsCNWCEWF7fC4bKeZT8je2/W0dIigd0iB9rByuHMM="
+    "LastModified": "2026-09-09T13:02:12.000+0000",
+    "CodeSha256": "icTNSdOt9IEX3eVcUQTD6SEtgLLEyNqMtvnF9MfT6To="
 }
 ```
 
