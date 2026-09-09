@@ -103,6 +103,31 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // The AppStarted->restoreSession() revalidation round-trip is typically
+    // much faster than the splash timer/version check below, so the bloc
+    // can already have transitioned to `accountInactive` before this
+    // widget would otherwise first subscribe to it. BlocListener only
+    // reports transitions it's subscribed for -- it never replays a state
+    // the bloc reached before subscription -- so this listener must wrap
+    // the whole tree unconditionally, from this build's very first call,
+    // rather than living inside the splash/version-gated branch below.
+    return BlocListener<AuthBloc, AuthState>(
+      listenWhen: (previous, current) =>
+          current.status == AuthStatus.accountInactive &&
+          previous.status != AuthStatus.accountInactive,
+      listener: (context, state) {
+        showMessageDialog(
+          context,
+          title: 'Account Inactive',
+          message: state.errorMessage ??
+              'Your account is no longer active. Please contact your administrator for assistance.',
+        );
+      },
+      child: _buildGatedContent(context),
+    );
+  }
+
+  Widget _buildGatedContent(BuildContext context) {
     final versionResult = _versionResult;
 
     // Still splashing, or (on Android) still waiting on the first version
@@ -120,18 +145,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       );
     }
 
-    return BlocConsumer<AuthBloc, AuthState>(
-      listenWhen: (previous, current) =>
-          current.status == AuthStatus.accountInactive &&
-          previous.status != AuthStatus.accountInactive,
-      listener: (context, state) {
-        showMessageDialog(
-          context,
-          title: 'Account Inactive',
-          message: state.errorMessage ??
-              'Your account is no longer active. Please contact your administrator for assistance.',
-        );
-      },
+    return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         switch (state.status) {
           case AuthStatus.authenticated:
