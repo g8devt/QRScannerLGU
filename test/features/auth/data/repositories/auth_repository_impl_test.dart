@@ -47,11 +47,12 @@ class _FakeAuthLocalDatasource extends AuthLocalDatasource {
 
 void main() {
   group('AuthRepositoryImpl.login', () {
-    test('maps a successful response to a ScannerUser and caches it locally', () async {
+    test('maps a SUCCESS response to a ScannerUser and caches it locally', () async {
       final local = _FakeAuthLocalDatasource();
       final repo = AuthRepositoryImpl(
         _FakeAuthRemoteDatasource(response: {
           'status': true,
+          'login_status': 'SUCCESS',
           'data': {
             'id': 7, 'username': 'staff1', 'user_status': 'VERIFIED', 'firstname': 'Juan',
             'middlename': '', 'lastname': 'Dela Cruz', 'suffix': '',
@@ -73,6 +74,7 @@ void main() {
       final repo = AuthRepositoryImpl(
         _FakeAuthRemoteDatasource(response: {
           'status': true,
+          'login_status': 'SUCCESS',
           'data': {
             'id': 7, 'username': 'staff1', 'user_status': 'VERIFIED', 'firstname': 'Juan',
             'middlename': '', 'lastname': 'Dela Cruz', 'suffix': '',
@@ -89,7 +91,19 @@ void main() {
 
     test('wraps an ApiException as an AuthException', () async {
       final repo = AuthRepositoryImpl(
-        _FakeAuthRemoteDatasource(error: ApiException('Invalid Credential')),
+        _FakeAuthRemoteDatasource(error: ApiException('Server error')),
+        _FakeAuthLocalDatasource(),
+      );
+
+      expect(
+        () => repo.login(username: 'staff1', password: 'wrong', rememberMe: true),
+        throwsA(isA<AuthException>().having((e) => e.message, 'message', 'Server error')),
+      );
+    });
+
+    test('throws a generic AuthException on INVALID_CREDENTIAL', () async {
+      final repo = AuthRepositoryImpl(
+        _FakeAuthRemoteDatasource(response: const {'status': true, 'login_status': 'INVALID_CREDENTIAL'}),
         _FakeAuthLocalDatasource(),
       );
 
@@ -97,6 +111,34 @@ void main() {
         () => repo.login(username: 'staff1', password: 'wrong', rememberMe: true),
         throwsA(isA<AuthException>().having((e) => e.message, 'message', 'Invalid Credential')),
       );
+    });
+
+    test('throws AccountInactiveException on INACTIVE and does not cache anything', () async {
+      final local = _FakeAuthLocalDatasource();
+      final repo = AuthRepositoryImpl(
+        _FakeAuthRemoteDatasource(response: const {'status': true, 'login_status': 'INACTIVE'}),
+        local,
+      );
+
+      await expectLater(
+        repo.login(username: 'staff1', password: 'Secret123', rememberMe: true),
+        throwsA(isA<AccountInactiveException>()),
+      );
+      expect(local.stored, isNull);
+    });
+
+    test('throws AccountDeactivatedException on DEACTIVATED and does not cache anything', () async {
+      final local = _FakeAuthLocalDatasource();
+      final repo = AuthRepositoryImpl(
+        _FakeAuthRemoteDatasource(response: const {'status': true, 'login_status': 'DEACTIVATED'}),
+        local,
+      );
+
+      await expectLater(
+        repo.login(username: 'staff1', password: 'Secret123', rememberMe: true),
+        throwsA(isA<AccountDeactivatedException>()),
+      );
+      expect(local.stored, isNull);
     });
   });
 

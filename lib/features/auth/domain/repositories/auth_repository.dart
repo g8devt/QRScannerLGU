@@ -1,9 +1,16 @@
 import '../entities/scanner_user.dart';
 
 abstract class AuthRepository {
-  /// Authenticates against `login_scanner_bataan`. Throws
-  /// [AuthException] with a human-readable reason on invalid credentials,
-  /// a deactivated account, or a network failure.
+  /// Authenticates against `login_scanner_bataan`.
+  ///
+  /// Throws [AuthException] (generic "Invalid Credential") on a wrong
+  /// username/password or a network failure — this is deliberately the
+  /// same outcome for both, so a caller who doesn't already know the
+  /// correct password can never learn whether an account exists or what
+  /// its status is. Throws [AccountInactiveException] or
+  /// [AccountDeactivatedException] only once the password has been
+  /// verified correct for that account, if it is `is_active = 0` or
+  /// `user_status = 'DEACTIVATED'` respectively.
   ///
   /// The session is persisted locally only when [rememberMe] is true, so
   /// the app auto-logs-in on the next launch only if the user opted in.
@@ -35,12 +42,24 @@ class AuthException implements Exception {
   String toString() => message;
 }
 
-/// Thrown by [AuthRepository.restoreSession] when the backend confirms
-/// the cached account is no longer allowed to access the app
-/// (`is_active = 0` or `user_status = 'DEACTIVATED'`). [message] is
-/// user-safe (no DB/technical detail) and meant to be shown directly.
+/// Thrown by [AuthRepository.restoreSession] (a cached session's account
+/// was deactivated) or [AuthRepository.login] (correct credentials, but
+/// `is_active = 0`) when the backend confirms the account is no longer
+/// active. [message] is user-safe (no DB/technical detail) and meant to
+/// be shown directly.
 class AccountInactiveException implements Exception {
   AccountInactiveException(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
+/// Thrown by [AuthRepository.login] when the submitted credentials are
+/// correct but `user_status = 'DEACTIVATED'`. Kept distinct from
+/// [AccountInactiveException] so the UI can show a differently-titled
+/// message. [message] is user-safe (no DB/technical detail).
+class AccountDeactivatedException implements Exception {
+  AccountDeactivatedException(this.message);
   final String message;
   @override
   String toString() => message;

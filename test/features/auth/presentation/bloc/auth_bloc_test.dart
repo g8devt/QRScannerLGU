@@ -159,6 +159,46 @@ void main() {
     ]);
   });
 
+  test('LoginRequested emits loading then accountInactive when the account is inactive', () async {
+    repository.loginError = AccountInactiveException(
+      'Your account is no longer active. Please contact your administrator for assistance.',
+    );
+    final states = <AuthState>[];
+    final sub = bloc.stream.listen(states.add);
+
+    bloc.add(const LoginRequested(username: 'staff1', password: 'Secret123'));
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect(states, [
+      const AuthState(status: AuthStatus.loading),
+      const AuthState(
+        status: AuthStatus.accountInactive,
+        errorMessage: 'Your account is no longer active. Please contact your administrator for assistance.',
+      ),
+    ]);
+  });
+
+  test('LoginRequested emits loading then accountDeactivated when the account is deactivated', () async {
+    repository.loginError = AccountDeactivatedException(
+      'Your account has been deactivated. Please contact your administrator for assistance.',
+    );
+    final states = <AuthState>[];
+    final sub = bloc.stream.listen(states.add);
+
+    bloc.add(const LoginRequested(username: 'staff1', password: 'Secret123'));
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect(states, [
+      const AuthState(status: AuthStatus.loading),
+      const AuthState(
+        status: AuthStatus.accountDeactivated,
+        errorMessage: 'Your account has been deactivated. Please contact your administrator for assistance.',
+      ),
+    ]);
+  });
+
   test('LogoutRequested clears the session and emits unauthenticated', () async {
     final states = <AuthState>[];
     final sub = bloc.stream.listen(states.add);

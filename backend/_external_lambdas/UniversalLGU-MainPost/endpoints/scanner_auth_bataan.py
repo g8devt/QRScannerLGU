@@ -1,3 +1,4 @@
+import hmac
 import logging
 from helpers.auth import ok, fail, require
 from helpers.db import sanitize, serialize_row
@@ -9,27 +10,51 @@ logger = logging.getLogger()
 def login_scanner_bataan(cur, data, files, ts):
     """Authenticate scanner-app staff against app_users_scanner by
     username/password (distinct from the citizen app_users mobile+PIN
-    login)."""
+    login).
+
+    Always responds 200 with a `login_status` discriminant --
+    'SUCCESS' | 'INVALID_CREDENTIAL' | 'INACTIVE' | 'DEACTIVATED' -- instead
+    of using fail()/non-200 for a wrong password or a blocked account,
+    mirroring check_scanner_status_bataan's pattern so the app can tell
+    each outcome apart cleanly. The `fail()` path is reserved for missing
+    params or an unexpected server error.
+
+    SECURITY: the account's is_active/user_status is only ever inspected
+    -- let alone revealed -- AFTER the submitted password has been
+    verified correct for that username. A wrong password (for any
+    account, active or not) always resolves to INVALID_CREDENTIAL,
+    exactly as before this change. This intentionally reveals
+    inactive/deactivated status to a caller who already knows the correct
+    password (a deliberate, requested tradeoff for this controlled staff
+    roster, so legitimate staff are told why they're locked out), but
+    never to a caller who doesn't -- so this can't become an
+    unauthenticated account-status oracle."""
     try:
         require(data, 'username', 'password')
         username = sanitize(data['username'])
         if not username:
-            return fail('Invalid Credential')
+            return ok({'status': True, 'login_status': 'INVALID_CREDENTIAL'})
         hashed = hash_scanner_password(data['password'])
 
-        cur.execute(
-            "SELECT * FROM app_users_scanner WHERE username=%s "
-            "AND password=%s AND is_active=1 AND user_status != 'DEACTIVATED'",
-            (username, hashed),
-        )
+        cur.execute("SELECT * FROM app_users_scanner WHERE username=%s", (username,))
         user = cur.fetchone()
-        if not user:
-            return fail('Invalid Credential')
+        if not user or not hmac.compare_digest(user['password'], hashed):
+            return ok({'status': True, 'login_status': 'INVALID_CREDENTIAL'})
+
+        user_status = (user.get('user_status') or '').strip()
+        is_active = bool(user.get('is_active'))
+        if user_status == 'DEACTIVATED':
+            # Takes priority over INACTIVE when both apply -- DEACTIVATED
+            # is the more specific admin action.
+            return ok({'status': True, 'login_status': 'DEACTIVATED'})
+        if not is_active:
+            return ok({'status': True, 'login_status': 'INACTIVE'})
 
         row = serialize_row(user)
         row.pop('password', None)
         return ok({
             'status': True,
+            'login_status': 'SUCCESS',
             'message': 'Login Successfully',
             'user_profile_id': str(user['id']),
             'username': user['username'],

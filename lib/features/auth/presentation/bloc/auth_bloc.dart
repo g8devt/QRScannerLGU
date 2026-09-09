@@ -55,6 +55,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         rememberMe: event.rememberMe,
       );
       emit(state.copyWith(status: AuthStatus.authenticated, user: user));
+    } on AccountInactiveException catch (e) {
+      emit(AuthState(status: AuthStatus.accountInactive, errorMessage: e.message));
+    } on AccountDeactivatedException catch (e) {
+      emit(AuthState(status: AuthStatus.accountDeactivated, errorMessage: e.message));
     } catch (e) {
       emit(state.copyWith(status: AuthStatus.error, errorMessage: e.toString()));
     }

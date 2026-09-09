@@ -111,16 +111,26 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     // the bloc reached before subscription -- so this listener must wrap
     // the whole tree unconditionally, from this build's very first call,
     // rather than living inside the splash/version-gated branch below.
+    //
+    // The same accountInactive/accountDeactivated statuses are also
+    // reached from a manual login attempt against a status-blocked
+    // account (see AuthBloc._onLoginRequested) — that always happens
+    // while the widget is already fully mounted, so this listener covers
+    // both auto-login revalidation and manual login with one mechanism.
     return BlocListener<AuthBloc, AuthState>(
       listenWhen: (previous, current) =>
-          current.status == AuthStatus.accountInactive &&
-          previous.status != AuthStatus.accountInactive,
+          current.status != previous.status &&
+          (current.status == AuthStatus.accountInactive ||
+              current.status == AuthStatus.accountDeactivated),
       listener: (context, state) {
+        final deactivated = state.status == AuthStatus.accountDeactivated;
         showMessageDialog(
           context,
-          title: 'Account Inactive',
+          title: deactivated ? 'Account Deactivated' : 'Account Inactive',
           message: state.errorMessage ??
-              'Your account is no longer active. Please contact your administrator for assistance.',
+              (deactivated
+                  ? 'Your account has been deactivated. Please contact your administrator for assistance.'
+                  : 'Your account is no longer active. Please contact your administrator for assistance.'),
         );
       },
       child: _buildGatedContent(context),
@@ -156,6 +166,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
           case AuthStatus.unauthenticated:
           case AuthStatus.error:
           case AuthStatus.accountInactive:
+          case AuthStatus.accountDeactivated:
             return const LoginPage();
         }
       },
