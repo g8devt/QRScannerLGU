@@ -161,8 +161,16 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
           case AuthStatus.authenticated:
             return const DashboardPage();
           case AuthStatus.unknown:
-          case AuthStatus.loading:
+            // Only reachable before AppStarted's restoreSession() result
+            // is known -- the app's true first-run state.
             return const SplashPage();
+          case AuthStatus.loading:
+            // Only reached from a manual LoginRequested submission (never
+            // from AppStarted) -- LoginPage's own _SignInPanel already
+            // renders this (spinner button, disabled fields). Routing it
+            // to SplashPage instead would unmount LoginPage on every
+            // login attempt, wiping the username/password the user just
+            // typed even on a simple wrong-password retry.
           case AuthStatus.unauthenticated:
           case AuthStatus.error:
           case AuthStatus.accountInactive:
