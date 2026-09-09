@@ -141,7 +141,7 @@ class CheckScannerStatusBataanTest(unittest.TestCase):
         self.assertTrue(body['status'])
         self.assertTrue(body['is_valid'])
 
-    def test_inactive_and_not_deactivated_is_invalid(self):
+    def test_inactive_and_not_deactivated_is_invalid_with_inactive_reason(self):
         cur = self._cur({'is_active': 0, 'user_status': 'VERIFIED'})
         result = check_scanner_status_bataan(
             cur, {'user_profile_id': '7'}, [], '2026-09-09 00:00:00')
@@ -149,24 +149,36 @@ class CheckScannerStatusBataanTest(unittest.TestCase):
         body = json.loads(result['body'])
         self.assertTrue(body['status'])
         self.assertFalse(body['is_valid'])
+        self.assertEqual(body['reason'], 'INACTIVE')
 
-    def test_active_and_deactivated_is_invalid(self):
+    def test_active_and_deactivated_is_invalid_with_deactivated_reason(self):
         cur = self._cur({'is_active': 1, 'user_status': 'DEACTIVATED'})
         result = check_scanner_status_bataan(
             cur, {'user_profile_id': '7'}, [], '2026-09-09 00:00:00')
         body = json.loads(result['body'])
         self.assertTrue(body['status'])
         self.assertFalse(body['is_valid'])
+        self.assertEqual(body['reason'], 'DEACTIVATED')
 
-    def test_inactive_and_deactivated_is_invalid(self):
+    def test_inactive_and_deactivated_is_invalid_with_deactivated_reason(self):
+        # DEACTIVATED takes priority over INACTIVE when both apply, same
+        # as login_scanner_bataan.
         cur = self._cur({'is_active': 0, 'user_status': 'DEACTIVATED'})
         result = check_scanner_status_bataan(
             cur, {'user_profile_id': '7'}, [], '2026-09-09 00:00:00')
         body = json.loads(result['body'])
         self.assertTrue(body['status'])
         self.assertFalse(body['is_valid'])
+        self.assertEqual(body['reason'], 'DEACTIVATED')
 
-    def test_user_not_found_is_invalid_not_an_error(self):
+    def test_valid_response_has_no_reason_field(self):
+        cur = self._cur({'is_active': 1, 'user_status': 'VERIFIED'})
+        result = check_scanner_status_bataan(
+            cur, {'user_profile_id': '7'}, [], '2026-09-09 00:00:00')
+        body = json.loads(result['body'])
+        self.assertNotIn('reason', body)
+
+    def test_user_not_found_is_invalid_with_inactive_reason_not_an_error(self):
         cur = self._cur(None)
         result = check_scanner_status_bataan(
             cur, {'user_profile_id': '999'}, [], '2026-09-09 00:00:00')
@@ -174,6 +186,7 @@ class CheckScannerStatusBataanTest(unittest.TestCase):
         body = json.loads(result['body'])
         self.assertTrue(body['status'])
         self.assertFalse(body['is_valid'])
+        self.assertEqual(body['reason'], 'INACTIVE')
 
     def test_queries_by_the_given_user_profile_id(self):
         cur = self._cur({'is_active': 1, 'user_status': 'VERIFIED'})

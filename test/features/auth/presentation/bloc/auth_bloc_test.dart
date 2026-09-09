@@ -114,6 +114,27 @@ void main() {
     expect(repository.loggedOut, isTrue);
   });
 
+  test('AppStarted emits accountDeactivated with the message and clears the session '
+      'when restoreSession throws AccountDeactivatedException', () async {
+    repository.restoreSessionError = AccountDeactivatedException(
+      'Your account has been deactivated. Please contact your administrator for assistance.',
+    );
+    final states = <AuthState>[];
+    final sub = bloc.stream.listen(states.add);
+
+    bloc.add(const AppStarted());
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect(states, [
+      const AuthState(
+        status: AuthStatus.accountDeactivated,
+        errorMessage: 'Your account has been deactivated. Please contact your administrator for assistance.',
+      ),
+    ]);
+    expect(repository.loggedOut, isTrue);
+  });
+
   test('AppStarted emits unauthenticated without logging out when restoreSession '
       'throws AuthException (network/server failure)', () async {
     repository.restoreSessionError = AuthException('Server error');

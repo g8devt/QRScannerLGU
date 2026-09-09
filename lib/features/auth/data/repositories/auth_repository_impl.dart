@@ -74,6 +74,11 @@ class AuthRepositoryImpl implements AuthRepository {
     final isValid = response['is_valid'] == true;
     if (!isValid) {
       await _local.clearSession();
+      if (response['reason'] == 'DEACTIVATED') {
+        throw AccountDeactivatedException(
+          'Your account has been deactivated. Please contact your administrator for assistance.',
+        );
+      }
       throw AccountInactiveException(
         'Your account is no longer active. Please contact your administrator for assistance.',
       );

@@ -24,11 +24,12 @@ abstract class AuthRepository {
   /// backend's current `is_active`/`user_status` for that account — never
   /// trusts the cached JSON by itself. Returns null if nothing is cached.
   ///
-  /// Throws [AccountInactiveException] (and clears the cached session)
-  /// when the backend confirms the account is no longer
-  /// active/deactivated. Throws [AuthException] on a network/server
-  /// failure during revalidation — the cached session is left untouched
-  /// so a later retry with connectivity can still succeed.
+  /// Throws [AccountInactiveException] or [AccountDeactivatedException]
+  /// (and clears the cached session) when the backend confirms the
+  /// account is no longer active/deactivated, respectively — the same
+  /// distinction [login] makes. Throws [AuthException] on a
+  /// network/server failure during revalidation — the cached session is
+  /// left untouched so a later retry with connectivity can still succeed.
   Future<ScannerUser?> restoreSession();
 
   /// Clears the locally cached session.
@@ -42,11 +43,11 @@ class AuthException implements Exception {
   String toString() => message;
 }
 
-/// Thrown by [AuthRepository.restoreSession] (a cached session's account
-/// was deactivated) or [AuthRepository.login] (correct credentials, but
-/// `is_active = 0`) when the backend confirms the account is no longer
-/// active. [message] is user-safe (no DB/technical detail) and meant to
-/// be shown directly.
+/// Thrown by [AuthRepository.restoreSession] or [AuthRepository.login]
+/// when the backend confirms the account is `is_active = 0` (and not
+/// `DEACTIVATED` — see [AccountDeactivatedException] for that, which
+/// takes priority when both apply). [message] is user-safe (no
+/// DB/technical detail) and meant to be shown directly.
 class AccountInactiveException implements Exception {
   AccountInactiveException(this.message);
   final String message;
@@ -54,10 +55,11 @@ class AccountInactiveException implements Exception {
   String toString() => message;
 }
 
-/// Thrown by [AuthRepository.login] when the submitted credentials are
-/// correct but `user_status = 'DEACTIVATED'`. Kept distinct from
-/// [AccountInactiveException] so the UI can show a differently-titled
-/// message. [message] is user-safe (no DB/technical detail).
+/// Thrown by [AuthRepository.restoreSession] or [AuthRepository.login]
+/// when the backend confirms `user_status = 'DEACTIVATED'`. Kept
+/// distinct from [AccountInactiveException] so the UI can show a
+/// differently-titled message. [message] is user-safe (no DB/technical
+/// detail).
 class AccountDeactivatedException implements Exception {
   AccountDeactivatedException(this.message);
   final String message;

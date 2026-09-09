@@ -171,18 +171,39 @@ void main() {
       expect(local.stored, isNotNull);
     });
 
-    test('clears the cached session and throws AccountInactiveException when the backend rejects it', () async {
+    test('clears the cached session and throws AccountInactiveException when the '
+        'backend rejects it with reason INACTIVE', () async {
       final local = _FakeAuthLocalDatasource();
       local.stored = {
         'id': 7, 'username': 'staff1', 'user_status': 'VERIFIED',
         'firstname': 'Juan', 'middlename': '', 'lastname': 'Dela Cruz', 'suffix': '',
       };
       final repo = AuthRepositoryImpl(
-        _FakeAuthRemoteDatasource(checkStatusResponse: const {'status': true, 'is_valid': false}),
+        _FakeAuthRemoteDatasource(
+          checkStatusResponse: const {'status': true, 'is_valid': false, 'reason': 'INACTIVE'},
+        ),
         local,
       );
 
       await expectLater(repo.restoreSession(), throwsA(isA<AccountInactiveException>()));
+      expect(local.stored, isNull);
+    });
+
+    test('clears the cached session and throws AccountDeactivatedException when the '
+        'backend rejects it with reason DEACTIVATED', () async {
+      final local = _FakeAuthLocalDatasource();
+      local.stored = {
+        'id': 7, 'username': 'staff1', 'user_status': 'VERIFIED',
+        'firstname': 'Juan', 'middlename': '', 'lastname': 'Dela Cruz', 'suffix': '',
+      };
+      final repo = AuthRepositoryImpl(
+        _FakeAuthRemoteDatasource(
+          checkStatusResponse: const {'status': true, 'is_valid': false, 'reason': 'DEACTIVATED'},
+        ),
+        local,
+      );
+
+      await expectLater(repo.restoreSession(), throwsA(isA<AccountDeactivatedException>()));
       expect(local.stored, isNull);
     });
 

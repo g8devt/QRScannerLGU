@@ -32,6 +32,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // leave a stale session behind for the app to keep retrying.
       await _logout();
       emit(AuthState(status: AuthStatus.accountInactive, errorMessage: e.message));
+    } on AccountDeactivatedException catch (e) {
+      await _logout();
+      emit(AuthState(status: AuthStatus.accountDeactivated, errorMessage: e.message));
     } on AuthException {
       // Revalidation couldn't reach the backend (offline/timeout/server
       // error). Fail closed -- don't authenticate off a stale cached

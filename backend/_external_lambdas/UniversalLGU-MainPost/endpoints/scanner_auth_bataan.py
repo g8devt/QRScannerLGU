@@ -82,7 +82,15 @@ def check_scanner_status_bataan(cur, data, files, ts):
     reserved for a missing `user_profile_id` or an unexpected server
     error, both of which the caller should treat as a revalidation
     failure distinct from a confirmed rejection (fail closed, but don't
-    show 'Account Inactive' for those)."""
+    show 'Account Inactive' for those).
+
+    When `is_valid` is false, `reason` ('INACTIVE' | 'DEACTIVATED') says
+    why, mirroring login_scanner_bataan's `login_status` so the app can
+    show the same distinct Account Inactive/Deactivated messaging on this
+    path as it does on manual login (DEACTIVATED takes priority when
+    both apply). Not present when `is_valid` is true. A row that no
+    longer exists at all (deleted account) reports 'INACTIVE' as the
+    safest neutral default, since its true status is unknown."""
     try:
         require(data, 'user_profile_id')
         user_profile_id = sanitize(data['user_profile_id'])
@@ -93,12 +101,16 @@ def check_scanner_status_bataan(cur, data, files, ts):
         )
         row = cur.fetchone()
         if not row:
-            return ok({'status': True, 'is_valid': False})
+            return ok({'status': True, 'is_valid': False, 'reason': 'INACTIVE'})
 
         is_active = row['is_active'] if isinstance(row, dict) else row[0]
         user_status = row['user_status'] if isinstance(row, dict) else row[1]
-        is_valid = bool(is_active) and (user_status or '').strip() != 'DEACTIVATED'
-        return ok({'status': True, 'is_valid': is_valid})
+        user_status = (user_status or '').strip()
+        if user_status == 'DEACTIVATED':
+            return ok({'status': True, 'is_valid': False, 'reason': 'DEACTIVATED'})
+        if not bool(is_active):
+            return ok({'status': True, 'is_valid': False, 'reason': 'INACTIVE'})
+        return ok({'status': True, 'is_valid': True})
     except ValueError as e:
         return fail(str(e))
     except Exception as e:
