@@ -3,6 +3,38 @@
 - **Account:** 425605448087
 - **Region:** ap-southeast-1
 - **Pulled:** 2026-09-09 (previously 2026-08-26, 2026-08-25, 2026-08-19, 2026-08-10)
+- **Deployed from this repo:** 2026-09-09 (fifth deploy same day) —
+  `check_scanner_status_bataan` now also returns the row's current
+  `user_status` (VERIFIED/PENDING/NOT_VERIFIED) alongside `is_valid:
+  true`. Root cause of a real bug: the new dashboard verification gate
+  (blocks the 3 scan features unless `userStatus == 'VERIFIED'`) relied
+  on `ScannerUser.userStatus`, but the Flutter app's `restoreSession()`
+  only ever read that from the *locally cached* session captured at
+  original login — this endpoint never told it the account's current
+  status, so an admin changing VERIFIED->PENDING after login was
+  invisible to an auto-logged-in session, which kept full access to all
+  3 features. `restoreSession()` now overlays this endpoint's fresh
+  `user_status` onto the restored user and re-persists it to the local
+  cache. Same pull-live/merge-diff/deploy method: pulled the live
+  package fresh immediately before deploying, confirmed the only diff
+  from this mirror was this one addition to
+  `endpoints/scanner_auth_bataan.py` (`lambda_function.py` and
+  `helpers/` byte-identical, 116/116 file-count parity, all `cebu_*`
+  files intact), applied only this change, and deployed via `aws lambda
+  update-function-code`. Verified post-deploy: `LastUpdateStatus:
+  Successful`, `State: Active`,
+  `CodeSha256: d2HgbQej85EYtkqPWfnEY7xiC1SLDGJTTGc77W/i3wE=`. Live
+  functional smoke test (deliberately invalid token, direct `aws lambda
+  invoke`): `check_scanner_status_bataan` and `login_scanner_bataan`
+  both return a normal `403 Access Denied` body with no `FunctionError`
+  — proves the edited module imports/routes cleanly at cold start and
+  the sibling login action is unaffected. The actual `user_status`
+  passthrough for a real PENDING account was NOT independently
+  live-verified (would require that account's real `user_profile_id`);
+  covered instead by this endpoint's unit tests (new
+  `test_valid_response_includes_current_user_status`, part of the
+  23/23 `test_scanner_auth_bataan.py` suite) plus the pre-deploy diff
+  review above.
 - **Deployed from this repo:** 2026-09-09 (fourth deploy same day, commit
   `d680675`) — reworked `check_scanner_status_bataan` in
   `endpoints/scanner_auth_bataan.py` so the auto-login/session-revalidation
@@ -377,8 +409,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-09-09T13:02:12.000+0000",
-    "CodeSha256": "icTNSdOt9IEX3eVcUQTD6SEtgLLEyNqMtvnF9MfT6To="
+    "LastModified": "2026-09-09T13:44:21.000+0000",
+    "CodeSha256": "d2HgbQej85EYtkqPWfnEY7xiC1SLDGJTTGc77W/i3wE="
 }
 ```
 
