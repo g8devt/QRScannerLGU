@@ -68,7 +68,21 @@ class _ScannerPageState extends State<ScannerPage>
 
   @override
   void didPopNext() {
-    context.read<ScannerBloc>().add(const StartScan());
+    // Deferred + re-checked: a multi-level `popUntil` (e.g. StopPage's
+    // "Scan Again" unwinding past VerifyPage AND this page back to the
+    // dashboard) pops routes one at a time, so this page briefly becomes
+    // "current" and fires didPopNext even though it's about to be popped
+    // again in the very same synchronous loop. Starting the camera then
+    // leaves the controller "running" with no live widget attached, so the
+    // next ScannerPage's start() call silently no-ops and its preview stays
+    // blank. Waiting a frame and re-checking isCurrent/mounted lets a real
+    // return to this page (e.g. from CvlSearchPage) still resume scanning.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final isCurrentRoute = ModalRoute.of(context)?.isCurrent == true;
+      if (!isCurrentRoute) return;
+      context.read<ScannerBloc>().add(const StartScan());
+    });
   }
 
   @override

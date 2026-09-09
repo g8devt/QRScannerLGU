@@ -153,6 +153,14 @@ class DashboardPage extends StatelessWidget {
                         if (!context.mounted) return;
                         Navigator.of(context).push(
                           MaterialPageRoute(
+                            // Named so StopPage/ConfirmClaimPage's "Scan
+                            // Again"/"Scan Next" can popUntil back to this
+                            // exact route instead of all the way to the
+                            // dashboard — keeps the camera open across
+                            // retries instead of forcing re-entry.
+                            settings: const RouteSettings(
+                              name: 'claim_scanner',
+                            ),
                             builder: (_) => const ScannerPage(),
                           ),
                         );
@@ -279,10 +287,7 @@ class _DashboardActionTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: scheme.onSurfaceVariant,
-              ),
+              Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
             ],
           ),
         ),

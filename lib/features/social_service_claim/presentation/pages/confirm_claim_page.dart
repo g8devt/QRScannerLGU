@@ -55,7 +55,13 @@ class ConfirmClaimPage extends StatelessWidget {
                   child: FilledButton.icon(
                     onPressed: () {
                       context.read<ClaimBloc>().add(const ClaimSessionReset());
-                      Navigator.of(context).popUntil((route) => route.isFirst);
+                      // Pop back to the claim ScannerPage itself (not all
+                      // the way to the dashboard) so the camera reopens in
+                      // place for the next claim instead of forcing
+                      // re-entry from the dashboard.
+                      Navigator.of(context).popUntil(
+                        (route) => route.settings.name == 'claim_scanner',
+                      );
                     },
                     icon: const Icon(Icons.qr_code_scanner),
                     label: const Text('Scan Next'),

@@ -4,7 +4,15 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 /// feature that talks to the `mobile_scanner` plugin directly.
 class MobileScannerDatasource {
   MobileScannerDatasource()
-    : controller = MobileScannerController(autoStart: false);
+    : controller = MobileScannerController(
+        autoStart: false,
+        // App only ever issues QR codes (CVL records, social service
+        // applications). Without this, mobile_scanner also detects 1D
+        // barcodes, PDF417, etc., so pointing the camera at any barcode
+        // gets treated as a hit even though nothing in this app is a
+        // barcode.
+        formats: const [BarcodeFormat.qrCode],
+      );
 
   final MobileScannerController controller;
 

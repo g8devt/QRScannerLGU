@@ -56,7 +56,13 @@ class StopPage extends StatelessWidget {
                   child: FilledButton.icon(
                     onPressed: () {
                       context.read<ClaimBloc>().add(const ClaimSessionReset());
-                      Navigator.of(context).popUntil((route) => route.isFirst);
+                      // Pop back to the claim ScannerPage itself (not all
+                      // the way to the dashboard) so the camera reopens in
+                      // place instead of forcing the user to re-enter
+                      // Claim Assistance from the dashboard.
+                      Navigator.of(context).popUntil(
+                        (route) => route.settings.name == 'claim_scanner',
+                      );
                     },
                     icon: const Icon(Icons.qr_code_scanner),
                     label: const Text('Scan Again'),
