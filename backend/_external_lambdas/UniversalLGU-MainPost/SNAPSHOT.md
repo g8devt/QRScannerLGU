@@ -3,6 +3,37 @@
 - **Account:** 425605448087
 - **Region:** ap-southeast-1
 - **Pulled:** 2026-09-09 (previously 2026-08-26, 2026-08-25, 2026-08-19, 2026-08-10)
+- **Deployed from this repo:** 2026-09-09 (second deploy same day, commit
+  `01f8440`) — added `check_scanner_status_bataan` to
+  `endpoints/scanner_auth_bataan.py` + its `ROUTES` entry (backs the
+  scanner app's new auto-login/Remember Me session revalidation: the app
+  now calls this on every launch with the cached user's `id` and treats
+  only `is_valid: true` as permission to enter, instead of trusting the
+  locally cached session by itself). Always responds 200 with `is_valid`
+  (including "user not found") so the app can tell a confirmed
+  is_active=0/DEACTIVATED rejection apart from a network/server failure;
+  `login_scanner_bataan`'s existing SQL-level gate is unchanged. Same
+  pull-live/merge-diff/deploy method: pulled the live package fresh
+  immediately before deploying, confirmed the only diff from this mirror
+  was this one addition (`endpoints/scanner_auth_bataan.py` +
+  `lambda_function.py`'s one new `ROUTES` line; file-count parity 116/116
+  against the fresh pull, all `cebu_*` files intact), and deployed via
+  `aws lambda update-function-code`. Verified post-deploy:
+  `LastUpdateStatus: Successful`, `State: Active`. Live functional
+  verification via the public API (valid staff token): an invalid token
+  still returns `403 Access Denied`; a missing `user_profile_id` returns
+  `400 Missing: user_profile_id`; probing real `user_profile_id` values
+  1-10 returned a genuine mix — `id=2` → `is_valid: true` (an active,
+  non-deactivated account), `id=1` and others → `is_valid: false`
+  (inactive/deactivated/nonexistent) — confirming the endpoint's is_valid
+  logic runs correctly against live data, not just that it imports/routes.
+  Contrasted against an unrouted action name, which correctly returns
+  `Unknown endpoint: ...` (proving `check_scanner_status_bataan` is
+  genuinely dispatched, not falling through). Manual login
+  (`login_scanner_bataan`) and the sibling
+  `check_app_version_scanner_bataan` endpoint re-verified unaffected
+  (bogus credentials still return `Invalid Credential`; version check
+  still returns a normal `update_required` response).
 - **Pulled from live:** 2026-09-09 — live had drifted since the 2026-09-02
   pull (`LastModified` 2026-09-02 -> 2026-09-09, `CodeSha256` changed).
   Downloaded the live package fresh and diffed it (line-ending-insensitive,
@@ -284,8 +315,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-09-09T03:46:14.000+0000",
-    "CodeSha256": "nXTt7WA4meDU/SCVI8xKtvpm1MrVa0SyKxfjjeNXI0o="
+    "LastModified": "2026-09-09T09:42:11.000+0000",
+    "CodeSha256": "2h3YeM158tUFfR3b/h5BpTZ1varDlsY4OR3Pf1lwkS8="
 }
 ```
 
