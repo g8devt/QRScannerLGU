@@ -395,6 +395,26 @@ NEEDS_TS = {'sign_up','sign_up2','social_login','change_pin','change_pin_code_pa
             'delete_account_cebu','deactivate_cebu'}
 
 def lambda_handler(event, context):
+    # Browser CORS preflight: the API Gateway HTTP API's $default route
+    # forwards every method (including OPTIONS) straight to this Lambda, so
+    # API-Gateway-level CORS config alone can't auto-answer preflight here.
+    # Short-circuit before parse_event, which expects a real multipart body
+    # and would otherwise throw ("Unexpected mimetype") on the bodyless
+    # OPTIONS request -- surfacing to browser callers (e.g. `flutter run -d
+    # chrome`) as a generic network error, even though native mobile clients
+    # never send a preflight and were never affected.
+    method = (event.get('requestContext', {}).get('http', {}).get('method')
+              or event.get('httpMethod') or '').upper()
+    if method == 'OPTIONS':
+        return {
+            'statusCode': 200,
+            'body': '',
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': '*',
+                'Access-Control-Allow-Headers': '*',
+            },
+        }
     try:
         data, files = parse_event(event)
         endpoint = data.get('endpoint')

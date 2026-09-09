@@ -2,7 +2,32 @@
 
 - **Account:** 425605448087
 - **Region:** ap-southeast-1
-- **Pulled:** 2026-08-26 (previously 2026-08-25, 2026-08-19, 2026-08-10)
+- **Pulled:** 2026-09-09 (previously 2026-08-26, 2026-08-25, 2026-08-19, 2026-08-10)
+- **Pulled from live:** 2026-09-09 — live had drifted since the 2026-09-02
+  pull (`LastModified` 2026-09-02 -> 2026-09-09, `CodeSha256` changed).
+  Downloaded the live package fresh and diffed it (line-ending-insensitive,
+  Bataan/shared code only) against this mirror. Found and synced 6 changed
+  files, all citizen-app (not scanner-app) features deployed from elsewhere
+  outside this repo's workflow: new `endpoints/app_version_bataan.py`
+  (`check_app_version_bataan` — optional update check for the main citizen
+  app, `app_code='MAIN_APP'`, mirrors the existing scanner-app version-check
+  pattern) plus its `ROUTES`/import entry in `lambda_function.py`; a major
+  rework of `endpoints/card_request.py`'s `request_card_link` (now resolves
+  an optional `qr_code` through `app_cvl_list`/`app_qr_code`, auto-approves
+  the link when the CVL record's name+birthdate match the caller's
+  `app_users` row, otherwise falls back to the existing PENDING/manual-review
+  path) and `get_card_link_status` (now checks `app_users.assign_card`
+  first, includes `decline_reason` for DECLINED/REJECTED); new
+  `helpers/password.py` (PBKDF2-HMAC-SHA256 password hashing, `hash_password`
+  /`verify_password`, unrelated to the scanner app's own
+  `helpers/scanner_auth_bataan.py` hasher); and a liveness-check addition
+  to `helpers/rekognition.py`'s `detect_face_liveness` (server-side sanity
+  check on the account-creation selfie capture — confidence/sharpness/
+  brightness/pose/eyes-open thresholds, fails open to `needs_review` on a
+  Rekognition-side error). `endpoints/scanner_auth_bataan.py` only reordered
+  (functions swapped position, `login_scanner_bataan` unchanged content) —
+  not a real code change. Verified: mirror's own test suite (79/79) still
+  passes after the sync.
 - **Verified live (no drift):** 2026-08-26 (second pull same day) — pulled
   the live package again before deploying `remove_cvl_qr_bataan`;
   `CodeSha256`/`LastModified` matched this file exactly, and a full
@@ -259,8 +284,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-09-02T14:21:37.000+0000",
-    "CodeSha256": "SknSWbJXw/D1wIRMZy9RSzkNFhq0lZEz54hM3kHJwPY="
+    "LastModified": "2026-09-09T03:46:14.000+0000",
+    "CodeSha256": "nXTt7WA4meDU/SCVI8xKtvpm1MrVa0SyKxfjjeNXI0o="
 }
 ```
 

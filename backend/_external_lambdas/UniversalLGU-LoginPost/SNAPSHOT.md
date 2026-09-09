@@ -2,7 +2,7 @@
 
 - **Account:** 425605448087
 - **Region:** ap-southeast-1
-- **Pulled:** 2026-08-25 (previously 2026-08-10)
+- **Pulled:** 2026-09-09 (previously 2026-08-25, 2026-08-10)
 - **Checked:** 2026-08-26 — live `CodeSha256`/`LastModified` unchanged
   since the 2026-08-25 pull; no drift, nothing to sync.
 - **Checked:** 2026-08-29 — live `CodeSha256`/`LastModified` still unchanged;
@@ -14,6 +14,18 @@
   since the 2026-08-25 pull; no drift, nothing to sync.
 - **Checked:** 2026-09-02 — live `CodeSha256`/`LastModified` unchanged
   since the 2026-08-25 pull; no drift, nothing to sync.
+- **Pulled from live:** 2026-09-09 — live had drifted since the 2026-08-25
+  pull (`LastModified` 2026-08-23 -> 2026-09-03, `CodeSha256` changed).
+  Downloaded the live package fresh and diffed it (line-ending-insensitive)
+  against this mirror. Found and synced one change in `lambda_function.py`:
+  a browser-CORS `OPTIONS` preflight short-circuit added right after
+  `lambda_handler` starts (returns a bare 200 with wildcard
+  `Access-Control-Allow-*` headers before `parse_event` runs, so a
+  bodyless preflight request from a browser client no longer hits
+  `parse_event`'s "Unexpected mimetype" error — native mobile clients
+  never send a preflight and are unaffected). `helpers.py` unchanged.
+  Not used by this Flutter app (native, no browser CORS concerns) — kept
+  in sync for backend reference only, per the Scope note below.
 
 ## Configuration
 
@@ -23,8 +35,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 15,
     "MemorySize": 1769,
-    "LastModified": "2026-08-23T09:27:27.000+0000",
-    "CodeSha256": "bZO43WwX9nFv82AKnyRAsLOI758R/HmS3m041vu5RYU="
+    "LastModified": "2026-09-03T13:45:31.000+0000",
+    "CodeSha256": "fRTau1CwycMvp3GyQEHBsDwpcMRjpW2JTAo0cecZY3I="
 }
 ```
 

@@ -27,6 +27,7 @@ from endpoints import kyc_review
 from endpoints import audit_log
 from endpoints import analytics
 from endpoints import scanner_auth_bataan
+from endpoints import app_version_bataan
 # Cebu Admin Web: separate implementation modules (not aliases) for every
 # endpoint admin-web calls with a "_cebu" suffix. Each is a standalone copy
 # of only the admin-web-used functions from its sibling module above (plus
@@ -47,7 +48,7 @@ from endpoints import cebu_civil_registry
 from endpoints import cebu_kyc, cebu_profile, cebu_face_verify, cebu_medicines
 from endpoints import cebu_paymongo, cebu_account, cebu_card_qr
 from endpoints import cebu_business_permits, cebu_preferences, cebu_service_toggles
-from endpoints import cebu_emergency
+from endpoints import cebu_emergency, cebu_admin_signup
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -182,14 +183,6 @@ ROUTES = {
     'verify_qr_bataan': social_services_bataan.verify_qr_bataan,
     'get_service_details_bataan': social_services_bataan.get_service_details_bataan,
     'submit_claim_bataan': social_services_bataan.submit_claim_bataan,
-    'find_cvl_by_qr_bataan': cvl_records_bataan.find_cvl_by_qr_bataan,
-    'update_cvl_photo_bataan': cvl_records_bataan.update_cvl_photo_bataan,
-    'get_cvl_by_id_bataan': cvl_records_bataan.get_cvl_by_id_bataan,
-    'search_cvl_by_name_bataan': cvl_records_bataan.search_cvl_by_name_bataan,
-    'set_cvl_qr_bataan': cvl_records_bataan.set_cvl_qr_bataan,
-    'remove_cvl_qr_bataan': cvl_records_bataan.remove_cvl_qr_bataan,
-    'update_cvl_info_bataan': cvl_records_bataan.update_cvl_info_bataan,
-    'get_cvl_filter_options_bataan': cvl_records_bataan.get_cvl_filter_options_bataan,
     'request_profile_update': profile.request_profile_update,
     'get_user_profile': profile.get_user_profile,
     'get_profile_update_requests': profile.get_profile_update_requests,
@@ -365,6 +358,15 @@ ROUTES = {
     'confirm_tourism_booking_payment': tourism.confirm_tourism_booking_payment,
     'login_scanner_bataan': scanner_auth_bataan.login_scanner_bataan,
     'check_app_version_scanner_bataan': scanner_auth_bataan.check_app_version_scanner_bataan,
+    'check_app_version_bataan': app_version_bataan.check_app_version_bataan,
+    'find_cvl_by_qr_bataan': cvl_records_bataan.find_cvl_by_qr_bataan,
+    'update_cvl_photo_bataan': cvl_records_bataan.update_cvl_photo_bataan,
+    'get_cvl_by_id_bataan': cvl_records_bataan.get_cvl_by_id_bataan,
+    'search_cvl_by_name_bataan': cvl_records_bataan.search_cvl_by_name_bataan,
+    'set_cvl_qr_bataan': cvl_records_bataan.set_cvl_qr_bataan,
+    'remove_cvl_qr_bataan': cvl_records_bataan.remove_cvl_qr_bataan,
+    'update_cvl_info_bataan': cvl_records_bataan.update_cvl_info_bataan,
+    'get_cvl_filter_options_bataan': cvl_records_bataan.get_cvl_filter_options_bataan,
 }
 
 # Cebu Admin Web: "_cebu"-suffixed endpoints, each routed to its OWN
@@ -455,6 +457,7 @@ CEBU_ROUTES = {
     'submit_kyc_cebu': cebu_kyc.submit_kyc,
     'get_kyc_status_cebu': cebu_kyc.get_kyc_status,
     'scan_id_cebu': cebu_kyc.scan_id,
+    'accept_admin_invite_cebu': cebu_admin_signup.accept_admin_invite,
     'request_profile_update_cebu': cebu_profile.request_profile_update,
     'get_user_profile_cebu': cebu_profile.get_user_profile,
     'get_profile_update_requests_cebu': cebu_profile.get_profile_update_requests,
