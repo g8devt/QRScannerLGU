@@ -2,7 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import '../../domain/entities/scanner_user.dart';
 
-enum AuthStatus { unknown, loading, authenticated, unauthenticated, error }
+enum AuthStatus { unknown, loading, authenticated, unauthenticated, accountInactive, error }
 
 class AuthState extends Equatable {
   const AuthState({this.status = AuthStatus.unknown, this.user, this.errorMessage});

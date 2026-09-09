@@ -39,7 +39,25 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<ScannerUser?> restoreSession() async {
     final json = await _local.getSession();
     if (json == null) return null;
-    return ScannerUser.fromJson(json);
+    final user = ScannerUser.fromJson(json);
+
+    final Map<String, dynamic> response;
+    try {
+      response = await _remote.checkStatus(userId: user.id);
+    } on ApiException catch (e) {
+      throw AuthException(e.message);
+    } catch (_) {
+      throw AuthException('Network error — could not reach the server.');
+    }
+
+    final isValid = response['is_valid'] == true;
+    if (!isValid) {
+      await _local.clearSession();
+      throw AccountInactiveException(
+        'Your account is no longer active. Please contact your administrator for assistance.',
+      );
+    }
+    return user;
   }
 
   @override

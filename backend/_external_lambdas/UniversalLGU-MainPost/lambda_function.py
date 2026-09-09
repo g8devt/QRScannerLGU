@@ -358,6 +358,7 @@ ROUTES = {
     'confirm_tourism_booking_payment': tourism.confirm_tourism_booking_payment,
     'login_scanner_bataan': scanner_auth_bataan.login_scanner_bataan,
     'check_app_version_scanner_bataan': scanner_auth_bataan.check_app_version_scanner_bataan,
+    'check_scanner_status_bataan': scanner_auth_bataan.check_scanner_status_bataan,
     'check_app_version_bataan': app_version_bataan.check_app_version_bataan,
     'find_cvl_by_qr_bataan': cvl_records_bataan.find_cvl_by_qr_bataan,
     'update_cvl_photo_bataan': cvl_records_bataan.update_cvl_photo_bataan,

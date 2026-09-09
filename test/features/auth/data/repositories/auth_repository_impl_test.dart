@@ -6,14 +6,29 @@ import 'package:bataan_lgu_scanner/features/auth/data/repositories/auth_reposito
 import 'package:bataan_lgu_scanner/features/auth/domain/repositories/auth_repository.dart';
 
 class _FakeAuthRemoteDatasource extends AuthRemoteDatasource {
-  _FakeAuthRemoteDatasource({this.response, this.error}) : super(ApiClient());
+  _FakeAuthRemoteDatasource({
+    this.response,
+    this.error,
+    this.checkStatusResponse,
+    this.checkStatusError,
+  }) : super(ApiClient());
   final Map<String, dynamic>? response;
   final Object? error;
+  final Map<String, dynamic>? checkStatusResponse;
+  final Object? checkStatusError;
+  int? lastCheckedUserId;
 
   @override
   Future<Map<String, dynamic>> login({required String username, required String password}) async {
     if (error != null) throw error!;
     return response!;
+  }
+
+  @override
+  Future<Map<String, dynamic>> checkStatus({required int userId}) async {
+    lastCheckedUserId = userId;
+    if (checkStatusError != null) throw checkStatusError!;
+    return checkStatusResponse!;
   }
 }
 
@@ -88,25 +103,60 @@ void main() {
   group('AuthRepositoryImpl.restoreSession', () {
     test('returns null when nothing is cached', () async {
       final repo = AuthRepositoryImpl(
-        _FakeAuthRemoteDatasource(response: const {}),
+        _FakeAuthRemoteDatasource(checkStatusResponse: const {'status': true, 'is_valid': true}),
         _FakeAuthLocalDatasource(),
       );
 
       expect(await repo.restoreSession(), isNull);
     });
 
-    test('returns the cached ScannerUser when present', () async {
+    test('revalidates with the backend and returns the cached ScannerUser when still valid', () async {
       final local = _FakeAuthLocalDatasource();
       local.stored = {
         'id': 7, 'username': 'staff1', 'user_status': 'VERIFIED',
         'firstname': 'Juan', 'middlename': '', 'lastname': 'Dela Cruz', 'suffix': '',
       };
-      final repo = AuthRepositoryImpl(_FakeAuthRemoteDatasource(response: const {}), local);
+      final remote = _FakeAuthRemoteDatasource(
+        checkStatusResponse: const {'status': true, 'is_valid': true},
+      );
+      final repo = AuthRepositoryImpl(remote, local);
 
       final user = await repo.restoreSession();
 
       expect(user, isNotNull);
       expect(user!.username, 'staff1');
+      expect(remote.lastCheckedUserId, 7);
+      expect(local.stored, isNotNull);
+    });
+
+    test('clears the cached session and throws AccountInactiveException when the backend rejects it', () async {
+      final local = _FakeAuthLocalDatasource();
+      local.stored = {
+        'id': 7, 'username': 'staff1', 'user_status': 'VERIFIED',
+        'firstname': 'Juan', 'middlename': '', 'lastname': 'Dela Cruz', 'suffix': '',
+      };
+      final repo = AuthRepositoryImpl(
+        _FakeAuthRemoteDatasource(checkStatusResponse: const {'status': true, 'is_valid': false}),
+        local,
+      );
+
+      await expectLater(repo.restoreSession(), throwsA(isA<AccountInactiveException>()));
+      expect(local.stored, isNull);
+    });
+
+    test('does not clear the cached session and throws AuthException on a network/server failure', () async {
+      final local = _FakeAuthLocalDatasource();
+      local.stored = {
+        'id': 7, 'username': 'staff1', 'user_status': 'VERIFIED',
+        'firstname': 'Juan', 'middlename': '', 'lastname': 'Dela Cruz', 'suffix': '',
+      };
+      final repo = AuthRepositoryImpl(
+        _FakeAuthRemoteDatasource(checkStatusError: ApiException('Server error')),
+        local,
+      );
+
+      await expectLater(repo.restoreSession(), throwsA(isA<AuthException>()));
+      expect(local.stored, isNotNull);
     });
   });
 

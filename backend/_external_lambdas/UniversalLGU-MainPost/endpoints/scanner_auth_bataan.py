@@ -43,6 +43,44 @@ def login_scanner_bataan(cur, data, files, ts):
         return fail('Server error', 500)
 
 
+def check_scanner_status_bataan(cur, data, files, ts):
+    """Revalidates an existing scanner-app session against the current
+    app_users_scanner row. Backs the app's auto-login/Remember Me flow so
+    a cached local session can never grant access after an admin
+    deactivates the account -- the app must call this on every launch and
+    treat only `is_valid: true` as permission to enter.
+
+    Always responds 200 with `is_valid` (including when no matching row
+    exists, or the account is inactive/deactivated) -- callers must NOT
+    treat `is_valid: false` as a network/server error, only as "this
+    account may no longer access the app". The `fail()` path here is
+    reserved for a missing `user_profile_id` or an unexpected server
+    error, both of which the caller should treat as a revalidation
+    failure distinct from a confirmed rejection (fail closed, but don't
+    show 'Account Inactive' for those)."""
+    try:
+        require(data, 'user_profile_id')
+        user_profile_id = sanitize(data['user_profile_id'])
+
+        cur.execute(
+            "SELECT is_active, user_status FROM app_users_scanner WHERE id=%s LIMIT 1",
+            (user_profile_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return ok({'status': True, 'is_valid': False})
+
+        is_active = row['is_active'] if isinstance(row, dict) else row[0]
+        user_status = row['user_status'] if isinstance(row, dict) else row[1]
+        is_valid = bool(is_active) and (user_status or '').strip() != 'DEACTIVATED'
+        return ok({'status': True, 'is_valid': is_valid})
+    except ValueError as e:
+        return fail(str(e))
+    except Exception as e:
+        logger.error(f"check_scanner_status_bataan error: {e}", exc_info=True)
+        return fail('Server error', 500)
+
+
 def _parse_version(value):
     """Parse a 'major.minor.patch' string into a comparable int tuple.
     Non-numeric or missing segments become 0, so '1.9' < '1.10.0'

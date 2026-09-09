@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/logout_usecase.dart';
 import '../../domain/usecases/restore_session_usecase.dart';
@@ -25,7 +26,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       } else {
         emit(state.copyWith(status: AuthStatus.unauthenticated));
       }
+    } on AccountInactiveException catch (e) {
+      // The repository already cleared the cached session on a confirmed
+      // rejection; clear again here too so a bug in that layer can never
+      // leave a stale session behind for the app to keep retrying.
+      await _logout();
+      emit(AuthState(status: AuthStatus.accountInactive, errorMessage: e.message));
+    } on AuthException {
+      // Revalidation couldn't reach the backend (offline/timeout/server
+      // error). Fail closed -- don't authenticate off a stale cached
+      // session -- but this is NOT a confirmed deactivation, so don't
+      // show that dialog and don't wipe the cache; a later retry with
+      // connectivity can still succeed.
+      emit(state.copyWith(status: AuthStatus.unauthenticated));
     } catch (_) {
+      // Locally cached session was corrupted/unparseable.
       await _logout();
       emit(const AuthState(status: AuthStatus.unauthenticated));
     }

@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../app_update/domain/entities/app_version_check_result.dart';
 import '../../../app_update/domain/usecases/check_app_update.dart';
 import '../../../app_update/presentation/widgets/app_update_gate.dart';
@@ -119,7 +120,18 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       );
     }
 
-    return BlocBuilder<AuthBloc, AuthState>(
+    return BlocConsumer<AuthBloc, AuthState>(
+      listenWhen: (previous, current) =>
+          current.status == AuthStatus.accountInactive &&
+          previous.status != AuthStatus.accountInactive,
+      listener: (context, state) {
+        showMessageDialog(
+          context,
+          title: 'Account Inactive',
+          message: state.errorMessage ??
+              'Your account is no longer active. Please contact your administrator for assistance.',
+        );
+      },
       builder: (context, state) {
         switch (state.status) {
           case AuthStatus.authenticated:
@@ -129,6 +141,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
             return const SplashPage();
           case AuthStatus.unauthenticated:
           case AuthStatus.error:
+          case AuthStatus.accountInactive:
             return const LoginPage();
         }
       },

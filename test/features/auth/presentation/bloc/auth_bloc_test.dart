@@ -93,6 +93,41 @@ void main() {
     expect(repository.loggedOut, isTrue);
   });
 
+  test('AppStarted emits accountInactive with the message and clears the session '
+      'when restoreSession throws AccountInactiveException', () async {
+    repository.restoreSessionError = AccountInactiveException(
+      'Your account is no longer active. Please contact your administrator for assistance.',
+    );
+    final states = <AuthState>[];
+    final sub = bloc.stream.listen(states.add);
+
+    bloc.add(const AppStarted());
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect(states, [
+      const AuthState(
+        status: AuthStatus.accountInactive,
+        errorMessage: 'Your account is no longer active. Please contact your administrator for assistance.',
+      ),
+    ]);
+    expect(repository.loggedOut, isTrue);
+  });
+
+  test('AppStarted emits unauthenticated without logging out when restoreSession '
+      'throws AuthException (network/server failure)', () async {
+    repository.restoreSessionError = AuthException('Server error');
+    final states = <AuthState>[];
+    final sub = bloc.stream.listen(states.add);
+
+    bloc.add(const AppStarted());
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect(states, [const AuthState(status: AuthStatus.unauthenticated)]);
+    expect(repository.loggedOut, isFalse);
+  });
+
   test('LoginRequested emits loading then authenticated on success', () async {
     repository.loginResult = _user;
     final states = <AuthState>[];
