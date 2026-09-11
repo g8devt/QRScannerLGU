@@ -14,6 +14,8 @@
   since the 2026-08-25 pull; no drift, nothing to sync.
 - **Checked:** 2026-09-02 — live `CodeSha256`/`LastModified` unchanged
   since the 2026-08-25 pull; no drift, nothing to sync.
+- **Checked:** 2026-09-11 — live `CodeSha256`/`LastModified` unchanged
+  since the 2026-09-09 pull; no drift, nothing to sync.
 - **Pulled from live:** 2026-09-09 — live had drifted since the 2026-08-25
   pull (`LastModified` 2026-08-23 -> 2026-09-03, `CodeSha256` changed).
   Downloaded the live package fresh and diffed it (line-ending-insensitive)

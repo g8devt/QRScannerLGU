@@ -3,6 +3,21 @@
 - **Account:** 425605448087
 - **Region:** ap-southeast-1
 - **Pulled:** 2026-09-09 (previously 2026-08-26, 2026-08-25, 2026-08-19, 2026-08-10)
+- **Verified live (no drift in scope):** 2026-09-11 — live had drifted since
+  the 2026-09-09 pull (`LastModified` 2026-09-09T13:44:21Z ->
+  2026-09-11T07:53:17Z, `CodeSha256` d2HgbQej85EYtkqPWfnEY7xiC1SLDGJTTGc77W/i3wE=
+  -> Kf1kUTC5+E33RAfB+NqbhIIAg4NoZiuOx792QNHUVEg=). Downloaded the live
+  package fresh and diffed it (line-ending-insensitive) against this
+  mirror: every `.py` file — all Bataan/shared endpoints and helpers,
+  `lambda_function.py`, and even the incidentally-mirrored
+  `endpoints/cebu_ai.py`/`helpers/cebu_ai.py` — is byte-identical
+  (116/116 file-count parity, all 27 `cebu_*` files intact). The only
+  difference found was in `pyjwt-2.13.0.dist-info/` (`INSTALLER`,
+  `REQUESTED`, `RECORD` hash formatting) — same pyjwt 2.13.0, same
+  actual `jwt/*.py` content, just pip packaging metadata from
+  whatever unrelated redeploy (likely a Cebu-tenant change outside
+  this repo's scope) triggered the `CodeSha256` change. No sync
+  needed; this repo's mirror is fully up to date with live.
 - **Deployed from this repo:** 2026-09-09 (fifth deploy same day) —
   `check_scanner_status_bataan` now also returns the row's current
   `user_status` (VERIFIED/PENDING/NOT_VERIFIED) alongside `is_valid:
@@ -409,8 +424,8 @@
     "Handler": "lambda_function.lambda_handler",
     "Timeout": 300,
     "MemorySize": 512,
-    "LastModified": "2026-09-09T13:44:21.000+0000",
-    "CodeSha256": "d2HgbQej85EYtkqPWfnEY7xiC1SLDGJTTGc77W/i3wE="
+    "LastModified": "2026-09-11T07:53:17.000+0000",
+    "CodeSha256": "Kf1kUTC5+E33RAfB+NqbhIIAg4NoZiuOx792QNHUVEg="
 }
 ```
 
