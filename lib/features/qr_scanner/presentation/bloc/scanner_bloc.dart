@@ -23,10 +23,31 @@ class ScannerBloc extends Bloc<ScannerEvent, ScannerState> {
   final ScannerRepository _repository;
   StreamSubscription<String>? _subscription;
 
+  // StartScan/RetryScan and PauseScan are registered as separate `on<>`
+  // handlers, so flutter_bloc processes them concurrently by default — a
+  // PauseScan fired mid-flight (e.g. AppLifecycleState.paused while the OS
+  // camera-permission dialog has focus) can interleave with the StartScan
+  // that's still awaiting that same dialog's result, racing on the shared
+  // `controller`/`_subscription`. That produced a ScannerError that got
+  // immediately overwritten by the other handler's ScannerScanning emit —
+  // the error card flashing and vanishing on a fresh install. This chain
+  // serializes every call through _runExclusive so only one of
+  // start/pause ever touches the controller at a time.
+  Future<void> _exclusive = Future<void>.value();
+
+  Future<void> _runExclusive(Future<void> Function() action) {
+    final previous = _exclusive;
+    final result = previous.then((_) => action());
+    // Swallow errors here so one failed run doesn't break the chain for
+    // subsequent calls; callers still see their own action's error.
+    _exclusive = result.then((_) {}, onError: (_) {});
+    return result;
+  }
+
   Future<void> _onStartScan(
     ScannerEvent event,
     Emitter<ScannerState> emit,
-  ) async {
+  ) => _runExclusive(() async {
     try {
       await _subscription?.cancel();
       await _repository.start();
@@ -47,12 +68,12 @@ class ScannerBloc extends Bloc<ScannerEvent, ScannerState> {
         emit(ScannerError('Could not start the camera: $e'));
       }
     }
-  }
+  });
 
   Future<void> _onPauseScan(
     ScannerEvent event,
     Emitter<ScannerState> emit,
-  ) async {
+  ) => _runExclusive(() async {
     try {
       await _subscription?.cancel();
       _subscription = null;
@@ -61,7 +82,7 @@ class ScannerBloc extends Bloc<ScannerEvent, ScannerState> {
     } catch (e) {
       emit(ScannerError('Could not pause the camera: $e'));
     }
-  }
+  });
 
   Future<void> _onScanStreamError(
     ScanStreamError event,
