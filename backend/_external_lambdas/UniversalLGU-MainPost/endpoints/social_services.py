@@ -8,7 +8,7 @@ from helpers.audit import record_audit_log
 from helpers.db import sanitize, serialize_row, generate_number_id, now_ph
 from helpers.forms import parse_int
 from helpers.parse import parse_form_data
-from helpers.s3 import upload_files_from_list
+from helpers.s3 import upload_files_from_list, content_type_for_filename
 
 logger = logging.getLogger()
 
@@ -321,7 +321,10 @@ def submit_social_service(cur, data, files, ts):
             )
 
         app_number = generate_number_id(cur, 'app_social_services')
-        file_urls = upload_files_from_list(files, f'social_services/{app_number}', user_id)
+        file_urls = upload_files_from_list(
+            files, f'social_services/{app_number}', user_id,
+            content_type_resolver=content_type_for_filename,
+        )
 
         # Mobile forms send `help_for` with MYSELF/OTHERS; admin portal
         # and legacy callers send `applying_for`. Accept either.

@@ -7,7 +7,7 @@ from helpers.auth import ok, fail, require
 from helpers.audit import record_audit_log
 from helpers.db import sanitize, serialize_row, generate_number_id, now_ph
 from helpers.parse import parse_form_data
-from helpers.s3 import upload_files_from_list
+from helpers.s3 import upload_files_from_list, content_type_for_filename
 
 logger = logging.getLogger()
 
@@ -342,7 +342,10 @@ def submit_social_service_bataan(cur, data, files, ts):
         slot_infra_ready = has_appt_cols and has_slot_col
 
         app_number = generate_number_id(cur, 'app_social_services')
-        file_urls = upload_files_from_list(files, f'social_services/{app_number}', user_id)
+        file_urls = upload_files_from_list(
+            files, f'social_services/{app_number}', user_id,
+            content_type_resolver=content_type_for_filename,
+        )
 
         # Mobile forms send `help_for` with MYSELF/OTHERS; admin portal
         # and legacy callers send `applying_for`. Accept either.
@@ -876,7 +879,10 @@ def submit_claim_bataan(cur, data, files, ts):
         if not _has_claim_columns(cur):
             return fail('Claim capture is not configured for this LGU', 500)
 
-        file_urls = upload_files_from_list(files, f'social_services/{app_id}/claim', app_id)
+        file_urls = upload_files_from_list(
+            files, f'social_services/{app_id}/claim', app_id,
+            content_type_resolver=content_type_for_filename,
+        )
 
         status_placeholders = ', '.join(['%s'] * len(_CLAIM_ELIGIBLE_STATUSES))
         cur.execute(
