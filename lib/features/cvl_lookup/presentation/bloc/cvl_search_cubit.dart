@@ -158,5 +158,8 @@ class CvlSearchCubit extends Cubit<CvlSearchState> {
     );
   }
 
-  void reset() => emit(const CvlSearchState());
+  void reset() {
+    _term = '';
+    emit(const CvlSearchState());
+  }
 }
