@@ -258,8 +258,8 @@ class _DetailsView extends StatelessWidget {
             InfoCard(
               title: 'Appointment',
               rows: {
-                if (details.appointmentDate.isNotEmpty) 'Date': details.appointmentDate,
-                if (details.appointmentTime.isNotEmpty) 'Time': details.appointmentTime,
+                if (details.appointmentDate.isNotEmpty) 'Date': _formatAppointmentDate(details.appointmentDate),
+                if (details.appointmentTime.isNotEmpty) 'Time': _formatAppointmentTime(details.appointmentTime),
                 if (details.appointmentLocation.isNotEmpty) 'Location': details.appointmentLocation,
               },
             ),
@@ -269,11 +269,11 @@ class _DetailsView extends StatelessWidget {
             InfoCard(
               title: 'Timeline',
               rows: {
-                if (details.dateRequested.isNotEmpty) 'Requested': details.dateRequested,
-                if (details.dateApproved.isNotEmpty) 'Approved': details.dateApproved,
-                if (details.dateScheduled.isNotEmpty) 'Scheduled': details.dateScheduled,
-                if (details.dateReleased.isNotEmpty) 'Released': details.dateReleased,
-                if (details.dateClaimed.isNotEmpty) 'Claimed': details.dateClaimed,
+                if (details.dateRequested.isNotEmpty) 'Requested': _formatTimelineDateTime(details.dateRequested),
+                if (details.dateApproved.isNotEmpty) 'Approved': _formatTimelineDateTime(details.dateApproved),
+                if (details.dateScheduled.isNotEmpty) 'Scheduled': _formatTimelineDateTime(details.dateScheduled),
+                if (details.dateReleased.isNotEmpty) 'Released': _formatTimelineDateTime(details.dateReleased),
+                if (details.dateClaimed.isNotEmpty) 'Claimed': _formatTimelineDateTime(details.dateClaimed),
               },
             ),
             const SizedBox(height: 12),
@@ -307,6 +307,49 @@ String _formatAmount(String raw) {
     buffer.write(wholeDigits[i]);
   }
   return '$sign$buffer.${parts[1]}';
+}
+
+const _kMonthNames = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/// Formats a 24-hour `hour`/`minute` as 12-hour clock text, e.g. `9:30 AM`.
+String _formatTime12(int hour, int minute) {
+  final period = hour >= 12 ? 'PM' : 'AM';
+  final hour12 = hour % 12 == 0 ? 12 : hour % 12;
+  final minuteStr = minute.toString().padLeft(2, '0');
+  return '$hour12:$minuteStr $period';
+}
+
+/// Formats an ISO timestamp (e.g. `2026-09-11T15:23:04`) as
+/// `September 11, 2026 3:23 PM`. Falls back to the original string if it isn't
+/// a valid date/time.
+String _formatTimelineDateTime(String raw) {
+  final dt = DateTime.tryParse(raw);
+  if (dt == null) return raw;
+  final month = _kMonthNames[dt.month - 1];
+  return '$month ${dt.day}, ${dt.year} ${_formatTime12(dt.hour, dt.minute)}';
+}
+
+/// Formats an ISO date (e.g. `2026-09-12`) as `September 12, 2026`. Falls back
+/// to the original string if it isn't a valid date.
+String _formatAppointmentDate(String raw) {
+  final dt = DateTime.tryParse(raw);
+  if (dt == null) return raw;
+  final month = _kMonthNames[dt.month - 1];
+  return '$month ${dt.day}, ${dt.year}';
+}
+
+/// Formats a `HH:mm:ss` (or `HH:mm`) time string as `9:30 AM`. Falls back
+/// to the original string if it doesn't match the expected shape.
+String _formatAppointmentTime(String raw) {
+  final parts = raw.split(':');
+  if (parts.length < 2) return raw;
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return raw;
+  return _formatTime12(hour, minute);
 }
 
 class _DocumentsSection extends StatelessWidget {
