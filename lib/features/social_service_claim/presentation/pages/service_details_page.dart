@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/info_card.dart';
@@ -350,12 +351,25 @@ class _DocumentThumbnail extends StatelessWidget {
 
   final ServiceDocument document;
 
+  Future<void> _openPdf(BuildContext context) async {
+    final uri = Uri.tryParse(document.url);
+    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open ${document.label}')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => _ImageViewerPage(document: document)),
-      ),
+      onTap: document.isPdf
+          ? () => _openPdf(context)
+          : () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => _ImageViewerPage(document: document)),
+              ),
       borderRadius: BorderRadius.circular(8),
       child: SizedBox(
         width: 100,
@@ -367,24 +381,30 @@ class _DocumentThumbnail extends StatelessWidget {
                 width: 100,
                 height: 100,
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: Image.network(
-                  document.url,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) return child;
-                    return const Center(
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                child: document.isPdf
+                    ? Icon(
+                        Icons.picture_as_pdf_outlined,
+                        size: 40,
+                        color: Theme.of(context).colorScheme.error,
+                      )
+                    : Image.network(
+                        document.url,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) => Icon(
+                          Icons.broken_image_outlined,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
                       ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) => Icon(
-                    Icons.broken_image_outlined,
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                ),
               ),
             ),
             const SizedBox(height: 4),

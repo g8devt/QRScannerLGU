@@ -8,6 +8,10 @@ class ServiceDocument extends Equatable {
   final String label;
   final String url;
 
+  /// True when the uploaded file is a PDF (by URL extension, ignoring any
+  /// query string) rather than an image.
+  bool get isPdf => url.split('?').first.toLowerCase().endsWith('.pdf');
+
   @override
   List<Object?> get props => [label, url];
 }
