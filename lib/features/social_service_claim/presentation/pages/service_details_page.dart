@@ -265,13 +265,12 @@ class _DetailsView extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-          if (details.dateRequested.isNotEmpty || details.dateApproved.isNotEmpty || details.dateScheduled.isNotEmpty || details.dateReleased.isNotEmpty || details.dateClaimed.isNotEmpty) ...[
+          if (details.dateRequested.isNotEmpty || details.dateApproved.isNotEmpty || details.dateReleased.isNotEmpty || details.dateClaimed.isNotEmpty) ...[
             InfoCard(
               title: 'Timeline',
               rows: {
                 if (details.dateRequested.isNotEmpty) 'Requested': _formatTimelineDateTime(details.dateRequested),
                 if (details.dateApproved.isNotEmpty) 'Approved': _formatTimelineDateTime(details.dateApproved),
-                if (details.dateScheduled.isNotEmpty) 'Scheduled': _formatTimelineDateTime(details.dateScheduled),
                 if (details.dateReleased.isNotEmpty) 'Released': _formatTimelineDateTime(details.dateReleased),
                 if (details.dateClaimed.isNotEmpty) 'Claimed': _formatTimelineDateTime(details.dateClaimed),
               },
